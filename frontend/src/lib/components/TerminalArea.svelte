@@ -135,6 +135,7 @@
               focused={at.visible && at.focused}
               onStart={() => workspace.updatePane(pane.id, { exited: false })}
               onInput={(data) => broadcastInput(pane.id, data)}
+              onLogin={(user) => workspace.updatePane(pane.id, { loginUser: user })}
               onTitle={(title) =>
                 workspace.updatePane(pane.id, pane.source.kind === 'shell' ? { title, termTitle: title } : { termTitle: title })}
               onSize={(cols, rows) => workspace.updatePane(pane.id, { size: `${cols}×${rows}` })}

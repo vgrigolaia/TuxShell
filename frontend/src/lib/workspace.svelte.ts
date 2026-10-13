@@ -11,6 +11,8 @@ export interface Pane {
   source: Source
   exited: boolean
   size: string
+  /** Login typed at connect time, when it differs from the host's saved user. */
+  loginUser: string
 }
 
 /** A workspace tab showing 1–4 panes. */
@@ -56,7 +58,7 @@ class Workspace {
   }
 
   private makePane(source: Source, title: string): Pane {
-    const pane: Pane = { id: this.nextPane++, title, termTitle: '', source, exited: false, size: '' }
+    const pane: Pane = { id: this.nextPane++, title, termTitle: '', source, exited: false, size: '', loginUser: '' }
     this.panes.push(pane)
     return pane
   }

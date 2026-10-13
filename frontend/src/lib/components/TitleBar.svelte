@@ -15,6 +15,8 @@
     clipboardOpen: boolean
     hostsOpen: boolean
     onToggleHosts: () => void
+    filesOpen: boolean
+    onToggleFiles: () => void
     onSelect: (key: number) => void
     onClose: (key: number) => void
     onCloseMany: (keys: number[]) => void
@@ -26,7 +28,7 @@
     onToggleClipboard: () => void
   }
 
-  let { tabs, activeKey, clipboardOpen, hostsOpen, onToggleHosts, onSelect, onClose, onCloseMany, onMerge, onSplit, onUnsplit, onNew, onSearch, onToggleClipboard }: Props = $props()
+  let { tabs, activeKey, clipboardOpen, hostsOpen, onToggleHosts, filesOpen, onToggleFiles, onSelect, onClose, onCloseMany, onMerge, onSplit, onUnsplit, onNew, onSearch, onToggleClipboard }: Props = $props()
 
   let maximised = $state(false)
   let strip: HTMLDivElement
@@ -216,6 +218,17 @@
     onclick={() => theme.cycle()}
   >
     <Icon name={theme.mode === 'dark' ? 'moon' : theme.mode === 'light' ? 'sun' : 'monitor'} />
+  </button>
+
+  <button
+    class="{iconButton} {filesOpen ? 'bg-raised text-accent' : ''}"
+    aria-label="Files"
+    aria-pressed={filesOpen}
+    aria-keyshortcuts="Control+Shift+E"
+    title="Files (Ctrl+Shift+E)"
+    onclick={onToggleFiles}
+  >
+    <Icon name="folder" />
   </button>
 
   <button

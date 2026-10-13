@@ -24,12 +24,14 @@
     onStart?: () => void
     /** Claims typed input (e.g. to broadcast it); return true when handled. */
     onInput?: (data: string) => boolean
+    /** Reports the username typed in the login prompt. */
+    onLogin?: (user: string) => void
     onTitle?: (title: string) => void
     onSize?: (cols: number, rows: number) => void
     onExit?: (code: number) => void
   }
 
-  let { source, visible, focused, onStart, onInput, onTitle, onSize, onExit }: Props = $props()
+  let { source, visible, focused, onStart, onInput, onLogin, onTitle, onSize, onExit }: Props = $props()
 
   let host: HTMLDivElement
   let term: Terminal | undefined
@@ -175,6 +177,7 @@
           }
         }
         loginUser = user
+        onLogin?.(user)
         asking = false
         await connect()
       }

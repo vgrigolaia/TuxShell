@@ -10,12 +10,13 @@
   import ConfirmDialog from './lib/components/ConfirmDialog.svelte'
   import ClipboardPanel from './lib/components/ClipboardPanel.svelte'
   import Icon from './lib/components/Icon.svelte'
+  import FilePanel from './lib/components/FilePanel.svelte'
   import { emptyHost, hostStore, type Host } from './lib/hosts.svelte'
   import { workspace } from './lib/workspace.svelte'
   import type { Orientation, Direction } from './lib/layout'
   import type { Source, TabInfo } from './lib/tabs'
 
-  type Panel = { kind: 'none' } | { kind: 'clipboard' } | { kind: 'host'; host: Host }
+  type Panel = { kind: 'none' } | { kind: 'clipboard' } | { kind: 'files' } | { kind: 'host'; host: Host }
 
   let panel = $state<Panel>({ kind: 'none' })
   let importOpen = $state(false)
@@ -75,6 +76,8 @@
         if (active) workspace.closePane(active.id)
       } else if (e.shiftKey && key === 'b') {
         if (workspace.activeTab) workspace.toggleBroadcast(workspace.activeTab.key)
+      } else if (e.shiftKey && key === 'e') {
+        toggleFiles()
       } else if (e.shiftKey && key === 'l') {
         toggleHosts()
       } else if (e.shiftKey && key === 'h') {
@@ -116,6 +119,16 @@
     panel = panel.kind === 'clipboard' ? { kind: 'none' } : { kind: 'clipboard' }
   }
 
+  function toggleFiles() {
+    panel = panel.kind === 'files' ? { kind: 'none' } : { kind: 'files' }
+  }
+
+  // Clears the current input line (Ctrl+U) and runs line in the pane's shell.
+  function runInPane(paneId: number, line: string) {
+    panes[paneId]?.send(`\x15${line}\r`)
+    workspace.focusPane(paneId)
+  }
+
   function pasteToActive(text: string) {
     if (active) panes[active.id]?.paste(text)
   }
@@ -155,6 +168,8 @@
     clipboardOpen={panel.kind === 'clipboard'}
     {hostsOpen}
     onToggleHosts={toggleHosts}
+    filesOpen={panel.kind === 'files'}
+    onToggleFiles={toggleFiles}
     onSelect={(key) => (workspace.activeKey = key)}
     onClose={(key) => workspace.closeTabs([key])}
     onCloseMany={(keys) => workspace.closeTabs(keys)}
@@ -231,6 +246,8 @@
       {#key panel.host}
         <HostForm host={panel.host} onClose={() => (panel = { kind: 'none' })} {onSaved} onConnect={connect} />
       {/key}
+    {:else if panel.kind === 'files'}
+      <FilePanel pane={active} onRunInPane={runInPane} onClose={() => (panel = { kind: 'none' })} />
     {:else if panel.kind === 'clipboard'}
       <ClipboardPanel onPaste={pasteToActive} onClose={() => (panel = { kind: 'none' })} />
     {/if}
