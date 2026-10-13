@@ -112,7 +112,6 @@
             : at.broadcasting
               ? 'border-accent-line'
               : 'border-line'} {at.excluded ? 'opacity-70' : ''}"
-          style:background={paneBackground}
         >
           <header class="flex min-h-9 shrink-0 flex-wrap items-center gap-2 border-b border-line px-3 py-1.5 text-xs">
             <span class="size-2 shrink-0 rounded-full {pane.exited ? 'border-2 border-warning' : 'bg-success'}" aria-hidden="true"></span>
@@ -181,7 +180,9 @@
               </button>
             </span>
           </header>
-          <div class="min-h-0 flex-1 py-2 pl-3">
+          <!-- A chosen colour scheme paints the terminal body only, so the header
+               keeps theme colours and stays readable. -->
+          <div class="min-h-0 flex-1 py-2 pl-3" style:background={paneBackground}>
             <TerminalPane
               bind:this={refs[pane.id]}
               source={pane.source}

@@ -220,6 +220,20 @@
     for (const h of rest) workspace.splitTab(key, { kind: 'host', hostId: h.id, askUser: !h.user }, h.name, hosts.length > 2 ? 'grid' : 'row')
   }
 
+  // The last tab shown, so leaving Home goes back to it.
+  let lastTab = $state<number | null>(null)
+  $effect(() => {
+    if (workspace.activeKey !== HOME) lastTab = workspace.activeKey
+  })
+
+  // Terminal view with the hosts sidebar (from Home's "Hosts", double-clicked).
+  function openHostList() {
+    if (!hostsOpen) prefs.setHostsSidebar(true)
+    const back = workspace.tabs.find((t) => t.key === lastTab) ?? workspace.tabs[0]
+    if (back) workspace.activeKey = back.key
+    else workspace.openTab({ kind: 'shell' }, 'Local shell')
+  }
+
   function toggleClipboard() {
     panel = panel.kind === 'clipboard' ? { kind: 'none' } : { kind: 'clipboard' }
   }
@@ -327,9 +341,6 @@
   />
 
   <main class="relative flex min-h-0 flex-1 gap-2.5">
-    {#if hostsOpen && home}
-      {@render hostList()}
-    {/if}
     {#if home}
       <Launchpad
         selectedId={panel.kind === 'host' ? panel.host.id : null}
@@ -338,6 +349,7 @@
         onConnectTarget={(target) => open({ kind: 'target', target }, target)}
         onNew={() => (panel = { kind: 'host', host: emptyHost() })}
         onImport={() => (importOpen = true)}
+        onOpenHostList={openHostList}
       >
         {#snippet editor()}
           {#if panel.kind === 'host'}

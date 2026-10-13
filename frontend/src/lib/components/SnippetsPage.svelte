@@ -1,11 +1,8 @@
 <script lang="ts">
-  import type { Snippet as Slot } from 'svelte'
   import { Clipboard } from '@wailsio/runtime'
   import { onMount } from 'svelte'
   import { emptySnippet, snippets, type Snippet } from '../snippets.svelte'
   import Icon from './Icon.svelte'
-
-  let { children }: { children?: Slot } = $props()
 
   let editing = $state<Snippet | null>(null)
   let error = $state<{ field?: string; message: string } | null>(null)
@@ -47,7 +44,6 @@
 </script>
 
 <main class="flex min-w-0 flex-1 flex-col gap-5 overflow-y-auto rounded-panel border border-line bg-ground px-7 py-6">
-  {@render children?.()}
   <header class="flex flex-wrap items-center gap-3.5">
     <h1 class="font-display text-3xl font-bold tracking-[-0.03em]">Snippets</h1>
     <span class="text-sm text-subtle">{snippets.list.length} saved</span>
