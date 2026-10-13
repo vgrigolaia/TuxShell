@@ -8,10 +8,15 @@
   import Icon from './Icon.svelte'
 
   interface Props {
+    /** Name of the focused pane's host, for future per-host filtering. */
+    activeHost?: string
     onPaste: (text: string) => void
     onClose: () => void
   }
   let { onPaste, onClose }: Props = $props()
+
+  let show = $state<'all' | 'pinned'>('all')
+  let panelEl: HTMLElement
 
   type View = { kind: 'list' } | { kind: 'edit'; clip: Clip | null } | { kind: 'settings' }
 
@@ -27,7 +32,8 @@
   }
   const saved = $derived(clipboardHistory.saved.filter(matches))
   const history = $derived(clipboardHistory.history.filter(matches))
-  const first = $derived(saved[0] ?? history[0])
+  const shown = $derived(show === 'pinned' ? saved : [...saved, ...history])
+  const first = $derived(shown[0])
 
   onMount(() => {
     void clipboardHistory.load()
@@ -48,7 +54,7 @@
   }
 
   function keepFor(days: number) {
-    return days === 0 ? 'kept forever' : days === 1 ? 'kept 1 day' : `kept ${days} days`
+    return days === 0 ? 'kept forever' : days === 1 ? '1 day' : `${days} days`
   }
 
   async function copy(clip: Clip) {
@@ -58,16 +64,26 @@
   }
 
   const iconBtn = 'grid size-6 place-items-center rounded-md text-subtle hover:bg-line hover:text-fg'
+  const headBtn = 'grid size-7 place-items-center rounded-lg bg-hop text-muted hover:text-fg'
 </script>
 
 {#snippet entry(clip: Clip)}
-  <li class="group relative rounded-xl border border-transparent hover:border-line hover:bg-raised">
-    <button class="block w-full px-3 py-2 pr-24 text-left" title="Paste into the active terminal" onclick={() => onPaste(clip.text)}>
-      {#if clip.label}<span class="mb-0.5 block truncate text-[13px] font-medium">{clip.label}</span>{/if}
-      <span class="line-clamp-3 font-mono text-xs break-all whitespace-pre-wrap {clip.label ? 'text-muted' : ''}">{clip.text}</span>
-      {#if !clip.pinned}<span class="mt-1 block text-[11px] text-subtle">{ago(clip.createdAt)}</span>{/if}
+  <li class="group relative">
+    <button
+      class="flex w-full flex-col gap-1.5 rounded-xl border bg-raised px-3 py-2.5 pr-3 text-left hover:border-strong {clip.pinned ? 'border-accent-line' : 'border-line'}"
+      title="Paste into the active terminal{clip.text.length > 60 ? `\n\n${clip.text.slice(0, 400)}` : ''}"
+      onclick={() => onPaste(clip.text)}
+    >
+      <span class="flex items-center gap-2 text-[11px] text-subtle">
+        {#if clip.pinned}
+          <span class="text-accent"><Icon name="pin" size={11} /></span>pinned{clip.label ? ` · ${clip.label}` : ''}
+        {:else}
+          <span class="size-2 rounded-full bg-success" aria-hidden="true"></span>{ago(clip.createdAt)}
+        {/if}
+      </span>
+      <span class="truncate font-mono text-xs text-fg">{clip.text}</span>
     </button>
-    <div class="absolute top-1.5 right-1.5 flex gap-0.5 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100">
+    <div class="absolute top-1.5 right-1.5 flex gap-0.5 rounded-lg bg-raised opacity-0 group-focus-within:opacity-100 group-hover:opacity-100">
       <button
         class="{iconBtn} {clip.pinned ? 'text-accent' : ''}"
         aria-label={clip.pinned ? 'Unpin' : 'Pin to saved clips'}
@@ -91,26 +107,33 @@
   </li>
 {/snippet}
 
-<aside aria-label="Clipboard history" class="flex w-80 shrink-0 flex-col overflow-hidden rounded-panel border border-line bg-panel">
-  <div class="flex items-center gap-1 px-4 pt-3.5 pb-2">
+<svelte:window onkeydown={(e) => e.key === 'Escape' && view.kind === 'list' && panelEl?.contains(document.activeElement) && !query && onClose()} />
+
+<aside
+  bind:this={panelEl}
+  aria-label="Clipboard history"
+  class="clip-panel absolute top-2 right-2 bottom-2 z-30 flex w-80 flex-col gap-2.5 rounded-panel border px-3 py-3.5 backdrop-blur"
+>
+  <div class="flex items-center gap-2 px-1">
+    <span class="text-accent"><Icon name="clipboard" size={16} /></span>
     <h2 class="flex-1 font-display text-[15px] font-semibold">Clipboard</h2>
     {#if clipboardHistory.status.enabled && view.kind === 'list'}
       <button
-        class="rounded-lg px-2 py-1 text-xs {clipboardHistory.status.paused ? 'bg-warning/15 text-warning' : 'text-muted hover:bg-raised hover:text-fg'}"
+        class="rounded-lg px-2 py-1 text-xs {clipboardHistory.status.paused ? 'bg-warning/15 text-warning' : 'text-muted hover:bg-hop hover:text-fg'}"
         aria-pressed={clipboardHistory.status.paused}
         onclick={() => clipboardHistory.setPaused(!clipboardHistory.status.paused)}
       >
         {clipboardHistory.status.paused ? 'Paused' : 'Pause'}
       </button>
-      <button class="grid size-7 place-items-center rounded-lg text-muted hover:bg-raised hover:text-fg" aria-label="New saved clip" title="New saved clip" onclick={() => (view = { kind: 'edit', clip: null })}>
-        <Icon name="plus" size={15} />
+      <button class={headBtn} aria-label="New saved clip" title="New saved clip" onclick={() => (view = { kind: 'edit', clip: null })}>
+        <Icon name="plus" size={14} />
       </button>
-      <button class="grid size-7 place-items-center rounded-lg text-muted hover:bg-raised hover:text-fg" aria-label="History settings" title="History settings" onclick={() => (view = { kind: 'settings' })}>
-        <Icon name="gear" size={15} />
+      <button class={headBtn} aria-label="History settings" title="History settings" onclick={() => (view = { kind: 'settings' })}>
+        <Icon name="gear" size={14} />
       </button>
     {/if}
-    <button class="grid size-7 place-items-center rounded-lg text-muted hover:bg-raised hover:text-fg" aria-label="Close clipboard history" onclick={onClose}>
-      <Icon name="x" size={14} />
+    <button class={headBtn} aria-label="Close clipboard" onclick={onClose}>
+      <Icon name="x" size={12} />
     </button>
   </div>
 
@@ -121,69 +144,71 @@
   {:else if view.kind === 'settings'}
     <ClipSettings onDone={backToList} />
   {:else}
-    <div class="px-3 pb-2">
-      <label class="flex items-center gap-2 rounded-lg border border-line bg-ground px-2.5 focus-within:border-accent">
-        <span class="text-subtle"><Icon name="search" size={13} /></span>
-        <span class="sr-only">Search clipboard history</span>
-        <input
-          bind:this={search}
-          bind:value={query}
-          class="h-8 min-w-0 flex-1 bg-transparent text-[13px] placeholder:text-subtle focus:outline-none"
-          placeholder="Search"
-          autocomplete="off"
-          spellcheck="false"
-          onkeydown={(e) => {
-            if (e.key === 'Escape') query ? (query = '') : onClose()
-            if (e.key === 'Enter' && first) onPaste(first.text)
-          }}
-        />
-      </label>
+    <label class="block">
+      <span class="sr-only">Search clipboard</span>
+      <input
+        bind:this={search}
+        bind:value={query}
+        class="h-[34px] w-full rounded-[10px] border border-strong bg-field px-3 text-[13px] placeholder:text-subtle focus:border-accent focus:outline-none focus-visible:outline-none"
+        placeholder="Search copied text…"
+        autocomplete="off"
+        spellcheck="false"
+        onkeydown={(e) => {
+          if (e.key === 'Escape') query ? (query = '') : onClose()
+          if (e.key === 'Enter' && first) onPaste(first.text)
+        }}
+      />
+    </label>
+    <div role="radiogroup" aria-label="Show" class="flex gap-1.5">
+      {#each [['all', 'All'], ['pinned', 'Pinned']] as const as [value, label] (value)}
+        <button
+          role="radio"
+          aria-checked={show === value}
+          class="flex h-6 items-center rounded-full px-2.5 text-[11.5px] {show === value ? 'bg-accent-chip text-accent-ink' : 'bg-hop text-muted hover:text-fg'}"
+          onclick={() => (show = value)}
+        >
+          {label}
+        </button>
+      {/each}
     </div>
 
-    <div class="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+    <div class="-mx-1 min-h-0 flex-1 overflow-y-auto px-1">
       {#if !clipboardHistory.status.enabled}
-        <p role="alert" class="m-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+        <p role="alert" class="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
           Clipboard history is off: {clipboardHistory.status.error || 'the keyring is unavailable'}. Nothing is stored without encryption.
         </p>
       {:else if clipboardHistory.list.length === 0}
         <p class="px-3 pt-8 text-center text-[13px] text-muted">
           Nothing yet. Copy with Ctrl+Shift+C in a terminal, copy anywhere and come back, or add a saved clip with +.
         </p>
-      {:else if !saved.length && !history.length}
-        <p class="px-3 pt-8 text-center text-[13px] text-muted">No matches</p>
+      {:else if !shown.length}
+        <p class="px-3 pt-8 text-center text-[13px] text-muted">{query ? 'No matches' : 'No pinned clips yet'}</p>
       {/if}
-
-      {#if saved.length}
-        <h3 class="flex items-center gap-1.5 px-2 pt-1 pb-1.5 font-mono text-[11px] tracking-wider text-subtle uppercase">
-          <Icon name="pin" size={11} /> Saved <span class="ml-auto">{saved.length}</span>
-        </h3>
-        <ul class="space-y-1">
-          {#each saved as clip (clip.id)}{@render entry(clip)}{/each}
-        </ul>
-      {/if}
-
-      {#if history.length}
-        <h3 class="flex items-center px-2 pt-3 pb-1.5 font-mono text-[11px] tracking-wider text-subtle uppercase">
-          History <span class="ml-auto">{history.length}</span>
-        </h3>
-        <ul class="space-y-1">
-          {#each history as clip (clip.id)}{@render entry(clip)}{/each}
-        </ul>
-      {/if}
+      <ul class="flex flex-col gap-1.5">
+        {#each shown as clip (clip.id)}{@render entry(clip)}{/each}
+      </ul>
     </div>
 
     {#if clipboardHistory.status.enabled}
-      <div class="flex items-center gap-2 border-t border-line px-4 py-2.5 text-xs text-subtle">
-        <span class="flex-1">Encrypted · {keepFor(clipboardHistory.settings.retentionDays)}</span>
+      <div class="flex items-center gap-2 px-1 text-[11px] leading-normal text-subtle">
+        <span class="flex-1">Encrypted locally · {keepFor(clipboardHistory.settings.retentionDays)} · secrets skipped. Esc closes.</span>
         {#if clipboardHistory.history.length}
           {#if confirmClear}
-            <button class="rounded-md bg-danger px-2 py-1 text-white hover:bg-danger/90" onclick={() => clipboardHistory.clear().then(() => (confirmClear = false))}>Clear history</button>
-            <button class="rounded-md px-2 py-1 text-muted hover:bg-raised" onclick={() => (confirmClear = false)}>Keep</button>
+            <button class="rounded-md bg-danger px-2 py-1 text-white hover:bg-danger/90" onclick={() => clipboardHistory.clear().then(() => (confirmClear = false))}>Clear</button>
+            <button class="rounded-md px-2 py-1 text-muted hover:bg-hop" onclick={() => (confirmClear = false)}>Keep</button>
           {:else}
-            <button class="rounded-md px-2 py-1 text-muted hover:bg-raised hover:text-fg" title="Saved clips are kept" onclick={() => (confirmClear = true)}>Clear…</button>
+            <button class="shrink-0 rounded-md px-2 py-1 text-muted hover:bg-hop hover:text-fg" title="Saved clips are kept" onclick={() => (confirmClear = true)}>Clear…</button>
           {/if}
         {/if}
       </div>
     {/if}
   {/if}
 </aside>
+
+<style>
+  .clip-panel {
+    background: color-mix(in srgb, var(--color-panel) 95%, transparent);
+    border-color: var(--color-strong);
+    box-shadow: 0 30px 80px rgb(0 0 0 / 0.45);
+  }
+</style>

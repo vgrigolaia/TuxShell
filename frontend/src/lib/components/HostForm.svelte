@@ -186,7 +186,7 @@
       <span class="flex-1"></span>
       <button type="submit" disabled={saving} class="rounded-lg border border-line px-3 py-1.5 text-[13px] hover:bg-raised disabled:opacity-60">Save</button>
       {#if onConnect}
-        <button type="button" disabled={saving} class="rounded-lg bg-accent px-3 py-1.5 text-[13px] font-medium text-ground hover:bg-accent/90 disabled:opacity-60" onclick={() => save(true)}>
+        <button type="button" disabled={saving} class="rounded-lg bg-accent px-3 py-1.5 text-[13px] font-medium text-on-accent hover:bg-accent/90 disabled:opacity-60" onclick={() => save(true)}>
           Save & connect
         </button>
       {/if}

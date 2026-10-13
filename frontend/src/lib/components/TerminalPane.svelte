@@ -415,7 +415,7 @@
       <span class="min-w-0 truncate font-mono {failed ? 'text-warning' : 'text-muted'}">
         {failed ?? `Session ended · exit code ${exited}`}
       </span>
-      <button class="shrink-0 rounded-md bg-accent px-2.5 py-1 font-medium text-ground hover:bg-accent/90" onclick={() => reconnect()}>
+      <button class="shrink-0 rounded-md bg-accent px-2.5 py-1 font-medium text-on-accent hover:bg-accent/90" onclick={() => reconnect()}>
         {source.kind === 'shell' ? 'Restart' : 'Reconnect'}
       </button>
     </div>

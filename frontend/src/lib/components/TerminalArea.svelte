@@ -2,7 +2,8 @@
   import TerminalPane from './TerminalPane.svelte'
   import Icon from './Icon.svelte'
   import { workspace, type Pane } from '../workspace.svelte'
-  import { dividers, drag, rects, type Divider } from '../layout'
+  import { MAX_PANES, dividers, drag, rects, type Divider } from '../layout'
+  import { hostStore } from '../hosts.svelte'
   import type { PaneActions } from '../tabs'
   import { isTerminalReport } from '../broadcast'
   import { prefs } from '../settings.svelte'
@@ -18,6 +19,7 @@
   let { refs = $bindable(), actions }: Props = $props()
 
   let area: HTMLDivElement
+  const tileBtn = 'grid size-6 place-items-center rounded-md text-subtle hover:bg-hop hover:text-fg aria-pressed:text-accent-text'
   // A chosen colour scheme paints the gap around the terminal too.
   const paneBackground = $derived(schemeBackground(prefs.value.terminal.colorScheme))
 
@@ -55,7 +57,7 @@
 
   function setSize(d: Divider, pos: number) {
     const tab = workspace.activeTab
-    if (tab) tab.sizes = drag(tab.paneIds.length, tab.sizes, d, pos)
+    if (tab) tab.sizes = drag(tab.paneIds.length, tab.sizes, d, pos, tab.orientation)
   }
 
   function onDividerDown(e: PointerEvent, d: Divider) {
@@ -82,14 +84,18 @@
   }
 </script>
 
-<div bind:this={area} id="terminal-area" role="tabpanel" aria-labelledby="tab-{workspace.activeKey}" class="relative min-h-0 flex-1">
+<!-- -m-[5px]: each tile pads 5px, so neighbours sit 10px apart and the outer
+     edges line up with the panel padding. -->
+<div bind:this={area} id="terminal-area" role="tabpanel" aria-labelledby="tab-{workspace.activeKey}" class="relative -m-[5px] min-h-0 flex-1">
   {#each workspace.panes as pane (pane.id)}
     {@const at = placement(pane)}
     {#if at}
+      {@const host = pane.source.kind === 'host' ? hostStore.get(pane.source.hostId) : undefined}
+      {@const jumps = host?.proxyJump ? host.proxyJump.split(',').map((j) => j.trim()).filter(Boolean) : []}
       <!-- Focus follows clicks and keyboard focus inside the pane. -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
-        class="absolute p-1"
+        class="absolute p-[5px]"
         class:hidden={!at.visible}
         data-pane-id={pane.id}
         style:left="{at.rect.left}%"
@@ -100,54 +106,82 @@
         onfocusin={() => workspace.focusPane(pane.id)}
       >
         <section
-          aria-label={pane.title}
-          class="flex h-full flex-col overflow-hidden rounded-xl border transition-colors {at.broadcasting
-            ? at.focused
-              ? 'border-warning'
-              : 'border-warning/50'
-            : at.split && at.focused
-              ? 'border-accent/70'
-              : at.split
-                ? 'border-line'
-                : 'border-transparent'}"
+          aria-label="{pane.title} terminal"
+          class="group/tile flex h-full flex-col overflow-hidden rounded-[14px] border-[1.5px] bg-field transition-[border-color,box-shadow] {at.split && at.focused
+            ? 'tile-focused border-accent'
+            : at.broadcasting
+              ? 'border-accent-line'
+              : 'border-line'} {at.excluded ? 'opacity-70' : ''}"
+          style:background={paneBackground}
         >
-          {#if at.split}
-            <header class="flex h-7 shrink-0 items-center gap-2 border-b border-line px-2.5">
-              <span class="size-1.5 shrink-0 rounded-full {pane.exited ? 'bg-subtle' : 'bg-success'}" aria-hidden="true"></span>
-              <span class="min-w-0 flex-1 truncate font-mono text-[11px] {at.focused ? 'text-fg' : 'text-muted'}">
-                {#if at.tab.maximized !== null && at.maximized}<span class="text-accent">{at.tab.paneIds.length - 1} hidden · </span>{/if}{pane.title}{#if pane.termTitle && pane.termTitle !== pane.title}<span class="text-subtle"> · {pane.termTitle}</span>{/if}
+          <header class="flex min-h-9 shrink-0 flex-wrap items-center gap-2 border-b border-line px-3 py-1.5 text-xs">
+            <span class="size-2 shrink-0 rounded-full {pane.exited ? 'border-2 border-warning' : 'bg-success'}" aria-hidden="true"></span>
+            <span class="truncate font-semibold {at.focused ? 'text-fg' : 'text-text'}">
+              {#if at.maximized}<span class="font-normal text-accent-text">{at.tab.paneIds.length - 1} hidden · </span>{/if}{pane.source.kind === 'shell' && !pane.customTitle ? 'Local shell' : pane.title}
+            </span>
+            {#if pane.source.kind === 'host'}
+              <!-- The route the connection takes: you → jump host(s) → this host. -->
+              <span class="ml-1.5 flex min-w-0 items-center gap-1" aria-label="Route: {['you', ...jumps, pane.title].join(' to ')}">
+                {#if at.focused}<span class="hop">{pane.loginUser || host?.user || 'you'}</span><span class="text-subtle" aria-hidden="true">→</span>{/if}
+                {#each jumps as j (j)}
+                  <span class="hop tint-lime">{j}</span><span class="text-subtle" aria-hidden="true">→</span>
+                {/each}
+                <span class="hop truncate {at.focused ? 'hop-active' : ''}">{host?.hostname || pane.title}</span>
               </span>
-              {#if at.broadcasting || at.excluded}
-                <button
-                  class="rounded-md px-1.5 py-0.5 font-mono text-[10px] {at.broadcasting
-                    ? 'bg-warning/15 text-warning hover:bg-warning/25'
-                    : 'bg-raised text-subtle hover:text-fg'}"
-                  aria-pressed={at.broadcasting}
-                  aria-label="{at.broadcasting ? 'Exclude' : 'Include'} {pane.title} {at.broadcasting ? 'from' : 'in'} broadcast"
-                  title={at.broadcasting ? 'Receiving broadcast — click to exclude' : 'Excluded — click to include'}
-                  onclick={() => workspace.toggleExcluded(pane.id)}
-                >
-                  {at.broadcasting ? '● broadcast' : 'excluded'}
+            {:else if pane.termTitle}
+              <span class="ml-1.5 truncate font-mono text-[11px] text-subtle">{pane.termTitle}</span>
+            {/if}
+            <span class="flex-1"></span>
+            {#if at.broadcasting || at.excluded}
+              <button
+                class="hop {at.broadcasting ? 'hop-active' : ''} hover:brightness-125"
+                aria-pressed={at.broadcasting}
+                aria-label="{at.broadcasting ? 'Exclude' : 'Include'} {pane.title} {at.broadcasting ? 'from' : 'in'} multi-exec"
+                title={at.broadcasting ? 'Receiving typing — click to exclude' : 'Excluded — click to include'}
+                onclick={() => workspace.toggleExcluded(pane.id)}
+              >
+                {at.broadcasting ? 'receiving' : 'excluded'}
+              </button>
+            {/if}
+            <!-- Tile actions show on hover/focus to keep headers calm, as in the design. -->
+            <span class="hidden items-center gap-0.5 group-focus-within/tile:flex group-hover/tile:flex">
+              {#if at.tab.paneIds.length < MAX_PANES}
+                <button class={tileBtn} aria-label="Split {pane.title} right" title="Split right" onclick={() => actions(pane.id).split?.('row')}>
+                  <Icon name="splitRight" size={13} />
+                </button>
+                <button class={tileBtn} aria-label="Split {pane.title} down" title="Split down" onclick={() => actions(pane.id).split?.('column')}>
+                  <Icon name="splitDown" size={13} />
                 </button>
               {/if}
-              <button
-                class="grid size-5 place-items-center rounded text-subtle hover:bg-line hover:text-fg"
-                aria-label="{at.maximized ? 'Restore split' : 'Maximize'} {pane.title}"
-                aria-pressed={at.maximized}
-                title="{at.maximized ? 'Restore split' : 'Maximize pane'} (Ctrl+Shift+X)"
-                onclick={() => workspace.toggleMaximized(pane.id)}
-              >
-                <Icon name={at.maximized ? 'restore' : 'maximize'} size={11} />
-              </button>
-              <button class="grid size-5 place-items-center rounded text-subtle hover:bg-line hover:text-fg" aria-label="Move {pane.title} to its own tab" title="Move to own tab" onclick={() => workspace.detachPane(pane.id)}>
-                <Icon name="detach" size={12} />
-              </button>
-              <button class="grid size-5 place-items-center rounded text-subtle hover:bg-line hover:text-fg" aria-label="Close {pane.title}" title="Close pane" onclick={() => closer.closePane(pane.id)}>
+              {#if at.split}
+                <button
+                  class={tileBtn}
+                  aria-label="Multi-exec: type into all tiles"
+                  aria-pressed={at.tab.broadcast}
+                  title="Multi-exec: type into all tiles (Ctrl+Shift+B)"
+                  onclick={() => workspace.toggleBroadcast(at.tab.key)}
+                >
+                  <Icon name="broadcast" size={13} />
+                </button>
+                <button
+                  class={tileBtn}
+                  aria-label="{at.maximized ? 'Restore split' : 'Maximize'} {pane.title}"
+                  aria-pressed={at.maximized}
+                  title="{at.maximized ? 'Restore split' : 'Maximize pane'} (Ctrl+Shift+X)"
+                  onclick={() => workspace.toggleMaximized(pane.id)}
+                >
+                  <Icon name={at.maximized ? 'restore' : 'maximize'} size={12} />
+                </button>
+                <button class={tileBtn} aria-label="Move {pane.title} to its own tab" title="Move to own tab" onclick={() => workspace.detachPane(pane.id)}>
+                  <Icon name="detach" size={12} />
+                </button>
+              {/if}
+              <button class={tileBtn} aria-label="Close {pane.title}" title="Close (Ctrl+Shift+W)" onclick={() => closer.closePane(pane.id)}>
                 <Icon name="x" size={12} />
               </button>
-            </header>
-          {/if}
-          <div class="min-h-0 flex-1 py-1 pl-2" style:background={paneBackground}>
+            </span>
+          </header>
+          <div class="min-h-0 flex-1 py-2 pl-3">
             <TerminalPane
               bind:this={refs[pane.id]}
               source={pane.source}
@@ -186,7 +220,7 @@
       aria-valuemax={100}
       class="group absolute z-20 {d.axis === 'x' ? 'top-0 bottom-0 w-2 -translate-x-1/2 cursor-col-resize' : 'right-0 left-0 h-2 -translate-y-1/2 cursor-row-resize'}"
       style:left={d.axis === 'x' ? `${d.at}%` : undefined}
-      style:top={d.axis === 'y' ? `${d.at}%` : undefined}
+      style:top={d.axis === 'y' ? `${d.at}%` : d.from ? `${d.from}%` : undefined}
       onpointerdown={(e) => onDividerDown(e, d)}
       onkeydown={(e) => onDividerKey(e, d)}
     >

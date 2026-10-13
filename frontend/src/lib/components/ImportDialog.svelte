@@ -129,11 +129,11 @@
       </label>
     {/if}
     {#if result}
-      <button class="rounded-lg bg-accent px-3 py-1.5 text-[13px] font-medium text-ground hover:bg-accent/90" onclick={() => dialog.close()}>Done</button>
+      <button class="rounded-lg bg-accent px-3 py-1.5 text-[13px] font-medium text-on-accent hover:bg-accent/90" onclick={() => dialog.close()}>Done</button>
     {:else}
       <button class="rounded-lg px-3 py-1.5 text-[13px] text-muted hover:bg-raised hover:text-fg" onclick={() => dialog.close()}>Cancel</button>
       <button
-        class="rounded-lg bg-accent px-3 py-1.5 text-[13px] font-medium text-ground hover:bg-accent/90 disabled:opacity-50"
+        class="rounded-lg bg-accent px-3 py-1.5 text-[13px] font-medium text-on-accent hover:bg-accent/90 disabled:opacity-50"
         disabled={busy || selected.length === 0}
         onclick={run}
       >

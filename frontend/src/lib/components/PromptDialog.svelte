@@ -51,7 +51,7 @@
     {#if hint}<p id="{id}-hint" class="mt-1.5 text-xs text-subtle">{hint}</p>{/if}
     <div class="mt-5 flex justify-end gap-2">
       <button type="button" class="rounded-lg px-3 py-1.5 text-[13px] text-muted hover:bg-raised hover:text-fg" onclick={() => dialog.close()}>Cancel</button>
-      <button type="submit" class="rounded-lg bg-accent px-3 py-1.5 text-[13px] font-medium text-ground hover:bg-accent/90">{submitLabel}</button>
+      <button type="submit" class="rounded-lg bg-accent px-3 py-1.5 text-[13px] font-medium text-on-accent hover:bg-accent/90">{submitLabel}</button>
     </div>
   </form>
 </dialog>

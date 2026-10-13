@@ -28,14 +28,33 @@ export const emptyHost = (): Host => ({
   tags: [],
 })
 
+/** Name of the automatic group holding jump hosts. */
+export const JUMP_GROUP = 'Jump hosts'
+
 class HostStore {
   list = $state<Host[]>([])
   loaded = $state(false)
   error = $state<string | null>(null)
 
+  /** Hosts other hosts connect through (named in their ProxyJump). */
+  gateways = $derived.by(() => {
+    const names = new Set<string>()
+    for (const h of this.list)
+      for (const j of (h.proxyJump ?? '').split(',')) {
+        // "user@bastion:2222" → "bastion"
+        const n = j.trim().replace(/^[^@]*@/, '').replace(/:\d+$/, '')
+        if (n) names.add(n.toLowerCase())
+      }
+    return new Set(this.list.filter((h) => [h.name, h.alias, h.hostname].some((n) => n && names.has(n.toLowerCase()))).map((h) => h.id))
+  })
+
   groups = $derived.by<HostGroup[]>(() => {
     const byName = new Map<string, Host[]>()
+    // Jump hosts come first, in their own group, as in the design.
+    const jump = this.list.filter((h) => this.gateways.has(h.id))
+    if (jump.length) byName.set(JUMP_GROUP, jump)
     for (const h of this.list) {
+      if (this.gateways.has(h.id)) continue
       const key = h.group || 'Ungrouped'
       if (!byName.has(key)) byName.set(key, [])
       byName.get(key)!.push(h)
@@ -122,7 +141,7 @@ export function initials(name: string): string {
 }
 
 /** Badge tints; a host keeps its colour as long as its initials don't change. */
-const tints = ['violet', 'emerald', 'amber', 'rose', 'sky', 'teal'] as const
+const tints = ['violet', 'amber', 'teal', 'lime', 'blue', 'rose'] as const
 export type Tint = (typeof tints)[number]
 
 export function tint(name: string): Tint {

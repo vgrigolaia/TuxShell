@@ -40,6 +40,7 @@
     return m < 1 ? 'just now' : m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${m % 60}m`
   }
   let renaming = $state<{ paneId: number; title: string } | null>(null)
+  let renamingTab = $state<{ key: number; name: string } | null>(null)
   const hostsOpen = $derived(prefs.value.hostsSidebar)
 
   // Splits a pane's tab with the same connection (no new login thanks to
@@ -95,14 +96,6 @@
 
   const active = $derived(workspace.activePane)
   const activeHost = $derived(active?.source.kind === 'host' ? hostStore.get(active.source.hostId) : undefined)
-  // "user@host" like the prompt; local shells show their own title.
-  const paneLabel = $derived.by(() => {
-    if (!active) return ''
-    if (active.customTitle || active.source.kind === 'target') return active.title
-    if (active.source.kind === 'shell') return active.termTitle || active.title
-    const user = active.loginUser || activeHost?.user
-    return user ? `${user}@${active.title}` : active.title
-  })
   const activeHostId = $derived(active?.source.kind === 'host' ? active.source.hostId : null)
   const tabInfos = $derived<TabInfo[]>(
     workspace.tabs.map((t) => ({
@@ -114,7 +107,6 @@
   )
 
   const tab = $derived(workspace.activeTab)
-  const receiving = $derived(tab?.broadcast ? tab.paneIds.filter((id) => !tab.excluded.includes(id)).length : 0)
 
   const arrows: Record<string, Direction> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' }
 
@@ -211,7 +203,11 @@
     const [first, ...rest] = hosts
     workspace.openTab({ kind: 'host', hostId: first.id, askUser: !first.user }, first.name)
     const key = workspace.activeKey
-    for (const h of rest) workspace.splitTab(key, { kind: 'host', hostId: h.id, askUser: !h.user }, h.name, 'row')
+    // Hosts from one group make a tab named after it, e.g. "PostgreSQL · prod".
+    const groups = new Set(hosts.map((h) => h.group))
+    if (groups.size === 1 && first.group) workspace.renameTab(key, first.group)
+    // Three or four tiles go in a grid: one wide on top over two, or 2×2.
+    for (const h of rest) workspace.splitTab(key, { kind: 'host', hostId: h.id, askUser: !h.user }, h.name, hosts.length > 2 ? 'grid' : 'row')
   }
 
   function toggleClipboard() {
@@ -260,7 +256,7 @@
   }
 </script>
 
-<div class="flex h-full flex-col">
+<div class="flex h-full flex-col gap-2.5 p-2.5">
   <TitleBar
     tabs={tabInfos}
     activeKey={workspace.activeKey}
@@ -275,75 +271,57 @@
     onMerge={(keys, orientation) => workspace.mergeTabs(keys, orientation)}
     onSplit={(key, orientation) => openQuick({ key, orientation })}
     onUnsplit={(key) => workspace.unsplit(key)}
+    onRename={(key) => {
+      const t = workspace.tabs.find((x) => x.key === key)
+      if (t) renamingTab = { key, name: workspace.tabTitle(t) }
+    }}
     onNew={() => workspace.openTab({ kind: 'shell' }, 'Local shell')}
     onSearch={() => openQuick(null)}
     onToggleClipboard={toggleClipboard}
     onPreferences={() => (prefsOpen = true)}
   />
 
-  <main class="flex min-h-0 flex-1 gap-3 px-3">
+  <main class="flex min-h-0 flex-1 gap-2.5">
     {#if hostsOpen}
-    <Sidebar
-      selectedId={panel.kind === 'host' ? panel.host.id : activeHostId}
-      onConnect={connect}
-      onEdit={(host) => (panel = { kind: 'host', host })}
-      onConnectAs={connectAs}
-      onDuplicate={duplicate}
-      onDelete={(host) => (deleting = host)}
-      onNew={() => (panel = { kind: 'host', host: emptyHost() })}
-      onImport={() => (importOpen = true)}
-    />
+      <Sidebar
+        selectedId={panel.kind === 'host' ? panel.host.id : activeHostId}
+        onConnect={connect}
+        onEdit={(host) => (panel = { kind: 'host', host })}
+        onConnectAs={connectAs}
+        onDuplicate={duplicate}
+        onDelete={(host) => (deleting = host)}
+        onNew={() => (panel = { kind: 'host', host: emptyHost() })}
+        onImport={() => (importOpen = true)}
+        onOpenTiles={openSplit}
+      />
     {/if}
 
-    <section class="flex min-w-0 flex-1 flex-col overflow-hidden rounded-panel border border-line bg-panel">
-      <div class="flex h-14 shrink-0 items-center gap-2 border-b border-line pr-3 pl-4">
-        <h1 class="mr-1 truncate font-mono text-sm">{paneLabel}</h1>
-        {#if activeHost?.proxyJump}
-          <span class="flex shrink-0 items-center gap-1 rounded-lg border border-line px-2 py-0.5 text-xs text-muted" title="Connects through {activeHost.proxyJump}">
-            <span aria-hidden="true">→</span> via {activeHost.proxyJump}
-          </span>
-        {/if}
-        {#if active?.source.kind !== 'shell' && active?.termTitle && active.termTitle !== paneLabel}
-          <span class="truncate font-mono text-xs text-subtle">{active.termTitle}</span>
-        {/if}
-        <span class="flex-1"></span>
-        {#if workspace.activeTab && workspace.activeTab.paneIds.length < 4}
-          {@const key = workspace.activeTab.key}
-          <button class="grid size-8 place-items-center rounded-lg text-muted hover:bg-raised hover:text-fg" aria-label="Split right" title="Split right" onclick={() => openQuick({ key, orientation: 'row' })}>
-            <Icon name="splitRight" size={16} />
-          </button>
-          <button class="grid size-8 place-items-center rounded-lg text-muted hover:bg-raised hover:text-fg" aria-label="Split down" title="Split down" onclick={() => openQuick({ key, orientation: 'column' })}>
-            <Icon name="splitDown" size={16} />
-          </button>
-        {/if}
-        {#if tab && tab.paneIds.length > 1}
-          <button
-            class="grid size-8 place-items-center rounded-lg transition-colors {tab.broadcast ? 'bg-warning/15 text-warning' : 'text-muted hover:bg-raised hover:text-fg'}"
-            aria-label="Broadcast typing to all panes"
-            aria-pressed={tab.broadcast}
-            aria-keyshortcuts="Control+Shift+B"
-            title="Broadcast typing to all panes (Ctrl+Shift+B)"
-            onclick={() => workspace.toggleBroadcast(tab.key)}
-          >
-            <Icon name="broadcast" size={16} />
-          </button>
-        {/if}
-      </div>
+    <section aria-label="Terminals" class="relative flex min-w-0 flex-1 flex-col gap-2.5 rounded-panel border border-line bg-panel p-2.5">
       {#if tab?.broadcast}
-        <div role="status" class="mx-2 mt-2 flex shrink-0 items-center gap-3 rounded-xl border border-warning/50 bg-warning/10 px-3 py-2 text-[13px]">
-          <span class="text-warning"><Icon name="broadcast" size={15} /></span>
-          <span class="flex-1">
-            <strong class="font-semibold">Broadcast on</strong> — keystrokes go to {receiving} of {tab.paneIds.length} panes
-            {#if tab.excluded.length}
-              <span class="text-subtle">· {tab.excluded.map((id) => workspace.pane(id)?.title).join(', ')} excluded</span>
-            {/if}
+        {@const receivers = tab.paneIds.filter((id) => !tab.excluded.includes(id))}
+        <div role="status" class="flex shrink-0 flex-wrap items-center gap-3 rounded-xl border border-accent-line bg-accent-soft px-3 py-2 text-[12.5px] text-accent-ink">
+          <span class="text-accent"><Icon name="broadcast" size={16} /></span>
+          <span><strong class="font-semibold text-fg">Multi-exec</strong> — typing goes to {receivers.length} tiles at once</span>
+          <span class="flex flex-wrap gap-1">
+            {#each receivers as id (id)}<span class="hop hop-active">{workspace.pane(id)?.title}</span>{/each}
           </span>
-          <button class="rounded-lg bg-warning px-2.5 py-1 text-xs font-semibold text-ground hover:bg-warning/90" onclick={() => workspace.toggleBroadcast(tab.key)}>
-            Stop · Ctrl+Shift+B
-          </button>
+          {#if tab.excluded.length}
+            <span class="text-xs text-subtle">{tab.excluded.map((id) => workspace.pane(id)?.title).join(', ')} excluded</span>
+          {/if}
+          <button
+            class="ml-auto h-7 rounded-lg bg-accent px-3 text-xs font-semibold text-on-accent hover:bg-accent/90"
+            aria-keyshortcuts="Control+Shift+B"
+            title="Stop multi-exec (Ctrl+Shift+B)"
+            onclick={() => workspace.toggleBroadcast(tab.key)}>Stop</button
+          >
         </div>
       {/if}
       <TerminalArea bind:refs={panes} actions={paneActions} />
+
+      {#if panel.kind === 'clipboard'}
+        <!-- Floats over the tiles, as in the design. -->
+        <ClipboardPanel activeHost={activeHost?.name} onPaste={pasteToActive} onClose={() => (panel = { kind: 'none' })} />
+      {/if}
     </section>
 
     {#if panel.kind === 'host'}
@@ -352,19 +330,22 @@
       {/key}
     {:else if panel.kind === 'files'}
       <FilePanel pane={active} onRunInPane={runInPane} onClose={() => (panel = { kind: 'none' })} />
-    {:else if panel.kind === 'clipboard'}
-      <ClipboardPanel onPaste={pasteToActive} onClose={() => (panel = { kind: 'none' })} />
     {/if}
   </main>
 
-  <footer class="flex h-9 shrink-0 items-center gap-5 px-5 text-xs text-subtle">
-    <span>{active?.exited ? 'Disconnected' : active?.startedAt ? `Connected ${since(active.startedAt, now)}` : 'Connecting…'}</span>
+  <footer class="flex h-[22px] shrink-0 flex-wrap items-center gap-[18px] px-2 text-[11.5px] text-subtle">
+    {#if active}
+      <span class="flex items-center gap-1.5">
+        <span class="size-2 rounded-full {active.exited ? 'border-2 border-warning' : active.startedAt ? 'bg-success' : 'bg-subtle'}" aria-hidden="true"></span>
+        {active.exited ? 'Disconnected' : active.startedAt ? `Connected ${since(active.startedAt, now)}` : 'Connecting…'}
+      </span>
+    {/if}
+    {#if activeHost?.proxyJump}<span>via {activeHost.proxyJump} · ProxyJump</span>{/if}
     <span>{workspace.tabs.length} {workspace.tabs.length === 1 ? 'tab' : 'tabs'} · {workspace.panes.filter((p) => !p.exited).length} live</span>
     {#if workspace.activeTab && workspace.activeTab.paneIds.length > 1}
-      <span>Ctrl+Shift+arrows: move between panes</span>
+      <span>Ctrl+Shift+arrows: move between tiles</span>
     {/if}
-    <span class="flex-1"></span>
-    <span class="font-mono">{['UTF-8', active?.size, displayServer].filter(Boolean).join(' · ')}</span>
+    <span class="ml-auto font-mono">{['UTF-8', active?.size, displayServer].filter(Boolean).join(' · ')}</span>
   </footer>
 </div>
 
@@ -403,6 +384,19 @@
     submitLabel="Save"
     onSubmit={(title) => workspace.renamePane(r.paneId, title)}
     onClose={() => (renaming = null)}
+  />
+{/if}
+
+{#if renamingTab}
+  {@const r = renamingTab}
+  <PromptDialog
+    title="Rename tab"
+    label="Name"
+    initial={r.name}
+    hint="Leave empty to name it after its panes again."
+    submitLabel="Save"
+    onSubmit={(name) => workspace.renameTab(r.key, name)}
+    onClose={() => (renamingTab = null)}
   />
 {/if}
 

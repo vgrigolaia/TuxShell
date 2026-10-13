@@ -313,7 +313,7 @@
     {:else}
       <button class="rounded-lg px-2.5 py-1.5 text-muted hover:bg-raised hover:text-fg" onclick={() => (confirmReset = true)}>Reset to defaults</button>
     {/if}
-    <button class="rounded-lg bg-accent px-3 py-1.5 font-medium text-ground hover:bg-accent/90" onclick={() => dialog.close()}>Done</button>
+    <button class="rounded-lg bg-accent px-3 py-1.5 font-medium text-on-accent hover:bg-accent/90" onclick={() => dialog.close()}>Done</button>
   </footer>
 </dialog>
 

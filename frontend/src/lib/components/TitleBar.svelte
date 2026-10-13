@@ -24,13 +24,14 @@
     onMerge: (keys: number[], orientation: Orientation) => void
     onSplit: (key: number, orientation: Orientation) => void
     onUnsplit: (key: number) => void
+    onRename: (key: number) => void
     onNew: () => void
     onSearch: () => void
     onToggleClipboard: () => void
     onPreferences: () => void
   }
 
-  let { tabs, activeKey, clipboardOpen, hostsOpen, onToggleHosts, filesOpen, onToggleFiles, onSelect, onClose, onCloseMany, onMerge, onSplit, onUnsplit, onNew, onSearch, onToggleClipboard, onPreferences }: Props = $props()
+  let { tabs, activeKey, clipboardOpen, hostsOpen, onToggleHosts, filesOpen, onToggleFiles, onSelect, onClose, onCloseMany, onMerge, onSplit, onUnsplit, onRename, onNew, onSearch, onToggleClipboard, onPreferences }: Props = $props()
 
   let maximised = $state(false)
   let strip: HTMLDivElement
@@ -96,6 +97,7 @@
       items.push({ label: 'Split down…', run: () => onSplit(key, 'column') })
     }
     if (tab.panes > 1) items.push({ label: 'Unsplit into tabs', run: () => onUnsplit(key) })
+    items.push({ label: 'Rename tab…', separator: true, run: () => onRename(key) })
     items.push({ label: 'Close', run: () => onClose(key) })
     if (others.length) items.push({ label: 'Close others', run: () => onCloseMany(others) })
     if (right.length) items.push({ label: 'Close tabs to the right', run: () => onCloseMany(right) })
@@ -123,35 +125,36 @@
     document.getElementById(`tab-${next.key}`)?.focus()
   }
 
-  const iconButton =
-    'no-drag grid size-8 place-items-center rounded-lg text-muted transition-colors hover:bg-raised hover:text-fg'
+  // Window-control style buttons and the labelled "pill" buttons from the design.
+  const wc = 'no-drag grid size-[30px] place-items-center rounded-[10px] bg-hop text-muted transition-colors hover:text-fg'
+  const pill =
+    'no-drag flex h-[34px] shrink-0 items-center gap-2 rounded-[11px] border border-strong bg-panel pr-3 pl-2.5 text-[13px] text-muted transition-colors hover:text-fg'
 </script>
 
 <!-- Double-click to maximize is a mouse shortcut; the Maximize button covers keyboard users. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <header
-  class="drag flex h-14 shrink-0 items-center gap-3 px-3"
+  class="drag flex shrink-0 items-center gap-3.5 pt-0.5 pr-1 pl-1.5"
   ondblclick={(e) => e.target === e.currentTarget && Window.ToggleMaximise()}
 >
-  <button
-    class="{iconButton} {hostsOpen ? 'text-fg' : ''}"
-    aria-label={hostsOpen ? 'Hide hosts' : 'Show hosts'}
-    aria-pressed={hostsOpen}
-    aria-keyshortcuts="Control+Shift+L"
-    title="{hostsOpen ? 'Hide' : 'Show'} hosts (Ctrl+Shift+L)"
-    onclick={onToggleHosts}
-  >
-    <Icon name="sidebar" />
-  </button>
-
-  <div class="flex items-center gap-2 pr-1">
-    <span class="grid size-9 place-items-center rounded-xl bg-accent text-ground">
-      <Icon name="terminal" size={17} />
+  <div class="flex items-center gap-2.5">
+    <button
+      class="{wc} {hostsOpen ? 'text-fg' : ''}"
+      aria-label={hostsOpen ? 'Hide hosts' : 'Show hosts'}
+      aria-pressed={hostsOpen}
+      aria-keyshortcuts="Control+Shift+L"
+      title="{hostsOpen ? 'Hide' : 'Show'} hosts (Ctrl+Shift+L)"
+      onclick={onToggleHosts}
+    >
+      <Icon name="sidebar" size={14} />
+    </button>
+    <span class="logo grid size-[30px] place-items-center rounded-[10px] bg-accent text-on-accent" aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17l6-5-6-5" /><path d="M13 19h6" /></svg>
     </span>
-    <span class="font-display text-[17px] font-semibold tracking-tight">TuxShell</span>
+    <span class="font-display text-[17px] font-bold tracking-[-0.02em]">TuxShell</span>
   </div>
 
-  <div class="no-drag flex min-w-0 items-center gap-1 rounded-xl border border-line bg-panel p-1">
+  <div class="no-drag ml-2 flex min-w-0 items-center gap-1 rounded-xl border border-line bg-panel p-1">
     <div
       bind:this={strip}
       role="tablist"
@@ -161,11 +164,12 @@
       onwheel={onWheel}
     >
       {#each tabs as tab, i (tab.key)}
+        {@const current = tab.key === activeKey}
         <!-- Middle-click closes, like browser and terminal tabs. -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
-          class="group flex shrink-0 items-center rounded-lg transition-colors {tab.key === activeKey
-            ? 'bg-raised text-fg'
+          class="group flex h-[30px] shrink-0 items-center rounded-[9px] transition-colors {current
+            ? 'tab-current bg-tab text-fg'
             : 'text-muted hover:text-fg'} {picked.has(tab.key) ? 'ring-1 ring-accent' : ''}"
           onauxclick={(e) => e.button === 1 && (e.preventDefault(), onClose(tab.key))}
           oncontextmenu={(e) => openMenu(e, tab.key)}
@@ -173,99 +177,94 @@
           <button
             id="tab-{tab.key}"
             role="tab"
-            aria-selected={tab.key === activeKey || picked.has(tab.key)}
+            aria-selected={current || picked.has(tab.key)}
             aria-controls="panel-{tab.key}"
-            tabindex={tab.key === activeKey ? 0 : -1}
-            class="flex max-w-52 items-center gap-2 py-1.5 pr-1 pl-3 text-[13px]"
-            title="{tab.title} — Ctrl+click to select, right-click to split or close"
+            tabindex={current ? 0 : -1}
+            class="flex h-full max-w-56 items-center gap-2 pr-1 pl-3 text-[13px]"
+            title="{tab.title}{tab.exited ? ' (disconnected)' : ''} — Ctrl+click to select, right-click to split or close"
             onclick={(e) => onTabClick(e, tab.key)}
             onkeydown={(e) => onTabKey(e, i)}
           >
-            <!-- Filled green while connected, hollow orange once every session ended. -->
-            <span class="size-2 shrink-0 rounded-full {tab.exited ? 'border-[1.5px] border-warning' : 'bg-success'}" aria-hidden="true"></span>
-            <span class="truncate">{tab.title}</span>
-            {#if tab.panes > 1}<span class="shrink-0 text-subtle" aria-label="{tab.panes} panes"><Icon name="splitRight" size={12} /></span>{/if}
+            <span class="font-mono text-[11px] {current ? 'text-accent-text' : ''}">{i + 1}</span>
+            <span class="truncate {tab.exited ? 'text-subtle line-through decoration-subtle/50' : ''}">{tab.title}</span>
+            {#if tab.panes > 1}<span class="text-[11px] text-subtle" aria-label="{tab.panes} tiles">{tab.panes}</span>{/if}
+            {#if tab.exited}<span class="size-2 shrink-0 rounded-full border-2 border-warning" aria-label="disconnected"></span>{/if}
           </button>
-          <!-- Close shows on the active tab and on hover, as in the design. -->
           <button
-            class="mr-1.5 grid size-5 place-items-center rounded text-subtle hover:bg-line hover:text-fg focus-visible:opacity-100 {tab.key === activeKey ? '' : 'opacity-0 group-hover:opacity-100'}"
+            class="mr-1.5 grid size-5 place-items-center rounded text-subtle opacity-0 group-hover:opacity-100 hover:bg-line hover:text-fg focus-visible:opacity-100"
             aria-label="Close {tab.title}"
             tabindex="-1"
             onclick={() => onClose(tab.key)}
           >
-            <Icon name="x" size={12} />
+            <Icon name="x" size={11} />
           </button>
         </div>
       {/each}
     </div>
-    <button class="grid size-7 shrink-0 place-items-center rounded-lg text-muted hover:bg-raised hover:text-fg" aria-label="New local shell tab" onclick={onNew}>
+    <button class="grid size-[30px] shrink-0 place-items-center rounded-[9px] text-muted hover:bg-tab hover:text-fg" aria-label="New local shell tab" title="New local shell tab" onclick={onNew}>
       <Icon name="plus" size={14} />
     </button>
   </div>
 
-  <div class="flex-1"></div>
+  <div class="min-w-4 flex-1 self-stretch"></div>
 
   <button
-    class="no-drag flex h-8 w-64 min-w-40 shrink items-center gap-2 rounded-lg border border-line bg-panel px-3 text-[13px] text-subtle transition-colors hover:border-accent/50 hover:text-muted"
-    aria-keyshortcuts="Control+K"
-    onclick={onSearch}
-  >
-    <Icon name="search" size={14} />
-    <span class="min-w-0 flex-1 truncate text-left whitespace-nowrap">Search hosts, connect…</span>
-    <kbd class="shrink-0 rounded border border-line px-1.5 font-mono text-[11px]">Ctrl K</kbd>
-  </button>
-
-  <button
-    class={iconButton}
-    aria-label="Theme: {theme.mode}. Switch theme"
-    title="Theme: {theme.mode === 'system' ? 'follow system' : theme.mode} (click to change)"
-    onclick={() => prefs.cycleTheme()}
-  >
-    <Icon name={theme.mode === 'dark' ? 'moon' : theme.mode === 'light' ? 'sun' : 'monitor'} />
-  </button>
-
-  <button
-    class="{iconButton} {filesOpen ? 'bg-raised text-accent' : ''}"
-    aria-label="Files"
-    aria-pressed={filesOpen}
-    aria-keyshortcuts="Control+Shift+E"
-    title="Files (Ctrl+Shift+E)"
-    onclick={onToggleFiles}
-  >
-    <Icon name="folder" />
-  </button>
-
-  <button
-    class="{iconButton} {clipboardOpen ? 'bg-raised text-accent' : ''}"
-    aria-label="Clipboard history"
+    class="{pill} {clipboardOpen ? 'border-accent-line text-accent-ink' : ''}"
     aria-pressed={clipboardOpen}
-    title="Clipboard history (Ctrl+Shift+H)"
     aria-keyshortcuts="Control+Shift+H"
     onclick={onToggleClipboard}
   >
-    <Icon name="clipboard" />
+    <Icon name="clipboard" size={14} />
+    <span class="hidden xl:inline">Clipboard</span>
+    <span class="kbd">Ctrl Shift H</span>
   </button>
 
-  <button class={iconButton} aria-label="Preferences" aria-keyshortcuts="Control+," title="Preferences (Ctrl+,)" onclick={onPreferences}>
-    <Icon name="gear" />
+  <button class={pill} aria-keyshortcuts="Control+K" onclick={onSearch}>
+    <Icon name="search" size={14} />
+    <span class="whitespace-nowrap">Jump to anything</span>
+    <span class="kbd">Ctrl K</span>
   </button>
 
-  <div class="flex items-center gap-0.5 border-l border-line pl-2">
-    <button class={iconButton} aria-label="Minimize" onclick={() => Window.Minimise()}>
-      <Icon name="minimize" size={14} />
+  <div class="flex items-center gap-1.5">
+    <button
+      class="{wc} {filesOpen ? 'bg-accent-chip text-accent-ink' : ''}"
+      aria-label="Files"
+      aria-pressed={filesOpen}
+      aria-keyshortcuts="Control+Shift+E"
+      title="Files (Ctrl+Shift+E)"
+      onclick={onToggleFiles}
+    >
+      <Icon name="folder" size={14} />
     </button>
     <button
-      class={iconButton}
+      class={wc}
+      aria-label="Theme: {theme.mode}. Switch theme"
+      title="Theme: {theme.mode === 'system' ? 'follow system' : theme.mode} (click to change)"
+      onclick={() => prefs.cycleTheme()}
+    >
+      <Icon name={theme.mode === 'dark' ? 'moon' : theme.mode === 'light' ? 'sun' : 'monitor'} size={14} />
+    </button>
+    <button class={wc} aria-label="Preferences" aria-keyshortcuts="Control+," title="Preferences (Ctrl+,)" onclick={onPreferences}>
+      <Icon name="gear" size={14} />
+    </button>
+  </div>
+
+  <div class="flex items-center gap-1.5 border-l border-line pl-2.5">
+    <button class={wc} aria-label="Minimize" onclick={() => Window.Minimise()}>
+      <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
+    </button>
+    <button
+      class={wc}
       aria-label={maximised ? 'Restore' : 'Maximize'}
       onclick={async () => {
         await Window.ToggleMaximise()
         void syncMaximised()
       }}
     >
-      <Icon name={maximised ? 'restore' : 'maximize'} size={13} />
+      <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="2" y="2" width="6" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4" /></svg>
     </button>
-    <button class="{iconButton} hover:bg-danger hover:text-white" aria-label="Close window" onclick={() => Window.Close()}>
-      <Icon name="x" size={14} />
+    <button class="{wc} bg-close text-close-ink hover:bg-danger hover:text-white" aria-label="Close window" onclick={() => Window.Close()}>
+      <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 2.5l5 5M7.5 2.5l-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
     </button>
   </div>
 </header>
@@ -275,6 +274,12 @@
 {/if}
 
 <style>
+  .logo {
+    box-shadow: 0 0 24px color-mix(in srgb, var(--color-accent) 40%, transparent);
+  }
+  .tab-current {
+    box-shadow: inset 0 0 0 1px var(--color-tab-ring);
+  }
   /* Scroll with the wheel instead of a scrollbar drawn over the close buttons. */
   .tab-strip {
     scrollbar-width: none;
