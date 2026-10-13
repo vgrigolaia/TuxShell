@@ -35,3 +35,13 @@ func (s *Service) ServiceShutdown() error {
 func (s *Service) DeleteMany(ids []int64) (int, error) {
 	return s.store.DeleteMany(ids)
 }
+
+// SetUser saves the login user for a host, e.g. after it was typed at connect time.
+func (s *Service) SetUser(id int64, user string) (Host, error) {
+	h, err := s.store.Get(id)
+	if err != nil {
+		return h, err
+	}
+	h.User = user
+	return s.store.Save(h)
+}

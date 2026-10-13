@@ -32,6 +32,13 @@ export function StartHost(hostID: number, cols: number, rows: number): $Cancella
 }
 
 /**
+ * StartHostAs connects to a saved host as user, overriding its saved user.
+ */
+export function StartHostAs(hostID: number, user: string, cols: number, rows: number): $CancellablePromise<string> {
+    return $Call.ByID(283429893, hostID, user, cols, rows);
+}
+
+/**
  * StartShell starts the user's login shell and returns the session ID.
  */
 export function StartShell(cols: number, rows: number): $CancellablePromise<string> {

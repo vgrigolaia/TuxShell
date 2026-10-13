@@ -43,6 +43,7 @@ type Emitter func(name string, data any)
 // Commands are only ever built in Go; the frontend can't choose what runs.
 type Resolver interface {
 	HostCommand(id int64) (*exec.Cmd, error)
+	HostCommandAs(id int64, user string) (*exec.Cmd, error)
 	TargetCommand(target string) (*exec.Cmd, error)
 }
 
@@ -82,6 +83,15 @@ func (s *Service) StartShell(cols, rows int) (string, error) {
 // StartHost connects to a saved host and returns the session ID.
 func (s *Service) StartHost(hostID int64, cols, rows int) (string, error) {
 	cmd, err := s.resolver.HostCommand(hostID)
+	if err != nil {
+		return "", err
+	}
+	return s.start(cmd, cols, rows)
+}
+
+// StartHostAs connects to a saved host as user, overriding its saved user.
+func (s *Service) StartHostAs(hostID int64, user string, cols, rows int) (string, error) {
+	cmd, err := s.resolver.HostCommandAs(hostID, user)
 	if err != nil {
 		return "", err
 	}

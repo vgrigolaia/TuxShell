@@ -10,6 +10,8 @@
   import { claim, release } from '../terminal-events'
   import * as Terminals from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/terminal/service'
   import type { Source } from '../tabs'
+  import { errorMessage, hostStore } from '../hosts.svelte'
+  import LoginPrompt from './LoginPrompt.svelte'
 
   interface Props {
     source: Source
@@ -29,18 +31,30 @@
   let failed = $state<string | null>(null)
   let reconnect: () => void = () => {}
 
+  // Username typed in the login prompt; overrides the host's saved user.
+  let loginUser = $state<string | null>(null)
+  // svelte-ignore state_referenced_locally
+  let asking = $state(source.kind === 'host' && !!source.askUser)
+  let loginError = $state<string | null>(null)
+  const hostName = $derived(source.kind === 'host' ? (hostStore.get(source.hostId)?.name ?? 'host') : '')
+  const savedUser = $derived(source.kind === 'host' ? (hostStore.get(source.hostId)?.user ?? '') : '')
+
   const FONT = '"JetBrains Mono Variable", monospace'
 
   function launch(cols: number, rows: number): Promise<string> {
     switch (source.kind) {
       case 'host':
-        return Terminals.StartHost(source.hostId, cols, rows)
+        return loginUser !== null
+          ? Terminals.StartHostAs(source.hostId, loginUser, cols, rows)
+          : Terminals.StartHost(source.hostId, cols, rows)
       case 'target':
         return Terminals.StartTarget(source.target, cols, rows)
       default:
         return Terminals.StartShell(cols, rows)
     }
   }
+
+  let submitLogin: (user: string, save: boolean) => void = () => {}
 
   onMount(() => {
     let sessionId: string | undefined
@@ -137,7 +151,21 @@
 
       onSize?.(term.cols, term.rows)
       reconnect = () => void connect()
-      await connect()
+      submitLogin = async (user: string, save: boolean) => {
+        loginError = null
+        if (save && source.kind === 'host') {
+          try {
+            await hostStore.setUser(source.hostId, user)
+          } catch (e) {
+            loginError = (e as { cause?: { message?: string } })?.cause?.message ?? errorMessage(e)
+            return
+          }
+        }
+        loginUser = user
+        asking = false
+        await connect()
+      }
+      if (!asking) await connect()
     }
 
     const connect = async () => {
@@ -148,6 +176,13 @@
       try {
         sessionId = await launch(term.cols, term.rows)
       } catch (err) {
+        // A bad typed username goes back to the prompt rather than the error bar.
+        const cause = (err as { cause?: { field?: string; message?: string } })?.cause
+        if (loginUser !== null && cause?.field === 'user') {
+          loginError = cause.message ?? 'Invalid username'
+          asking = true
+          return
+        }
         failed = (err as Error)?.message ?? String(err)
         exited = -1
         onExit?.(-1)
@@ -184,7 +219,7 @@
   })
 
   $effect(() => {
-    if (active && term) {
+    if (active && term && !asking) {
       requestAnimationFrame(() => {
         fit?.fit()
         term?.focus()
@@ -195,7 +230,15 @@
 
 <div class="relative h-full w-full" class:hidden={!active}>
   <div bind:this={host} class="h-full w-full select-text"></div>
-  {#if exited !== null}
+  {#if asking && source.kind === 'host'}
+    <LoginPrompt
+      hostId={source.hostId}
+      {hostName}
+      initialUser={loginUser ?? savedUser}
+      error={loginError}
+      onSubmit={(user, save) => submitLogin(user, save)}
+    />
+  {:else if exited !== null}
     <div
       role="status"
       class="absolute right-4 bottom-3 flex max-w-[80%] items-center gap-3 rounded-lg border border-line bg-raised py-1.5 pr-1.5 pl-3 text-xs"

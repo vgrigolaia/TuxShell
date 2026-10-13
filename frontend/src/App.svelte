@@ -46,8 +46,13 @@
     activeKey = tab.key
   }
 
+  // Hosts without a saved user ask for one in the tab before connecting.
   function connect(host: Host) {
-    openTab({ kind: 'host', hostId: host.id }, host.name)
+    openTab({ kind: 'host', hostId: host.id, askUser: !host.user }, host.name)
+  }
+
+  function connectAs(host: Host) {
+    openTab({ kind: 'host', hostId: host.id, askUser: true }, host.name)
   }
 
   function closeTab(key: number) {
@@ -107,6 +112,7 @@
       selectedId={panel.kind === 'host' ? panel.host.id : activeHostId}
       onConnect={connect}
       onEdit={(host) => (panel = { kind: 'host', host })}
+      onConnectAs={connectAs}
       onDuplicate={duplicate}
       onDelete={(host) => (deleting = host)}
       onNew={() => (panel = { kind: 'host', host: emptyHost() })}

@@ -67,6 +67,12 @@ class HostStore {
     }
   }
 
+  /** Saves the login user for a host. */
+  async setUser(id: number, user: string) {
+    await HostService.SetUser(id, user)
+    await this.load()
+  }
+
   async remove(id: number) {
     await HostService.Delete(id)
     await this.load()

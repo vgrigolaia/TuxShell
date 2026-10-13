@@ -130,3 +130,21 @@ func (s *Service) Import(ctx context.Context, aliases []string, withUsers bool) 
 	}
 	return res, nil
 }
+
+// SuggestUser returns the login ssh_config would use for a saved host, or ""
+// when the config doesn't set one (ssh would fall back to the local user).
+func (s *Service) SuggestUser(ctx context.Context, hostID int64) (string, error) {
+	h, err := s.store.Get(hostID)
+	if err != nil {
+		return "", err
+	}
+	dest := h.Alias
+	if dest == "" {
+		dest = h.Hostname
+	}
+	set, err := s.resolve(ctx, dest)
+	if err != nil || set.User == s.localUser {
+		return "", nil
+	}
+	return set.User, nil
+}

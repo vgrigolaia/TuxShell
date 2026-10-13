@@ -29,3 +29,11 @@ export function Import(aliases: string[] | null, withUsers: boolean): $Cancellab
 export function Scan(): $CancellablePromise<$models.Candidate[] | null> {
     return $Call.ByID(2616741928);
 }
+
+/**
+ * SuggestUser returns the login ssh_config would use for a saved host, or ""
+ * when the config doesn't set one (ssh would fall back to the local user).
+ */
+export function SuggestUser(hostID: number): $CancellablePromise<string> {
+    return $Call.ByID(9796306, hostID);
+}

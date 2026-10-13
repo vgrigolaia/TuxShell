@@ -10,12 +10,13 @@
     selectedId: number | null
     onConnect: (host: Host) => void
     onEdit: (host: Host) => void
+    onConnectAs: (host: Host) => void
     onDuplicate: (host: Host) => void
     onDelete: (host: Host) => void
     onNew: () => void
     onImport: () => void
   }
-  let { selectedId, onConnect, onEdit, onDuplicate, onDelete, onNew, onImport }: Props = $props()
+  let { selectedId, onConnect, onEdit, onConnectAs, onDuplicate, onDelete, onNew, onImport }: Props = $props()
 
   const COLLAPSED_KEY = 'tuxshell.sidebar.collapsed'
 
@@ -130,6 +131,7 @@
 
   const menuItems = (host: Host): MenuItem[] => [
     { label: 'Connect', run: () => onConnect(host) },
+    { label: 'Connect as…', run: () => onConnectAs(host) },
     { label: 'Edit…', run: () => onEdit(host) },
     { label: 'Duplicate…', run: () => onDuplicate(host) },
     { label: 'Select…', run: () => startSelecting(host) },

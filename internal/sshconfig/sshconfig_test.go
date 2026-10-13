@@ -173,3 +173,30 @@ func TestImportUsersOptIn(t *testing.T) {
 		t.Fatalf("users = %v, want db empty and cache postgres", users)
 	}
 }
+
+func TestSuggestUser(t *testing.T) {
+	dir := t.TempDir()
+	store, err := hosts.Open(filepath.Join(dir, "hosts.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	withUser, _ := store.Save(hosts.Host{Name: "db", Alias: "db"})
+	noUser, _ := store.Save(hosts.Host{Name: "web", Hostname: "10.0.0.2"})
+
+	svc := NewService(store, filepath.Join(dir, "config"))
+	svc.localUser = "me"
+	svc.resolve = func(_ context.Context, dest string) (Settings, error) {
+		if dest == "db" {
+			return Settings{User: "postgres"}, nil
+		}
+		return Settings{User: "me"}, nil
+	}
+	ctx := context.Background()
+	if u, _ := svc.SuggestUser(ctx, withUser.ID); u != "postgres" {
+		t.Errorf("db suggestion = %q, want postgres", u)
+	}
+	if u, _ := svc.SuggestUser(ctx, noUser.ID); u != "" {
+		t.Errorf("web suggestion = %q, want empty (local fallback)", u)
+	}
+}

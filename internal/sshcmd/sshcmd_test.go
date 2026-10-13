@@ -110,3 +110,39 @@ func TestResolverUsesStoreAndPath(t *testing.T) {
 		t.Fatal("option-like target accepted")
 	}
 }
+
+func TestHostCommandAs(t *testing.T) {
+	bin := t.TempDir()
+	fake := filepath.Join(bin, "ssh")
+	if err := os.WriteFile(fake, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin)
+
+	store, err := hosts.Open(filepath.Join(t.TempDir(), "hosts.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	h, err := store.Save(hosts.Host{Name: "node", Alias: "node", Hostname: "10.0.0.9"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := Resolver{Store: store}
+	cmd, err := r.HostCommandAs(h.ID, "admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{fake, "-p", "22", "-l", "admin", "-o", "HostName=10.0.0.9", "--", "node"}
+	if !slices.Equal(cmd.Args, want) {
+		t.Fatalf("args = %q, want %q", cmd.Args, want)
+	}
+	if _, err := r.HostCommandAs(h.ID, "-oProxyCommand=evil"); err == nil {
+		t.Fatal("option-like user accepted")
+	}
+	// The override is per-connection; the stored host is unchanged.
+	if got, _ := store.Get(h.ID); got.User != "" {
+		t.Fatalf("stored user = %q, want empty", got.User)
+	}
+}

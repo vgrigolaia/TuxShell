@@ -98,6 +98,21 @@ func (r Resolver) HostCommand(id int64) (*exec.Cmd, error) {
 	return command(h)
 }
 
+// HostCommandAs is HostCommand with the login user replaced, for a
+// username typed at connect time.
+func (r Resolver) HostCommandAs(id int64, user string) (*exec.Cmd, error) {
+	h, err := r.Store.Get(id)
+	if err != nil {
+		return nil, err
+	}
+	h.User = user
+	h.Normalize()
+	if err := h.Validate(); err != nil {
+		return nil, err
+	}
+	return command(h)
+}
+
 // TargetCommand returns the command for an ad-hoc "[user@]host[:port]".
 func (r Resolver) TargetCommand(target string) (*exec.Cmd, error) {
 	h, err := ParseTarget(target)

@@ -42,3 +42,10 @@ export function List(): $CancellablePromise<$models.Host[] | null> {
 export function Save(h: $models.Host): $CancellablePromise<$models.Host> {
     return $Call.ByID(3549130709, h);
 }
+
+/**
+ * SetUser saves the login user for a host, e.g. after it was typed at connect time.
+ */
+export function SetUser(id: number, user: string): $CancellablePromise<$models.Host> {
+    return $Call.ByID(3111857243, id, user);
+}
