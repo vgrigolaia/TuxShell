@@ -4,6 +4,7 @@
   import Sidebar from './lib/components/Sidebar.svelte'
   import HostForm from './lib/components/HostForm.svelte'
   import TerminalPane from './lib/components/TerminalPane.svelte'
+  import ImportDialog from './lib/components/ImportDialog.svelte'
   import { emptyHost, hostStore, type Host } from './lib/hosts.svelte'
   import type { Source, Tab } from './lib/tabs'
 
@@ -16,6 +17,7 @@
   let activeKey = $state(1)
   let panel = $state<Panel>({ kind: 'none' })
   let size = $state<Record<number, string>>({})
+  let importOpen = $state(false)
 
   const active = $derived(tabs.find((t) => t.key === activeKey))
   const activeHostId = $derived(active?.source.kind === 'host' ? active.source.hostId : null)
@@ -73,6 +75,7 @@
       onConnect={connect}
       onEdit={(host) => (panel = { kind: 'host', host })}
       onNew={() => (panel = { kind: 'host', host: emptyHost() })}
+      onImport={() => (importOpen = true)}
     />
 
     <section class="flex min-w-0 flex-1 flex-col overflow-hidden rounded-panel border border-line bg-panel">
@@ -118,3 +121,7 @@
     <span>{size[activeKey] ?? ''}</span>
   </footer>
 </div>
+
+{#if importOpen}
+  <ImportDialog onClose={() => (importOpen = false)} />
+{/if}

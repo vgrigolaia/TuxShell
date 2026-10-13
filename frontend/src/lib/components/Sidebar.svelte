@@ -7,8 +7,9 @@
     onConnect: (host: Host) => void
     onEdit: (host: Host) => void
     onNew: () => void
+    onImport: () => void
   }
-  let { selectedId, onConnect, onEdit, onNew }: Props = $props()
+  let { selectedId, onConnect, onEdit, onNew, onImport }: Props = $props()
 </script>
 
 <aside aria-label="Hosts" class="flex w-64 shrink-0 flex-col overflow-hidden rounded-panel border border-line bg-panel">
@@ -16,7 +17,10 @@
     <h2 class="font-display text-[15px] font-semibold">Hosts</h2>
     <div class="flex items-center gap-1">
       <span class="mr-1 font-mono text-[11px] text-subtle">{hostStore.list.length}</span>
-      <button class="grid size-7 place-items-center rounded-lg text-muted hover:bg-raised hover:text-fg" aria-label="New host" onclick={onNew}>
+      <button class="grid size-7 place-items-center rounded-lg text-muted hover:bg-raised hover:text-fg" aria-label="Import from ~/.ssh/config" title="Import from ~/.ssh/config" onclick={onImport}>
+        <Icon name="import" size={15} />
+      </button>
+      <button class="grid size-7 place-items-center rounded-lg text-muted hover:bg-raised hover:text-fg" aria-label="New host" title="New host" onclick={onNew}>
         <Icon name="plus" size={15} />
       </button>
     </div>
@@ -30,6 +34,7 @@
         <span class="grid size-10 place-items-center rounded-xl bg-raised text-subtle"><Icon name="server" size={18} /></span>
         <p class="text-[13px] text-muted">No hosts yet</p>
         <button class="rounded-lg bg-accent px-3 py-1.5 text-[13px] font-medium text-ground hover:bg-accent/90" onclick={onNew}>Add a host</button>
+        <button class="text-[13px] text-accent hover:underline" onclick={onImport}>Import from ~/.ssh/config</button>
       </div>
     {/if}
 

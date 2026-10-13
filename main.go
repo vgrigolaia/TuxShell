@@ -8,6 +8,7 @@ import (
 
 	"github.com/vgrigolaia/tuxshell/internal/hosts"
 	"github.com/vgrigolaia/tuxshell/internal/sshcmd"
+	"github.com/vgrigolaia/tuxshell/internal/sshconfig"
 	"github.com/vgrigolaia/tuxshell/internal/terminal"
 )
 
@@ -32,6 +33,11 @@ func main() {
 		log.Fatalf("open host store: %v", err)
 	}
 
+	sshConfigPath, err := sshconfig.DefaultPath()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	var app *application.App
 	terminals := terminal.NewService(func(name string, data any) {
 		app.Event.Emit(name, data)
@@ -43,6 +49,7 @@ func main() {
 		Services: []application.Service{
 			application.NewService(terminals),
 			application.NewService(hosts.NewService(store)),
+			application.NewService(sshconfig.NewService(store, sshConfigPath)),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
