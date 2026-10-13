@@ -18,6 +18,8 @@ export interface Pane {
   /** Typing and pasting are blocked. */
   readOnly: boolean
   showScrollbar: boolean
+  /** When the current session started (ms), or 0 before it connects. */
+  startedAt: number
 }
 
 /** A workspace tab showing 1–4 panes. */
@@ -65,7 +67,7 @@ class Workspace {
   }
 
   private makePane(source: Source, title: string): Pane {
-    const pane: Pane = { id: this.nextPane++, title, termTitle: '', source, exited: false, size: '', loginUser: '', customTitle: false, readOnly: false, showScrollbar: true }
+    const pane: Pane = { id: this.nextPane++, title, termTitle: '', source, exited: false, size: '', loginUser: '', customTitle: false, readOnly: false, showScrollbar: true, startedAt: 0 }
     this.panes.push(pane)
     return pane
   }

@@ -25,6 +25,8 @@
   let selected = $state<string | null>(null)
   // Last folder per pane, so switching panes and back keeps your place.
   const lastDir = new Map<number, string>()
+  // The folder a pane's first listing opened in (its home), for "~" paths.
+  const homeDir = new Map<number, string>()
 
   const location = $derived<Location | null>(
     !pane
@@ -69,6 +71,7 @@
       pathInput = l.path
       selected = null
       lastDir.set(forPane, l.path)
+      if (dir === '' && !homeDir.has(forPane)) homeDir.set(forPane, l.path)
     } catch (e) {
       error = errorMessage(e)
     } finally {
@@ -143,6 +146,12 @@
     return `${v < 10 ? v.toFixed(1) : Math.round(v)} ${units[i]}`
   }
 
+  // ~ for the home folder, like the prompt.
+  function shortPath(p: string) {
+    const home = homeDir.get(pane?.id ?? -1)
+    return home && (p === home || p.startsWith(home + '/')) ? '~' + p.slice(home.length) : p
+  }
+
   const dateFmt = new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
   const iconBtn = 'grid size-7 place-items-center rounded-lg text-muted hover:bg-raised hover:text-fg disabled:opacity-40'
@@ -153,13 +162,11 @@
   id="file-panel"
   data-file-drop-target
   aria-label="Files"
-  class="file-panel flex w-96 shrink-0 flex-col overflow-hidden rounded-panel border border-line bg-panel"
+  class="file-panel flex w-80 shrink-0 flex-col overflow-hidden rounded-panel border border-line bg-panel"
 >
-  <div class="flex items-center gap-1 px-4 pt-3.5 pb-2">
-    <div class="min-w-0 flex-1">
-      <h2 class="font-display text-[15px] font-semibold">Files</h2>
-      {#if where}<p class="truncate text-xs text-subtle">{where}</p>{/if}
-    </div>
+  <div class="flex items-center gap-1 pt-3.5 pr-2.5 pb-1 pl-4">
+    <h2 class="font-display text-base font-semibold">Files</h2>
+    <span class="ml-1.5 min-w-0 flex-1 truncate font-mono text-xs text-subtle" title={listing?.path}>{listing ? shortPath(listing.path) : ''}</span>
     <button class={iconBtn} aria-label="Upload files" title="Upload files (or drop them here)" disabled={!listing || !!busy} onclick={upload}>
       <Icon name="upload" size={15} />
     </button>
@@ -170,6 +177,7 @@
       <Icon name="x" size={14} />
     </button>
   </div>
+  {#if where}<p class="truncate px-4 pb-2 text-xs text-subtle">{where}</p>{/if}
 
   {#if !pane}
     <p class="px-4 pt-8 text-center text-[13px] text-muted">Open a terminal to browse its files.</p>
@@ -188,14 +196,14 @@
         <span class="sr-only">Folder path</span>
         <input
           bind:value={pathInput}
-          class="h-8 w-full rounded-lg border border-line bg-ground px-2.5 font-mono text-xs placeholder:text-subtle focus:border-accent focus:outline-none"
+          class="h-7 w-full rounded-lg border border-transparent bg-transparent px-2 font-mono text-xs text-muted placeholder:text-subtle hover:border-line focus:border-accent focus:bg-ground focus:text-fg focus:outline-none"
           placeholder="/path/to/folder"
           autocomplete="off"
           spellcheck="false"
         />
       </label>
       {#if listing}
-        <button type="button" class="h-8 shrink-0 rounded-lg px-2 text-xs text-muted hover:bg-raised hover:text-fg" title="Type cd to this folder in the terminal" onclick={() => listing && cdHere(listing.path)}>cd here</button>
+        <button type="button" class="h-7 shrink-0 rounded-lg px-2 text-xs text-muted hover:bg-raised hover:text-fg" title="Type cd to this folder in the terminal" onclick={() => listing && cdHere(listing.path)}>cd here</button>
       {/if}
     </form>
 
@@ -217,19 +225,15 @@
             {@const isDir = e.type === 'dir' || e.linkDir}
             <li class="group relative">
               <button
-                class="flex w-full items-center gap-2.5 rounded-lg py-1.5 pr-16 pl-2 text-left hover:bg-raised {selected === e.name ? 'bg-raised' : ''}"
-                title={isDir ? `Open ${e.name}` : `Download ${e.name}`}
+                class="flex w-full items-center gap-3 rounded-lg py-2 pr-3 pl-2.5 text-left hover:bg-raised {selected === e.name ? 'bg-raised' : ''}"
+                title="{isDir ? `Open ${e.name}` : `Download ${e.name}`} · {dateFmt.format(new Date(e.modTime))} · {e.mode}"
                 onclick={() => (selected = e.name)}
                 ondblclick={() => activate(e)}
                 onkeydown={(ev) => ev.key === 'Enter' && (ev.preventDefault(), activate(e))}
               >
                 <span class={isDir ? 'text-accent' : 'text-subtle'}><Icon name={isDir ? 'folder' : 'file'} size={15} /></span>
-                <span class="min-w-0 flex-1">
-                  <span class="block truncate text-[13px] {e.type === 'link' ? 'italic' : ''}">{e.name}</span>
-                  <span class="block truncate font-mono text-[11px] text-subtle">
-                    {isDir ? 'folder' : size(e.size)} · {dateFmt.format(new Date(e.modTime))} · {e.mode}
-                  </span>
-                </span>
+                <span class="min-w-0 flex-1 truncate text-[13px] {e.type === 'link' ? 'italic' : ''}">{e.name}</span>
+                <span class="shrink-0 font-mono text-[11px] text-subtle group-focus-within:opacity-0 group-hover:opacity-0">{isDir ? 'dir' : size(e.size)}</span>
               </button>
               <div class="absolute top-1/2 right-1.5 flex -translate-y-1/2 gap-0.5 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100">
                 {#if isDir}
@@ -254,14 +258,20 @@
       {/if}
     </div>
 
-    <div class="border-t border-line px-4 py-2.5 text-xs" aria-live="polite">
+    <div class="px-3 pb-3 text-xs" aria-live="polite">
       {#if busy}
-        <span class="text-muted">{busy}</span>
+        <p class="px-1 pb-2 text-muted">{busy}</p>
       {:else if notice}
-        <span class="break-all {notice.tone === 'ok' ? 'text-success' : 'text-warning'}">{notice.text}</span>
-      {:else}
-        <span class="text-subtle">Double-click a folder to open, a file to download. Drop files here to upload.</span>
+        <p class="px-1 pb-2 break-all {notice.tone === 'ok' ? 'text-success' : 'text-warning'}">{notice.text}</p>
       {/if}
+      <button
+        class="drop-zone w-full rounded-xl border border-dashed border-line px-3 py-4 text-center text-[13px] text-subtle hover:border-subtle hover:text-muted disabled:opacity-50"
+        disabled={!listing || !!busy}
+        title="Double-click a folder to open it, a file to download it"
+        onclick={upload}
+      >
+        Drop to upload · or click to pick files
+      </button>
     </div>
   {/if}
 </aside>
@@ -271,5 +281,9 @@
   :global(.file-panel.file-drop-target-active) {
     outline: 2px dashed var(--color-accent);
     outline-offset: -4px;
+  }
+  :global(.file-panel.file-drop-target-active) .drop-zone {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
   }
 </style>

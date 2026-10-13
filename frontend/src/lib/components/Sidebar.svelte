@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { describe, hostStore, initials, type Host, type HostGroup } from '../hosts.svelte'
+  import { describe, hostStore, type Host, type HostGroup } from '../hosts.svelte'
+  import { workspace } from '../workspace.svelte'
+  import HostBadge from './HostBadge.svelte'
   import { best } from '../fuzzy'
   import { SvelteSet } from 'svelte/reactivity'
   import ContextMenu, { type MenuItem } from './ContextMenu.svelte'
@@ -60,6 +62,8 @@
   })
 
   const visibleHosts = $derived(visible.flatMap((g) => g.hosts))
+  // Hosts with a running session in some pane.
+  const open = $derived(new Set(workspace.panes.filter((p) => p.source.kind === 'host' && !p.exited).map((p) => (p.source as { hostId: number }).hostId)))
   const pickedVisible = $derived(visibleHosts.filter((h) => picked.has(h.id)))
   const allPicked = $derived(visibleHosts.length > 0 && pickedVisible.length === visibleHosts.length)
 
@@ -139,11 +143,11 @@
   ]
 </script>
 
-<aside aria-label="Hosts" class="flex w-64 shrink-0 flex-col overflow-hidden rounded-panel border border-line bg-panel">
-  <div class="flex items-center justify-between px-4 pt-3.5 pb-2">
-    <h2 class="font-display text-[15px] font-semibold">Hosts</h2>
+<aside aria-label="Hosts" class="flex w-72 shrink-0 flex-col overflow-hidden rounded-panel border border-line bg-panel">
+  <div class="flex items-center justify-between pt-4 pr-3 pb-2 pl-4">
+    <h2 class="font-display text-base font-semibold">Hosts</h2>
     <div class="flex items-center gap-1">
-      <span class="mr-1 font-mono text-[11px] text-subtle">{hostStore.list.length}</span>
+      <span class="mr-1 font-mono text-[11px] text-subtle">{hostStore.list.length}{open.size ? ` · ${open.size} open` : ''}</span>
       {#if hostStore.list.length > 0}
         <button
           class="rounded-lg px-2 py-1 text-xs transition-colors {selecting ? 'bg-accent/15 text-accent' : 'text-muted hover:bg-raised hover:text-fg'}"
@@ -210,7 +214,7 @@
     {/if}
 
     {#each visible as group, gi (group.name)}
-      {@const open = !collapsed[group.name] || !!filter}
+      {@const expanded = !collapsed[group.name] || !!filter}
       {@const groupPicked = group.hosts.filter((h) => picked.has(h.id)).length}
       <h3 class="flex items-center">
         {#if selecting}
@@ -224,17 +228,17 @@
           />
         {/if}
         <button
-          class="flex w-full items-center gap-1.5 rounded-md px-2 pt-3 pb-1.5 font-mono text-[11px] tracking-wider text-subtle uppercase hover:text-muted"
-          aria-expanded={open}
+          class="group/h flex w-full items-center gap-1.5 rounded-md px-2.5 pt-4 pb-2 font-mono text-[11px] tracking-[0.14em] text-subtle uppercase hover:text-muted"
+          aria-expanded={expanded}
           aria-controls="host-group-{gi}"
           onclick={() => toggle(group.name)}
         >
-          <span class="transition-transform {open ? 'rotate-90' : ''}"><Icon name="chevron" size={11} /></span>
           <span class="flex-1 truncate text-left">{group.name}</span>
-          <span>{group.hosts.length}</span>
+          <!-- The chevron only shows when it matters: hovered, focused or collapsed. -->
+          <span class="transition-transform {expanded ? 'rotate-90 opacity-0 group-hover/h:opacity-100 group-focus-visible/h:opacity-100' : ''}"><Icon name="chevron" size={11} /></span>
         </button>
       </h3>
-      <ul id="host-group-{gi}" hidden={!open}>
+      <ul id="host-group-{gi}" hidden={!expanded}>
         {#each group.hosts as host (host.id)}
           <li class="group relative">
             {#if selecting}
@@ -248,31 +252,28 @@
                     pick(host, e)
                   }}
                 />
-                <span class="min-w-0 flex-1">
-                  <span class="block truncate text-[13px]">{host.name}</span>
-                  <span class="block truncate font-mono text-[11px] text-subtle">{describe(host)}</span>
-                </span>
+                <HostBadge name={host.name} size={24} />
+                <span class="min-w-0 flex-1 truncate text-[13px]">{host.name}</span>
               </label>
             {:else}
             <button
-              class="flex w-full items-center gap-2.5 rounded-lg py-1.5 pr-9 pl-2 text-left transition-colors hover:bg-raised"
-              class:bg-raised={host.id === selectedId}
+              class="flex w-full items-center gap-3 rounded-xl border py-2 pr-3 pl-2.5 text-left transition-colors hover:bg-raised {host.id === selectedId ? 'border-line bg-raised' : 'border-transparent'}"
               title="Connect to {describe(host)}"
               aria-haspopup="menu"
               onclick={() => onConnect(host)}
               oncontextmenu={(e) => openMenu(e, host)}
               onkeydown={(e) => onRowKey(e, host)}
             >
-              <span class="grid size-7 shrink-0 place-items-center rounded-md bg-accent/15 font-mono text-[10px] font-semibold text-accent" aria-hidden="true">
-                {initials(host.name)}
-              </span>
-              <span class="min-w-0 flex-1">
-                <span class="block truncate text-[13px]">{host.name}</span>
-                <span class="block truncate font-mono text-[11px] text-subtle">{describe(host)}</span>
-              </span>
+              <HostBadge name={host.name} />
+              <span class="min-w-0 flex-1 truncate text-sm">{host.name}</span>
+              {#if open.has(host.id)}
+                <span class="flex items-center gap-1.5 font-mono text-[11px] text-subtle group-focus-within:opacity-0 group-hover:opacity-0">
+                  <span class="size-1.5 rounded-full bg-success" aria-hidden="true"></span>open
+                </span>
+              {/if}
             </button>
             <button
-              class="absolute top-1/2 right-1.5 grid size-6 -translate-y-1/2 place-items-center rounded-md text-subtle opacity-0 group-hover:opacity-100 hover:bg-line hover:text-fg focus-visible:opacity-100"
+              class="absolute top-1/2 right-2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-subtle opacity-0 group-hover:opacity-100 hover:bg-line hover:text-fg focus-visible:opacity-100"
               aria-label="Edit {host.name}"
               onclick={() => onEdit(host)}
             >

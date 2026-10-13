@@ -153,7 +153,7 @@
               source={pane.source}
               visible={at.visible}
               focused={at.visible && at.focused}
-              onStart={() => workspace.updatePane(pane.id, { exited: false })}
+              onStart={() => workspace.updatePane(pane.id, { exited: false, startedAt: Date.now() })}
               onInput={(data) => broadcastInput(pane.id, data)}
               onLogin={(user) => workspace.updatePane(pane.id, { loginUser: user })}
               onTitle={(title) =>

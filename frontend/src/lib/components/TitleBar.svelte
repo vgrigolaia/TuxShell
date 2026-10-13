@@ -130,7 +130,7 @@
 <!-- Double-click to maximize is a mouse shortcut; the Maximize button covers keyboard users. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <header
-  class="drag flex h-12 shrink-0 items-center gap-3 px-3"
+  class="drag flex h-14 shrink-0 items-center gap-3 px-3"
   ondblclick={(e) => e.target === e.currentTarget && Window.ToggleMaximise()}
 >
   <button
@@ -145,10 +145,10 @@
   </button>
 
   <div class="flex items-center gap-2 pr-1">
-    <span class="grid size-7 place-items-center rounded-lg bg-accent text-ground">
-      <Icon name="terminal" size={15} />
+    <span class="grid size-9 place-items-center rounded-xl bg-accent text-ground">
+      <Icon name="terminal" size={17} />
     </span>
-    <span class="font-display text-[15px] font-semibold tracking-tight">TuxShell</span>
+    <span class="font-display text-[17px] font-semibold tracking-tight">TuxShell</span>
   </div>
 
   <div class="no-drag flex min-w-0 items-center gap-1 rounded-xl border border-line bg-panel p-1">
@@ -176,17 +176,19 @@
             aria-selected={tab.key === activeKey || picked.has(tab.key)}
             aria-controls="panel-{tab.key}"
             tabindex={tab.key === activeKey ? 0 : -1}
-            class="flex max-w-48 items-center gap-2 py-1 pr-1 pl-2.5 text-[13px]"
+            class="flex max-w-52 items-center gap-2 py-1.5 pr-1 pl-3 text-[13px]"
             title="{tab.title} — Ctrl+click to select, right-click to split or close"
             onclick={(e) => onTabClick(e, tab.key)}
             onkeydown={(e) => onTabKey(e, i)}
           >
-            <span class="size-1.5 shrink-0 rounded-full {tab.exited ? 'bg-subtle' : 'bg-success'}"></span>
+            <!-- Filled green while connected, hollow orange once every session ended. -->
+            <span class="size-2 shrink-0 rounded-full {tab.exited ? 'border-[1.5px] border-warning' : 'bg-success'}" aria-hidden="true"></span>
             <span class="truncate">{tab.title}</span>
             {#if tab.panes > 1}<span class="shrink-0 text-subtle" aria-label="{tab.panes} panes"><Icon name="splitRight" size={12} /></span>{/if}
           </button>
+          <!-- Close shows on the active tab and on hover, as in the design. -->
           <button
-            class="mr-1 grid size-5 place-items-center rounded text-subtle hover:bg-line hover:text-fg"
+            class="mr-1.5 grid size-5 place-items-center rounded text-subtle hover:bg-line hover:text-fg focus-visible:opacity-100 {tab.key === activeKey ? '' : 'opacity-0 group-hover:opacity-100'}"
             aria-label="Close {tab.title}"
             tabindex="-1"
             onclick={() => onClose(tab.key)}

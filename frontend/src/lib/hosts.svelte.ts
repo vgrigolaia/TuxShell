@@ -116,7 +116,18 @@ export function initials(name: string): string {
   // IPv4 names all start alike ("10.50…"), so show the last octet instead.
   const ip = /^\d{1,3}(?:\.\d{1,3}){3}$/.exec(name)
   if (ip) return name.slice(name.lastIndexOf('.') + 1)
-  const parts = name.split(/[-_.\s]+/).filter(Boolean)
-  const s = parts.length > 1 ? parts[0][0] + parts[1][0] : name.slice(0, 2)
-  return s.toUpperCase()
+  // The first word names the service ("pg-primary" → PG, "haproxy-01" → HA).
+  const first = name.split(/[-_.\s]+/).find(Boolean) ?? name
+  return first.slice(0, 2).toUpperCase()
+}
+
+/** Badge tints; a host keeps its colour as long as its initials don't change. */
+const tints = ['violet', 'emerald', 'amber', 'rose', 'sky', 'teal'] as const
+export type Tint = (typeof tints)[number]
+
+export function tint(name: string): Tint {
+  const key = initials(name)
+  let h = 0
+  for (const c of key) h = (h * 31 + c.charCodeAt(0)) >>> 0
+  return tints[h % tints.length]
 }

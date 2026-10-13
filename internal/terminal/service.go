@@ -196,6 +196,23 @@ func (s *Service) Close(id string) error {
 	return s.hangUp(sess)
 }
 
+// DisplayServer names the desktop session type ("Wayland" or "X11"), for the status bar.
+func (s *Service) DisplayServer() string {
+	switch os.Getenv("XDG_SESSION_TYPE") {
+	case "wayland":
+		return "Wayland"
+	case "x11":
+		return "X11"
+	}
+	if os.Getenv("WAYLAND_DISPLAY") != "" {
+		return "Wayland"
+	}
+	if os.Getenv("DISPLAY") != "" {
+		return "X11"
+	}
+	return ""
+}
+
 // LiveCount is how many sessions are running and haven't been asked to close.
 func (s *Service) LiveCount() int {
 	s.mu.Lock()
