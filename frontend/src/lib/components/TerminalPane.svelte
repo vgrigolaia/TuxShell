@@ -298,34 +298,34 @@
     const live = !asking && exited === null
     const a = actions
     const items: MenuItem[] = [
-      { label: 'Copy', hint: 'Ctrl+Shift+C', disabled: !term?.hasSelection(), run: copySelection },
-      { label: 'Paste', hint: 'Ctrl+Shift+V', disabled: !live || readOnly, run: pasteClipboard },
-      { label: 'Select all', run: () => term?.selectAll() },
-      { label: 'Clear scrollback', run: () => term?.clear() },
+      { label: 'Copy', icon: 'copy', hint: 'Ctrl+Shift+C', disabled: !term?.hasSelection(), run: copySelection },
+      { label: 'Paste', icon: 'clipboard', hint: 'Ctrl+Shift+V', disabled: !live || readOnly, run: pasteClipboard },
+      { label: 'Select all', icon: 'selectAll', run: () => term?.selectAll() },
+      { label: 'Clear scrollback', icon: 'eraser', run: () => term?.clear() },
     ]
     if (!a) return items
-    items.push({ label: 'Set title…', hint: 'Ctrl+Alt+W', separator: true, run: a.rename })
+    items.push({ label: 'Set title…', icon: 'tag', hint: 'Ctrl+Alt+W', separator: true, run: a.rename })
     if (a.split) {
       const sp = a.split
       items.push(
-        { label: 'Split auto', hint: 'Ctrl+Shift+A', run: () => sp('auto') },
-        { label: 'Split right', run: () => sp('row') },
-        { label: 'Split down', hint: 'Ctrl+Shift+O', run: () => sp('column') },
+        { label: 'Split auto', icon: 'splitAuto', hint: 'Ctrl+Shift+A', run: () => sp('auto') },
+        { label: 'Split right', icon: 'splitRight', run: () => sp('row') },
+        { label: 'Split down', icon: 'splitDown', hint: 'Ctrl+Shift+O', run: () => sp('column') },
       )
     }
-    if (a.splitOther) items.push({ label: 'Split with another host…', run: a.splitOther })
+    if (a.splitOther) items.push({ label: 'Split with another host…', icon: 'server', run: a.splitOther })
     items.push(
-      { label: 'Open in new tab', hint: 'Ctrl+Shift+T', run: a.newTab },
-      { label: 'Close', hint: 'Ctrl+Shift+W', separator: true, run: a.close },
+      { label: 'Open in new tab', icon: 'tab', hint: 'Ctrl+Shift+T', run: a.newTab },
+      { label: 'Close', icon: 'x', hint: 'Ctrl+Shift+W', separator: true, run: a.close },
     )
-    if (split) items.push({ label: 'Maximize pane', hint: 'Ctrl+Shift+X', checked: maximized, run: a.toggleMaximized })
+    if (split) items.push({ label: maximized ? 'Restore split' : 'Maximize pane', icon: maximized ? 'restore' : 'maximize', hint: 'Ctrl+Shift+X', run: a.toggleMaximized })
     items.push(
       { label: 'Read only', checked: readOnly, separator: !split, run: a.toggleReadOnly },
       { label: 'Show scrollbar', hint: 'Ctrl+Shift+S', checked: showScrollbar, run: a.toggleScrollbar },
-      { label: 'Zoom in', hint: 'Ctrl+=', separator: true, run: () => prefs.zoomBy(1) },
-      { label: 'Zoom out', hint: 'Ctrl+-', run: () => prefs.zoomBy(-1) },
-      { label: 'Reset zoom', hint: 'Ctrl+0', disabled: prefs.zoom === 0, run: () => (prefs.zoom = 0) },
-      { label: 'Preferences…', hint: 'Ctrl+,', separator: true, run: a.preferences },
+      { label: 'Zoom in', icon: 'zoomIn', hint: 'Ctrl+=', separator: true, run: () => prefs.zoomBy(1) },
+      { label: 'Zoom out', icon: 'zoomOut', hint: 'Ctrl+-', run: () => prefs.zoomBy(-1) },
+      { label: 'Reset zoom', icon: 'zoomReset', hint: 'Ctrl+0', disabled: prefs.zoom === 0, run: () => (prefs.zoom = 0) },
+      { label: 'Preferences…', icon: 'gear', hint: 'Ctrl+,', separator: true, run: a.preferences },
     )
     return items
   }

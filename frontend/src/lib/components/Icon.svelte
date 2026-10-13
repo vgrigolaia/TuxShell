@@ -1,4 +1,4 @@
-<script lang="ts">
+<script lang="ts" module>
   // Small inline stroke icons, so no icon library is needed.
   const paths = {
     terminal: 'M4 17l6-6-6-6M12 19h8',
@@ -31,10 +31,25 @@
     upload: 'M12 20V9M7 14l5-5 5 5M5 4h14',
     refresh: 'M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7',
     shield: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',
+    copy: 'M9 9h11v11H9zM5 15H4V4h11v1',
+    selectAll: 'M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M9 9h6v6H9z',
+    eraser: 'M8 20h12M5 15l9-9 5 5-8 8H8z',
+    tag: 'M4 4h8l8 8-8 8-8-8zM8.5 8.5h.01',
+    splitAuto: 'M4 5h16v14H4zM12 5v14M12 12h8',
+    tab: 'M3 8h7V5h11v14H3zM10 8V5',
+    lock: 'M6 11h12v9H6zM9 11V8a3 3 0 0 1 6 0v3',
+    scrollbar: 'M4 5h16v14H4zM16 5v14M18 8v3',
+    zoomIn: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3M11 8v6M8 11h6',
+    zoomOut: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3M8 11h6',
+    zoomReset: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3M9 9h4v4',
   } as const
 
+  export type IconName = keyof typeof paths
+</script>
+
+<script lang="ts">
   interface Props {
-    name: keyof typeof paths
+    name: IconName
     size?: number
   }
   let { name, size = 16 }: Props = $props()

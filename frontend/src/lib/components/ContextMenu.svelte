@@ -1,4 +1,6 @@
 <script lang="ts" module>
+  import type { IconName } from './Icon.svelte'
+
   export interface MenuItem {
     label: string
     run: () => void
@@ -11,11 +13,13 @@
     separator?: boolean
     /** Makes it a checkbox item (ticked when true). */
     checked?: boolean
+    icon?: IconName
   }
 </script>
 
 <script lang="ts">
   import { onMount } from 'svelte'
+  import Icon from './Icon.svelte'
 
   interface Props {
     x: number
@@ -92,8 +96,13 @@
           item.run()
         }}
       >
-        {#if items.some((i) => i.checked !== undefined)}
-          <span class="-mr-3 w-3.5 text-accent" aria-hidden="true">{item.checked ? '✓' : ''}</span>
+        {#if item.checked !== undefined}
+          <!-- Checkbox items show their state where icons go. -->
+          <span class="-mr-3 grid size-4 place-items-center rounded border {item.checked ? 'border-accent bg-accent text-ground' : 'border-subtle'}" aria-hidden="true">
+            {#if item.checked}<Icon name="check" size={11} />{/if}
+          </span>
+        {:else if items.some((i) => i.icon || i.checked !== undefined)}
+          <span class="-mr-3 grid size-4 place-items-center text-muted" aria-hidden="true">{#if item.icon}<Icon name={item.icon} size={15} />{/if}</span>
         {/if}
         <span class="flex-1">{item.label}</span>
         {#if item.hint}<span class="font-mono text-[11px] text-subtle">{item.hint}</span>{/if}
