@@ -39,6 +39,13 @@ type ExitEvent struct {
 // Emitter sends an event to the frontend.
 type Emitter func(name string, data any)
 
+// Resolver builds the ssh command for a saved host or an ad-hoc target.
+// Commands are only ever built in Go; the frontend can't choose what runs.
+type Resolver interface {
+	HostCommand(id int64) (*exec.Cmd, error)
+	TargetCommand(target string) (*exec.Cmd, error)
+}
+
 type session struct {
 	cmd  *exec.Cmd
 	ptmx *os.File
@@ -47,14 +54,16 @@ type session struct {
 // Service manages PTY sessions. Its exported methods are bound to the frontend.
 type Service struct {
 	emit     Emitter
+	resolver Resolver
 	nextID   atomic.Uint64
 	mu       sync.Mutex
 	sessions map[string]*session
 }
 
-// NewService returns a Service that reports output and exits through emit.
-func NewService(emit Emitter) *Service {
-	return &Service{emit: emit, sessions: map[string]*session{}}
+// NewService returns a Service that reports output and exits through emit
+// and builds ssh commands with resolver.
+func NewService(emit Emitter, resolver Resolver) *Service {
+	return &Service{emit: emit, resolver: resolver, sessions: map[string]*session{}}
 }
 
 // StartShell starts the user's login shell and returns the session ID.
@@ -66,6 +75,24 @@ func (s *Service) StartShell(cols, rows int) (string, error) {
 	cmd := exec.Command(shell, "-l")
 	if home, err := os.UserHomeDir(); err == nil {
 		cmd.Dir = home
+	}
+	return s.start(cmd, cols, rows)
+}
+
+// StartHost connects to a saved host and returns the session ID.
+func (s *Service) StartHost(hostID int64, cols, rows int) (string, error) {
+	cmd, err := s.resolver.HostCommand(hostID)
+	if err != nil {
+		return "", err
+	}
+	return s.start(cmd, cols, rows)
+}
+
+// StartTarget connects to an ad-hoc "[user@]host[:port]" and returns the session ID.
+func (s *Service) StartTarget(target string, cols, rows int) (string, error) {
+	cmd, err := s.resolver.TargetCommand(target)
+	if err != nil {
+		return "", err
 	}
 	return s.start(cmd, cols, rows)
 }

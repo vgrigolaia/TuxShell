@@ -7,6 +7,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"github.com/vgrigolaia/tuxshell/internal/hosts"
+	"github.com/vgrigolaia/tuxshell/internal/sshcmd"
 	"github.com/vgrigolaia/tuxshell/internal/terminal"
 )
 
@@ -34,7 +35,7 @@ func main() {
 	var app *application.App
 	terminals := terminal.NewService(func(name string, data any) {
 		app.Event.Emit(name, data)
-	})
+	}, sshcmd.Resolver{Store: store})
 
 	app = application.New(application.Options{
 		Name:        "TuxShell",

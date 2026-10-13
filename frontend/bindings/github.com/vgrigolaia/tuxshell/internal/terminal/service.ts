@@ -25,10 +25,24 @@ export function Resize(id: string, cols: number, rows: number): $CancellableProm
 }
 
 /**
+ * StartHost connects to a saved host and returns the session ID.
+ */
+export function StartHost(hostID: number, cols: number, rows: number): $CancellablePromise<string> {
+    return $Call.ByID(875278205, hostID, cols, rows);
+}
+
+/**
  * StartShell starts the user's login shell and returns the session ID.
  */
 export function StartShell(cols: number, rows: number): $CancellablePromise<string> {
     return $Call.ByID(1896308423, cols, rows);
+}
+
+/**
+ * StartTarget connects to an ad-hoc "[user@]host[:port]" and returns the session ID.
+ */
+export function StartTarget(target: string, cols: number, rows: number): $CancellablePromise<string> {
+    return $Call.ByID(996645206, target, cols, rows);
 }
 
 /**

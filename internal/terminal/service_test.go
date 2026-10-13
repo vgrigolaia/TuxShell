@@ -45,7 +45,7 @@ func (r *recorder) waitExit(t *testing.T) ExitEvent {
 
 func TestStartStreamsOutputAndExitCode(t *testing.T) {
 	rec := newRecorder()
-	svc := NewService(rec.emit)
+	svc := NewService(rec.emit, nil)
 
 	id, err := svc.start(exec.Command("sh", "-c", "printf 'héllo'; exit 3"), 80, 24)
 	if err != nil {
@@ -66,7 +66,7 @@ func TestStartStreamsOutputAndExitCode(t *testing.T) {
 
 func TestWriteResizeAndClose(t *testing.T) {
 	rec := newRecorder()
-	svc := NewService(rec.emit)
+	svc := NewService(rec.emit, nil)
 
 	// `read` blocks until we write a line; stty reports the PTY size.
 	id, err := svc.start(exec.Command("sh", "-c", "read line; stty size; echo \"got:$line\"; sleep 30"), 80, 24)
@@ -104,7 +104,7 @@ func TestWriteResizeAndClose(t *testing.T) {
 }
 
 func TestUnknownSession(t *testing.T) {
-	svc := NewService(func(string, any) {})
+	svc := NewService(func(string, any) {}, nil)
 	if err := svc.Write("nope", "x"); err == nil {
 		t.Fatal("expected error for unknown session")
 	}
