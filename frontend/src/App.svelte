@@ -6,6 +6,7 @@
   import TerminalPane from './lib/components/TerminalPane.svelte'
   import ImportDialog from './lib/components/ImportDialog.svelte'
   import QuickConnect from './lib/components/QuickConnect.svelte'
+  import ConfirmDialog from './lib/components/ConfirmDialog.svelte'
   import { emptyHost, hostStore, type Host } from './lib/hosts.svelte'
   import type { Source, Tab } from './lib/tabs'
 
@@ -20,6 +21,7 @@
   let size = $state<Record<number, string>>({})
   let importOpen = $state(false)
   let quickOpen = $state(false)
+  let deleting = $state<Host | null>(null)
 
   const active = $derived(tabs.find((t) => t.key === activeKey))
   const activeHostId = $derived(active?.source.kind === 'host' ? active.source.hostId : null)
@@ -65,6 +67,15 @@
     update(tab.key, tab.source.kind === 'shell' ? { title, termTitle: title } : { termTitle: title })
   }
 
+  function duplicate(host: Host) {
+    panel = { kind: 'host', host: { ...host, id: 0, name: `${host.name} copy`, tags: [...(host.tags ?? [])] } }
+  }
+
+  async function confirmDelete(host: Host) {
+    await hostStore.remove(host.id)
+    if (panel.kind === 'host' && panel.host.id === host.id) panel = { kind: 'none' }
+  }
+
   // Keep open tabs' labels in sync when a host is renamed.
   function onSaved(saved: Host) {
     for (const t of tabs) if (t.source.kind === 'host' && t.source.hostId === saved.id) t.title = saved.name
@@ -89,6 +100,8 @@
       selectedId={panel.kind === 'host' ? panel.host.id : activeHostId}
       onConnect={connect}
       onEdit={(host) => (panel = { kind: 'host', host })}
+      onDuplicate={duplicate}
+      onDelete={(host) => (deleting = host)}
       onNew={() => (panel = { kind: 'host', host: emptyHost() })}
       onImport={() => (importOpen = true)}
     />
@@ -117,7 +130,7 @@
     </section>
 
     {#if panel.kind === 'host'}
-      {#key panel.host.id}
+      {#key panel.host}
         <HostForm host={panel.host} onClose={() => (panel = { kind: 'none' })} {onSaved} onConnect={connect} />
       {/key}
     {:else if panel.kind === 'clipboard'}
@@ -149,5 +162,16 @@
     onNewShell={() => openTab({ kind: 'shell' }, 'Local shell')}
     onNewHost={() => (panel = { kind: 'host', host: emptyHost() })}
     onImport={() => (importOpen = true)}
+  />
+{/if}
+
+{#if deleting}
+  {@const host = deleting}
+  <ConfirmDialog
+    title="Delete {host.name}?"
+    message="This removes the saved host from TuxShell. Open sessions keep running, and your ~/.ssh/config is not changed."
+    confirmLabel="Delete"
+    onConfirm={() => confirmDelete(host)}
+    onClose={() => (deleting = null)}
   />
 {/if}

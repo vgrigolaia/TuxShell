@@ -1,15 +1,75 @@
 <script lang="ts">
-  import { describe, hostStore, initials, type Host } from '../hosts.svelte'
+  import { describe, hostStore, initials, type Host, type HostGroup } from '../hosts.svelte'
+  import { best } from '../fuzzy'
+  import ContextMenu, { type MenuItem } from './ContextMenu.svelte'
   import Icon from './Icon.svelte'
 
   interface Props {
     selectedId: number | null
     onConnect: (host: Host) => void
     onEdit: (host: Host) => void
+    onDuplicate: (host: Host) => void
+    onDelete: (host: Host) => void
     onNew: () => void
     onImport: () => void
   }
-  let { selectedId, onConnect, onEdit, onNew, onImport }: Props = $props()
+  let { selectedId, onConnect, onEdit, onDuplicate, onDelete, onNew, onImport }: Props = $props()
+
+  const COLLAPSED_KEY = 'tuxshell.sidebar.collapsed'
+
+  let filter = $state('')
+  let collapsed = $state<Record<string, boolean>>(loadCollapsed())
+  let menu = $state<{ x: number; y: number; host: Host } | null>(null)
+
+  // Per-viewer UI preference only; the app works the same without it.
+  function loadCollapsed(): Record<string, boolean> {
+    try {
+      return JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? '{}')
+    } catch {
+      return {}
+    }
+  }
+
+  function toggle(group: string) {
+    collapsed[group] = !collapsed[group]
+    try {
+      localStorage.setItem(COLLAPSED_KEY, JSON.stringify(collapsed))
+    } catch {
+      // Storage unavailable; the toggle still works for this session.
+    }
+  }
+
+  const visible = $derived.by<HostGroup[]>(() => {
+    const q = filter.trim()
+    if (!q) return hostStore.groups
+    return hostStore.groups
+      .map((g) => ({
+        name: g.name,
+        hosts: g.hosts.filter((h) => best(q, [h.name, h.hostname, h.alias, g.name, ...(h.tags ?? [])]) > 0),
+      }))
+      .filter((g) => g.hosts.length > 0)
+  })
+
+  function openMenu(e: MouseEvent | KeyboardEvent, host: Host) {
+    e.preventDefault()
+    if (e instanceof MouseEvent && e.type === 'contextmenu') {
+      menu = { x: e.clientX, y: e.clientY, host }
+    } else {
+      const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+      menu = { x: r.left + 24, y: r.bottom, host }
+    }
+  }
+
+  function onRowKey(e: KeyboardEvent, host: Host) {
+    if (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) openMenu(e, host)
+  }
+
+  const menuItems = (host: Host): MenuItem[] => [
+    { label: 'Connect', run: () => onConnect(host) },
+    { label: 'Edit…', run: () => onEdit(host) },
+    { label: 'Duplicate…', run: () => onDuplicate(host) },
+    { label: 'Delete…', run: () => onDelete(host), danger: true },
+  ]
 </script>
 
 <aside aria-label="Hosts" class="flex w-64 shrink-0 flex-col overflow-hidden rounded-panel border border-line bg-panel">
@@ -26,6 +86,23 @@
     </div>
   </div>
 
+  {#if hostStore.list.length > 0}
+    <div class="px-3 pb-1">
+      <label class="flex items-center gap-2 rounded-lg border border-line bg-ground px-2.5 focus-within:border-accent">
+        <span class="text-subtle"><Icon name="search" size={13} /></span>
+        <span class="sr-only">Filter hosts</span>
+        <input
+          bind:value={filter}
+          class="h-8 min-w-0 flex-1 bg-transparent text-[13px] placeholder:text-subtle focus:outline-none"
+          placeholder="Filter"
+          autocomplete="off"
+          spellcheck="false"
+          onkeydown={(e) => e.key === 'Escape' && (filter = '')}
+        />
+      </label>
+    </div>
+  {/if}
+
   <nav aria-label="Saved hosts" class="flex-1 overflow-y-auto px-2 pb-2">
     {#if hostStore.error}
       <p role="alert" class="m-2 text-xs text-warning">Could not load hosts: {hostStore.error}</p>
@@ -36,18 +113,35 @@
         <button class="rounded-lg bg-accent px-3 py-1.5 text-[13px] font-medium text-ground hover:bg-accent/90" onclick={onNew}>Add a host</button>
         <button class="text-[13px] text-accent hover:underline" onclick={onImport}>Import from ~/.ssh/config</button>
       </div>
+    {:else if filter && visible.length === 0}
+      <p class="px-3 pt-6 text-center text-[13px] text-muted">No hosts match “{filter}”</p>
     {/if}
 
-    {#each hostStore.groups as group (group.name)}
-      <h3 class="px-2 pt-3 pb-1.5 font-mono text-[11px] tracking-wider text-subtle uppercase">{group.name}</h3>
-      <ul>
+    {#each visible as group, gi (group.name)}
+      {@const open = !collapsed[group.name] || !!filter}
+      <h3>
+        <button
+          class="flex w-full items-center gap-1.5 rounded-md px-2 pt-3 pb-1.5 font-mono text-[11px] tracking-wider text-subtle uppercase hover:text-muted"
+          aria-expanded={open}
+          aria-controls="host-group-{gi}"
+          onclick={() => toggle(group.name)}
+        >
+          <span class="transition-transform {open ? 'rotate-90' : ''}"><Icon name="chevron" size={11} /></span>
+          <span class="flex-1 truncate text-left">{group.name}</span>
+          <span>{group.hosts.length}</span>
+        </button>
+      </h3>
+      <ul id="host-group-{gi}" hidden={!open}>
         {#each group.hosts as host (host.id)}
           <li class="group relative">
             <button
               class="flex w-full items-center gap-2.5 rounded-lg py-1.5 pr-9 pl-2 text-left transition-colors hover:bg-raised"
               class:bg-raised={host.id === selectedId}
               title="Connect to {describe(host)}"
+              aria-haspopup="menu"
               onclick={() => onConnect(host)}
+              oncontextmenu={(e) => openMenu(e, host)}
+              onkeydown={(e) => onRowKey(e, host)}
             >
               <span class="grid size-7 shrink-0 place-items-center rounded-md bg-accent/15 font-mono text-[10px] font-semibold text-accent" aria-hidden="true">
                 {initials(host.name)}
@@ -78,3 +172,7 @@
     </div>
   </div>
 </aside>
+
+{#if menu}
+  <ContextMenu x={menu.x} y={menu.y} label="Actions for {menu.host.name}" items={menuItems(menu.host)} onClose={() => (menu = null)} />
+{/if}
