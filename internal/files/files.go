@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -96,9 +97,13 @@ func (b remote) run(ctx context.Context, script string, stdin io.Reader, stdout 
 	return err
 }
 
+// shellNoise matches the "bash: line 1: cd: " / "sh: 1: cd: " prefixes shells put on errors.
+var shellNoise = regexp.MustCompile(`^(?:\S+: )?(?:(?:line )?\d+: )?(?:cd: )?`)
+
+// lastLine returns the last stderr line without the shell's prefix.
 func lastLine(s string) string {
 	lines := strings.Split(strings.TrimSpace(s), "\n")
-	return strings.TrimSpace(lines[len(lines)-1])
+	return shellNoise.ReplaceAllString(strings.TrimSpace(lines[len(lines)-1]), "")
 }
 
 // listScript prints the resolved directory, a NUL, then one NUL-terminated
@@ -317,14 +322,16 @@ func createUnique(dir, name string) (*os.File, error) {
 
 // downloadsDir is the XDG download directory, falling back to ~/Downloads.
 func downloadsDir() (string, error) {
-	if out, err := exec.Command("xdg-user-dir", "DOWNLOAD").Output(); err == nil {
-		if dir := strings.TrimSpace(string(out)); dir != "" && filepath.IsAbs(dir) {
-			return dir, os.MkdirAll(dir, 0o755)
-		}
-	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
+	}
+	if out, err := exec.Command("xdg-user-dir", "DOWNLOAD").Output(); err == nil {
+		// xdg-user-dir answers $HOME when no Downloads folder is configured;
+		// files shouldn't land loose in the home folder.
+		if dir := strings.TrimSpace(string(out)); dir != "" && filepath.IsAbs(dir) && filepath.Clean(dir) != filepath.Clean(home) {
+			return dir, os.MkdirAll(dir, 0o755)
+		}
 	}
 	dir := filepath.Join(home, "Downloads")
 	return dir, os.MkdirAll(dir, 0o755)

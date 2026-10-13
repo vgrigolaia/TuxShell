@@ -207,3 +207,30 @@ type exitRunner struct {
 func (r exitRunner) Command(ctx context.Context, _ string) *exec.Cmd {
 	return exec.CommandContext(ctx, "sh", "-c", `printf '%s\n' "$1" >&2; exit `+strconv.Itoa(r.code), "sh", r.stderr)
 }
+
+func TestErrorMessagesAreClean(t *testing.T) {
+	for in, want := range map[string]string{
+		"bash: line 1: cd: /srv/x: No such file or directory": "/srv/x: No such file or directory",
+		"sh: 1: cd: can't cd to /root":                        "can't cd to /root",
+		"cat: /etc/shadow: Permission denied":                 "/etc/shadow: Permission denied",
+		"not a regular file":                                  "not a regular file",
+	} {
+		if got := lastLine(in); got != want {
+			t.Errorf("lastLine(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestDownloadsDirNeverHome(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	// No user-dirs config: xdg-user-dir (if installed) answers $HOME.
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	dir, err := downloadsDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dir != filepath.Join(home, "Downloads") {
+		t.Fatalf("downloads dir = %q, want %q", dir, filepath.Join(home, "Downloads"))
+	}
+}
