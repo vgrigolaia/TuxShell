@@ -9,6 +9,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/events"
 
 	"github.com/vgrigolaia/tuxshell/internal/cliphist"
+	"github.com/vgrigolaia/tuxshell/internal/files"
 	"github.com/vgrigolaia/tuxshell/internal/hosts"
 	"github.com/vgrigolaia/tuxshell/internal/sshcmd"
 	"github.com/vgrigolaia/tuxshell/internal/sshconfig"
@@ -25,6 +26,7 @@ func init() {
 	application.RegisterEvent[terminal.DataEvent](terminal.EventData)
 	application.RegisterEvent[terminal.ExitEvent](terminal.EventExit)
 	application.RegisterEvent[application.Void](cliphist.EventChanged)
+	application.RegisterEvent[files.DropEvent](files.EventDropped)
 }
 
 func main() {
@@ -42,7 +44,23 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Shared ssh connections let the file browser reuse a terminal's login.
+	// Without a usable socket directory, sessions just don't share.
+	controlDir, err := sshcmd.ControlDir()
+	if err != nil {
+		log.Printf("ssh connection sharing disabled: %v", err)
+		controlDir = ""
+	}
+	resolver := sshcmd.Resolver{Store: store, ControlDir: controlDir}
+
 	var app *application.App
+	fileBrowser, recordDrop := files.NewService(resolver, func() ([]string, error) {
+		return app.Dialog.OpenFile().
+			CanChooseFiles(true).
+			SetTitle("Upload files").
+			SetButtonText("Upload").
+			PromptForMultipleSelection()
+	})
 	clips := cliphist.NewService(
 		filepath.Join(filepath.Dir(dbPath), "clipboard.db"),
 		func() (string, bool) { return app.Clipboard.Text() },
@@ -50,7 +68,7 @@ func main() {
 	)
 	terminals := terminal.NewService(func(name string, data any) {
 		app.Event.Emit(name, data)
-	}, sshcmd.Resolver{Store: store})
+	}, resolver)
 
 	app = application.New(application.Options{
 		Name:        "TuxShell",
@@ -60,6 +78,7 @@ func main() {
 			application.NewService(hosts.NewService(store)),
 			application.NewService(sshconfig.NewService(store, sshConfigPath)),
 			application.NewService(clips),
+			application.NewService(fileBrowser),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -74,6 +93,7 @@ func main() {
 		MinWidth:         760,
 		MinHeight:        480,
 		Frameless:        true,
+		EnableFileDrop:   true,
 		BackgroundColour: application.NewRGB(0x08, 0x09, 0x0C),
 		URL:              "/",
 	})
@@ -83,6 +103,17 @@ func main() {
 	// goroutine, since the clipboard read hops to the main thread.
 	window.OnWindowEvent(events.Common.WindowFocus, func(*application.WindowEvent) {
 		go clips.CaptureSystem()
+	})
+
+	// Files dropped on the file panel are uploaded to the folder it shows.
+	window.OnWindowEvent(events.Common.WindowFilesDropped, func(e *application.WindowEvent) {
+		target := e.Context().DropTargetDetails()
+		if target == nil || target.ElementID != "file-panel" {
+			return
+		}
+		if paths := e.Context().DroppedFiles(); len(paths) > 0 {
+			app.Event.Emit(files.EventDropped, recordDrop(paths))
+		}
 	})
 
 	if err := app.Run(); err != nil {

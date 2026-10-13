@@ -7,12 +7,16 @@ import type { Events } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import type * as files$0 from "../../../../vgrigolaia/tuxshell/internal/files/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import type * as terminal$0 from "../../../../vgrigolaia/tuxshell/internal/terminal/models.js";
 
 declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
             "clipboard:changed": void;
+            "files:dropped": files$0.DropEvent;
             "terminal:data": terminal$0.DataEvent;
             "terminal:exit": terminal$0.ExitEvent;
         }
