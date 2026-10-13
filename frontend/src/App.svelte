@@ -5,6 +5,7 @@
   import HostForm from './lib/components/HostForm.svelte'
   import TerminalPane from './lib/components/TerminalPane.svelte'
   import ImportDialog from './lib/components/ImportDialog.svelte'
+  import QuickConnect from './lib/components/QuickConnect.svelte'
   import { emptyHost, hostStore, type Host } from './lib/hosts.svelte'
   import type { Source, Tab } from './lib/tabs'
 
@@ -18,11 +19,24 @@
   let panel = $state<Panel>({ kind: 'none' })
   let size = $state<Record<number, string>>({})
   let importOpen = $state(false)
+  let quickOpen = $state(false)
 
   const active = $derived(tabs.find((t) => t.key === activeKey))
   const activeHostId = $derived(active?.source.kind === 'host' ? active.source.hostId : null)
 
-  onMount(() => void hostStore.load())
+  onMount(() => {
+    void hostStore.load()
+    // Capture phase, so the shortcut wins over the focused terminal.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        e.stopPropagation()
+        if (!importOpen) quickOpen = true
+      }
+    }
+    window.addEventListener('keydown', onKey, { capture: true })
+    return () => window.removeEventListener('keydown', onKey, { capture: true })
+  })
 
   function openTab(source: Source, title: string) {
     const tab = makeTab(source, title)
@@ -66,6 +80,7 @@
     onSelect={(key) => (activeKey = key)}
     onClose={closeTab}
     onNew={() => openTab({ kind: 'shell' }, 'Local shell')}
+    onSearch={() => (quickOpen = true)}
     onToggleClipboard={() => (panel = panel.kind === 'clipboard' ? { kind: 'none' } : { kind: 'clipboard' })}
   />
 
@@ -124,4 +139,15 @@
 
 {#if importOpen}
   <ImportDialog onClose={() => (importOpen = false)} />
+{/if}
+
+{#if quickOpen}
+  <QuickConnect
+    onClose={() => (quickOpen = false)}
+    onConnectHost={connect}
+    onConnectTarget={(target) => openTab({ kind: 'target', target }, target)}
+    onNewShell={() => openTab({ kind: 'shell' }, 'Local shell')}
+    onNewHost={() => (panel = { kind: 'host', host: emptyHost() })}
+    onImport={() => (importOpen = true)}
+  />
 {/if}

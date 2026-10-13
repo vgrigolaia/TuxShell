@@ -11,10 +11,11 @@
     onSelect: (key: number) => void
     onClose: (key: number) => void
     onNew: () => void
+    onSearch: () => void
     onToggleClipboard: () => void
   }
 
-  let { tabs, activeKey, clipboardOpen, onSelect, onClose, onNew, onToggleClipboard }: Props = $props()
+  let { tabs, activeKey, clipboardOpen, onSelect, onClose, onNew, onSearch, onToggleClipboard }: Props = $props()
 
   let maximised = $state(false)
 
@@ -93,11 +94,10 @@
 
   <div class="flex-1"></div>
 
-  <!-- Placeholder until quick connect lands. -->
   <button
-    class="no-drag flex h-8 w-64 cursor-not-allowed items-center gap-2 rounded-lg border border-line bg-panel px-3 text-[13px] text-subtle"
-    disabled
-    title="Quick connect is coming in a later step"
+    class="no-drag flex h-8 w-64 items-center gap-2 rounded-lg border border-line bg-panel px-3 text-[13px] text-subtle transition-colors hover:border-accent/50 hover:text-muted"
+    aria-keyshortcuts="Control+K"
+    onclick={onSearch}
   >
     <Icon name="search" size={14} />
     <span class="flex-1 text-left">Search hosts, connect…</span>
