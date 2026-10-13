@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=TuxShell
+Comment=SSH connection manager for Linux
+# The Exec line includes %u to pass the URL to the application
+Exec=/usr/local/bin/tuxshell %u
+Terminal=false
+Type=Application
+Icon=tuxshell
+Categories=Utility;
+StartupWMClass=tuxshell
+
+ 

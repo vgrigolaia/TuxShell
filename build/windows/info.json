@@ -1,0 +1,15 @@
+{
+	"fixed": {
+		"file_version": "0.1.0"
+	},
+	"info": {
+		"0000": {
+			"ProductVersion": "0.1.0",
+			"CompanyName": "vgrigolaia",
+			"FileDescription": "SSH connection manager for Linux",
+			"LegalCopyright": "© 2026 vgrigolaia",
+			"ProductName": "TuxShell",
+			"Comments": "This is a comment"
+		}
+	}
+}

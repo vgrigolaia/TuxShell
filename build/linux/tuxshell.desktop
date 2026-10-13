@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=tuxshell
+Exec=tuxshell
+Icon=tuxshell
+Categories=Development;
+Terminal=false
+Keywords=wails
+Version=1.0
+StartupNotify=false
