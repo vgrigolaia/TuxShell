@@ -76,6 +76,13 @@
     if (panel.kind === 'host' && panel.host.id === host.id) panel = { kind: 'none' }
   }
 
+  // Close the editor if its host was deleted (e.g. by a bulk delete).
+  $effect(() => {
+    if (panel.kind === 'host' && panel.host.id !== 0 && hostStore.loaded && !hostStore.get(panel.host.id)) {
+      panel = { kind: 'none' }
+    }
+  })
+
   // Keep open tabs' labels in sync when a host is renamed.
   function onSaved(saved: Host) {
     for (const t of tabs) if (t.source.kind === 'host' && t.source.hostId === saved.id) t.title = saved.name

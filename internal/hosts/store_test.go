@@ -166,3 +166,26 @@ func TestOpenRestrictsPermissions(t *testing.T) {
 		}
 	}
 }
+
+func TestDeleteMany(t *testing.T) {
+	s := openTemp(t)
+	var ids []int64
+	for _, name := range []string{"a", "b", "c"} {
+		h, err := s.Save(Host{Name: name, Hostname: name})
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, h.ID)
+	}
+	n, err := s.DeleteMany([]int64{ids[0], ids[2], 999, ids[0]})
+	if err != nil || n != 2 {
+		t.Fatalf("DeleteMany = %d, %v; want 2", n, err)
+	}
+	list, _ := s.List()
+	if len(list) != 1 || list[0].Name != "b" {
+		t.Fatalf("remaining = %+v", list)
+	}
+	if n, err := s.DeleteMany(nil); err != nil || n != 0 {
+		t.Fatalf("empty DeleteMany = %d, %v", n, err)
+	}
+}

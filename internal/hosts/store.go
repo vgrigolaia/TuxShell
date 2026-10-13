@@ -201,3 +201,28 @@ func (s *Store) Delete(id int64) error {
 	}
 	return nil
 }
+
+// DeleteMany removes several hosts in one transaction and returns how many
+// existed. Unknown IDs are ignored.
+func (s *Store) DeleteMany(ids []int64) (int, error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	stmt, err := tx.Prepare(`DELETE FROM hosts WHERE id = ?`)
+	if err != nil {
+		return 0, err
+	}
+	defer stmt.Close()
+	deleted := 0
+	for _, id := range ids {
+		res, err := stmt.Exec(id)
+		if err != nil {
+			return 0, err
+		}
+		n, _ := res.RowsAffected()
+		deleted += int(n)
+	}
+	return deleted, tx.Commit()
+}

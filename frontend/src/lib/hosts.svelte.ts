@@ -72,6 +72,13 @@ class HostStore {
     await this.load()
   }
 
+  /** Deletes several hosts at once; returns how many were removed. */
+  async removeMany(ids: number[]): Promise<number> {
+    const n = await HostService.DeleteMany(ids)
+    await this.load()
+    return n
+  }
+
   get(id: number) {
     return this.list.find((h) => h.id === id)
   }

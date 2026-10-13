@@ -30,3 +30,8 @@ func (s *Service) Delete(id int64) error {
 func (s *Service) ServiceShutdown() error {
 	return s.store.Close()
 }
+
+// DeleteMany removes several hosts at once and returns how many were deleted.
+func (s *Service) DeleteMany(ids []int64) (int, error) {
+	return s.store.DeleteMany(ids)
+}

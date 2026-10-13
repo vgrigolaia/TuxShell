@@ -22,6 +22,13 @@ export function Delete(id: number): $CancellablePromise<void> {
 }
 
 /**
+ * DeleteMany removes several hosts at once and returns how many were deleted.
+ */
+export function DeleteMany(ids: number[] | null): $CancellablePromise<number> {
+    return $Call.ByID(2573244604, ids);
+}
+
+/**
  * List returns all saved hosts.
  */
 export function List(): $CancellablePromise<$models.Host[] | null> {

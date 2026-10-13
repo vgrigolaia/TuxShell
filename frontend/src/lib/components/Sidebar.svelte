@@ -1,7 +1,9 @@
 <script lang="ts">
   import { describe, hostStore, initials, type Host, type HostGroup } from '../hosts.svelte'
   import { best } from '../fuzzy'
+  import { SvelteSet } from 'svelte/reactivity'
   import ContextMenu, { type MenuItem } from './ContextMenu.svelte'
+  import ConfirmDialog from './ConfirmDialog.svelte'
   import Icon from './Icon.svelte'
 
   interface Props {
@@ -20,6 +22,12 @@
   let filter = $state('')
   let collapsed = $state<Record<string, boolean>>(loadCollapsed())
   let menu = $state<{ x: number; y: number; host: Host } | null>(null)
+
+  // Selection mode for bulk delete.
+  let selecting = $state(false)
+  let confirmBulk = $state(false)
+  const picked = new SvelteSet<number>()
+  let anchor: number | null = null
 
   // Per-viewer UI preference only; the app works the same without it.
   function loadCollapsed(): Record<string, boolean> {
@@ -50,6 +58,62 @@
       .filter((g) => g.hosts.length > 0)
   })
 
+  const visibleHosts = $derived(visible.flatMap((g) => g.hosts))
+  const pickedVisible = $derived(visibleHosts.filter((h) => picked.has(h.id)))
+  const allPicked = $derived(visibleHosts.length > 0 && pickedVisible.length === visibleHosts.length)
+
+  // Drop selections for hosts that no longer exist.
+  $effect(() => {
+    const ids = new Set(hostStore.list.map((h) => h.id))
+    for (const id of picked) if (!ids.has(id)) picked.delete(id)
+  })
+
+  function startSelecting(first?: Host) {
+    selecting = true
+    picked.clear()
+    if (first) picked.add(first.id)
+    anchor = first?.id ?? null
+  }
+
+  function stopSelecting() {
+    selecting = false
+    picked.clear()
+    anchor = null
+  }
+
+  // Click toggles one host; Shift+click selects the range from the last click.
+  function pick(host: Host, e: MouseEvent | KeyboardEvent) {
+    if (e.shiftKey && anchor !== null) {
+      const ids = visibleHosts.map((h) => h.id)
+      const [a, b] = [ids.indexOf(anchor), ids.indexOf(host.id)].sort((x, y) => x - y)
+      if (a >= 0) {
+        for (const id of ids.slice(a, b + 1)) picked.add(id)
+        return
+      }
+    }
+    if (picked.has(host.id)) picked.delete(host.id)
+    else picked.add(host.id)
+    anchor = host.id
+  }
+
+  function toggleAll() {
+    if (allPicked) for (const h of visibleHosts) picked.delete(h.id)
+    else for (const h of visibleHosts) picked.add(h.id)
+  }
+
+  function toggleGroup(group: HostGroup) {
+    const all = group.hosts.every((h) => picked.has(h.id))
+    for (const h of group.hosts) {
+      if (all) picked.delete(h.id)
+      else picked.add(h.id)
+    }
+  }
+
+  async function deletePicked() {
+    await hostStore.removeMany([...picked])
+    stopSelecting()
+  }
+
   function openMenu(e: MouseEvent | KeyboardEvent, host: Host) {
     e.preventDefault()
     if (e instanceof MouseEvent && e.type === 'contextmenu') {
@@ -68,6 +132,7 @@
     { label: 'Connect', run: () => onConnect(host) },
     { label: 'Edit…', run: () => onEdit(host) },
     { label: 'Duplicate…', run: () => onDuplicate(host) },
+    { label: 'Select…', run: () => startSelecting(host) },
     { label: 'Delete…', run: () => onDelete(host), danger: true },
   ]
 </script>
@@ -77,6 +142,15 @@
     <h2 class="font-display text-[15px] font-semibold">Hosts</h2>
     <div class="flex items-center gap-1">
       <span class="mr-1 font-mono text-[11px] text-subtle">{hostStore.list.length}</span>
+      {#if hostStore.list.length > 0}
+        <button
+          class="rounded-lg px-2 py-1 text-xs transition-colors {selecting ? 'bg-accent/15 text-accent' : 'text-muted hover:bg-raised hover:text-fg'}"
+          aria-pressed={selecting}
+          onclick={() => (selecting ? stopSelecting() : startSelecting())}
+        >
+          {selecting ? 'Done' : 'Select'}
+        </button>
+      {/if}
       <button class="grid size-7 place-items-center rounded-lg text-muted hover:bg-raised hover:text-fg" aria-label="Import from ~/.ssh/config" title="Import from ~/.ssh/config" onclick={onImport}>
         <Icon name="import" size={15} />
       </button>
@@ -103,6 +177,22 @@
     </div>
   {/if}
 
+  {#if selecting}
+    <div role="toolbar" aria-label="Selection" class="mx-3 mt-1 flex items-center gap-2 rounded-lg border border-line bg-raised px-2.5 py-1.5">
+      <label class="flex flex-1 items-center gap-2 text-xs text-muted">
+        <input type="checkbox" class="size-4 accent-accent" checked={allPicked} indeterminate={pickedVisible.length > 0 && !allPicked} onchange={toggleAll} />
+        {pickedVisible.length ? `${pickedVisible.length} selected` : `Select all${filter ? ' matching' : ''}`}
+      </label>
+      <button
+        class="rounded-md bg-red-500/80 px-2.5 py-1 text-xs font-medium text-white hover:bg-red-500 disabled:opacity-40"
+        disabled={picked.size === 0}
+        onclick={() => (confirmBulk = true)}
+      >
+        Delete{picked.size ? ` ${picked.size}` : ''}
+      </button>
+    </div>
+  {/if}
+
   <nav aria-label="Saved hosts" class="flex-1 overflow-y-auto px-2 pb-2">
     {#if hostStore.error}
       <p role="alert" class="m-2 text-xs text-warning">Could not load hosts: {hostStore.error}</p>
@@ -119,7 +209,18 @@
 
     {#each visible as group, gi (group.name)}
       {@const open = !collapsed[group.name] || !!filter}
-      <h3>
+      {@const groupPicked = group.hosts.filter((h) => picked.has(h.id)).length}
+      <h3 class="flex items-center">
+        {#if selecting}
+          <input
+            type="checkbox"
+            class="mt-1.5 ml-2 size-3.5 shrink-0 accent-accent"
+            aria-label="Select all in {group.name}"
+            checked={groupPicked === group.hosts.length}
+            indeterminate={groupPicked > 0 && groupPicked < group.hosts.length}
+            onchange={() => toggleGroup(group)}
+          />
+        {/if}
         <button
           class="flex w-full items-center gap-1.5 rounded-md px-2 pt-3 pb-1.5 font-mono text-[11px] tracking-wider text-subtle uppercase hover:text-muted"
           aria-expanded={open}
@@ -134,6 +235,23 @@
       <ul id="host-group-{gi}" hidden={!open}>
         {#each group.hosts as host (host.id)}
           <li class="group relative">
+            {#if selecting}
+              <label class="flex w-full cursor-pointer items-center gap-2.5 rounded-lg py-1.5 pr-2 pl-2 hover:bg-raised" class:bg-raised={picked.has(host.id)}>
+                <input
+                  type="checkbox"
+                  class="size-4 shrink-0 accent-accent"
+                  checked={picked.has(host.id)}
+                  onclick={(e) => {
+                    e.preventDefault()
+                    pick(host, e)
+                  }}
+                />
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-[13px]">{host.name}</span>
+                  <span class="block truncate font-mono text-[11px] text-subtle">{describe(host)}</span>
+                </span>
+              </label>
+            {:else}
             <button
               class="flex w-full items-center gap-2.5 rounded-lg py-1.5 pr-9 pl-2 text-left transition-colors hover:bg-raised"
               class:bg-raised={host.id === selectedId}
@@ -158,6 +276,7 @@
             >
               <Icon name="edit" size={13} />
             </button>
+            {/if}
           </li>
         {/each}
       </ul>
@@ -176,3 +295,15 @@
 {#if menu}
   <ContextMenu x={menu.x} y={menu.y} label="Actions for {menu.host.name}" items={menuItems(menu.host)} onClose={() => (menu = null)} />
 {/if}
+
+{#if confirmBulk}
+  <ConfirmDialog
+    title="Delete {picked.size} {picked.size === 1 ? 'host' : 'hosts'}?"
+    message="This removes them from TuxShell. Open sessions keep running, and your ~/.ssh/config is not changed."
+    confirmLabel="Delete {picked.size}"
+    onConfirm={deletePicked}
+    onClose={() => (confirmBulk = false)}
+  />
+{/if}
+
+<svelte:window onkeydown={(e) => e.key === 'Escape' && selecting && !confirmBulk && stopSelecting()} />
