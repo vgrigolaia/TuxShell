@@ -95,13 +95,13 @@
   <div class="flex-1"></div>
 
   <button
-    class="no-drag flex h-8 w-64 items-center gap-2 rounded-lg border border-line bg-panel px-3 text-[13px] text-subtle transition-colors hover:border-accent/50 hover:text-muted"
+    class="no-drag flex h-8 w-64 min-w-40 shrink items-center gap-2 rounded-lg border border-line bg-panel px-3 text-[13px] text-subtle transition-colors hover:border-accent/50 hover:text-muted"
     aria-keyshortcuts="Control+K"
     onclick={onSearch}
   >
     <Icon name="search" size={14} />
-    <span class="flex-1 text-left">Search hosts, connect…</span>
-    <kbd class="rounded border border-line px-1.5 font-mono text-[11px]">Ctrl K</kbd>
+    <span class="min-w-0 flex-1 truncate text-left whitespace-nowrap">Search hosts, connect…</span>
+    <kbd class="shrink-0 rounded border border-line px-1.5 font-mono text-[11px]">Ctrl K</kbd>
   </button>
 
   <button

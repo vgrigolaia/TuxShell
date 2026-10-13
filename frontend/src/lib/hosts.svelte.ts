@@ -100,6 +100,9 @@ export function describe(h: Host): string {
 }
 
 export function initials(name: string): string {
+  // IPv4 names all start alike ("10.50…"), so show the last octet instead.
+  const ip = /^\d{1,3}(?:\.\d{1,3}){3}$/.exec(name)
+  if (ip) return name.slice(name.lastIndexOf('.') + 1)
   const parts = name.split(/[-_.\s]+/).filter(Boolean)
   const s = parts.length > 1 ? parts[0][0] + parts[1][0] : name.slice(0, 2)
   return s.toUpperCase()
