@@ -6,30 +6,40 @@
   import { SearchAddon } from '@xterm/addon-search'
   import { WebLinksAddon } from '@xterm/addon-web-links'
   import { Unicode11Addon } from '@xterm/addon-unicode11'
-  import { Browser, Events } from '@wailsio/runtime'
+  import { Browser } from '@wailsio/runtime'
+  import { claim, release } from '../terminal-events'
   import * as Terminals from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/terminal/service'
+  import type { Source } from '../tabs'
 
   interface Props {
+    source: Source
     active: boolean
+    onStart?: () => void
     onTitle?: (title: string) => void
     onSize?: (cols: number, rows: number) => void
     onExit?: (code: number) => void
   }
 
-  let { active, onTitle, onSize, onExit }: Props = $props()
+  let { source, active, onStart, onTitle, onSize, onExit }: Props = $props()
 
   let host: HTMLDivElement
   let term: Terminal | undefined
   let fit: FitAddon | undefined
   let exited = $state<number | null>(null)
+  let failed = $state<string | null>(null)
+  let reconnect: () => void = () => {}
 
   const FONT = '"JetBrains Mono Variable", monospace'
 
-  function decode(b64: string): Uint8Array {
-    const bin = atob(b64)
-    const bytes = new Uint8Array(bin.length)
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
-    return bytes
+  function launch(cols: number, rows: number): Promise<string> {
+    switch (source.kind) {
+      case 'host':
+        return Terminals.StartHost(source.hostId, cols, rows)
+      case 'target':
+        return Terminals.StartTarget(source.target, cols, rows)
+      default:
+        return Terminals.StartShell(cols, rows)
+    }
   }
 
   onMount(() => {
@@ -83,18 +93,6 @@
       }
       fit.fit()
 
-      cleanups.push(
-        Events.On('terminal:data', (ev) => {
-          if (ev.data.id === sessionId) term?.write(decode(ev.data.data))
-        }),
-        Events.On('terminal:exit', (ev) => {
-          if (ev.data.id !== sessionId) return
-          exited = ev.data.code
-          sessionId = undefined
-          onExit?.(ev.data.code)
-        }),
-      )
-
       const input = term.onData((data) => {
         if (sessionId) void Terminals.Write(sessionId, data)
       })
@@ -119,20 +117,48 @@
       cleanups.push(() => observer.disconnect())
 
       onSize?.(term.cols, term.rows)
+      reconnect = () => void connect()
+      await connect()
+    }
+
+    const connect = async () => {
+      if (!term) return
+      if (exited !== null) term.write('\r\n\x1b[90m── reconnecting ──\x1b[0m\r\n')
+      exited = null
+      failed = null
       try {
-        sessionId = await Terminals.StartShell(term.cols, term.rows)
+        sessionId = await launch(term.cols, term.rows)
       } catch (err) {
-        term.write(`\r\n\x1b[31mCould not start shell: ${err}\x1b[0m\r\n`)
+        failed = (err as Error)?.message ?? String(err)
+        exited = -1
+        onExit?.(-1)
         return
       }
-      if (disposed) void Terminals.Close(sessionId)
+      if (disposed) {
+        release(sessionId)
+        void Terminals.Close(sessionId)
+        return
+      }
+      onStart?.()
+      const id = sessionId
+      claim(id, {
+        data: (bytes) => term?.write(bytes),
+        exit: (code) => {
+          if (sessionId === id) sessionId = undefined
+          exited = code
+          onExit?.(code)
+        },
+      })
       if (active) term.focus()
     }
     void start()
 
     return () => {
       disposed = true
-      if (sessionId) void Terminals.Close(sessionId)
+      if (sessionId) {
+        release(sessionId)
+        void Terminals.Close(sessionId)
+      }
       cleanups.forEach((fn) => fn())
       term?.dispose()
     }
@@ -151,8 +177,16 @@
 <div class="relative h-full w-full" class:hidden={!active}>
   <div bind:this={host} class="h-full w-full select-text"></div>
   {#if exited !== null}
-    <p class="absolute right-4 bottom-3 rounded-lg border border-line bg-raised px-3 py-1.5 font-mono text-xs text-muted">
-      Process exited with code {exited}
-    </p>
+    <div
+      role="status"
+      class="absolute right-4 bottom-3 flex max-w-[80%] items-center gap-3 rounded-lg border border-line bg-raised py-1.5 pr-1.5 pl-3 text-xs"
+    >
+      <span class="min-w-0 truncate font-mono {failed ? 'text-warning' : 'text-muted'}">
+        {failed ?? `Session ended · exit code ${exited}`}
+      </span>
+      <button class="shrink-0 rounded-md bg-accent px-2.5 py-1 font-medium text-ground hover:bg-accent/90" onclick={() => reconnect()}>
+        {source.kind === 'shell' ? 'Restart' : 'Reconnect'}
+      </button>
+    </div>
   {/if}
 </div>

@@ -1,0 +1,106 @@
+import * as HostService from '../../bindings/github.com/vgrigolaia/tuxshell/internal/hosts/service'
+import type { Host } from '../../bindings/github.com/vgrigolaia/tuxshell/internal/hosts/models'
+
+export type { Host }
+
+export interface HostGroup {
+  name: string
+  hosts: Host[]
+}
+
+/** A field-level error from the Go validator, or a general one. */
+export interface SaveError {
+  field?: string
+  message: string
+}
+
+export const emptyHost = (): Host => ({
+  id: 0,
+  name: '',
+  group: '',
+  alias: '',
+  hostname: '',
+  user: '',
+  port: 22,
+  proxyJump: '',
+  identityFile: '',
+  passwordRef: '',
+  tags: [],
+})
+
+class HostStore {
+  list = $state<Host[]>([])
+  loaded = $state(false)
+  error = $state<string | null>(null)
+
+  groups = $derived.by<HostGroup[]>(() => {
+    const byName = new Map<string, Host[]>()
+    for (const h of this.list) {
+      const key = h.group || 'Ungrouped'
+      if (!byName.has(key)) byName.set(key, [])
+      byName.get(key)!.push(h)
+    }
+    return [...byName].map(([name, hosts]) => ({ name, hosts }))
+  })
+
+  groupNames = $derived([...new Set(this.list.map((h) => h.group).filter(Boolean))])
+
+  async load() {
+    try {
+      this.list = (await HostService.List()) ?? []
+      this.error = null
+    } catch (e) {
+      this.error = errorMessage(e)
+    } finally {
+      this.loaded = true
+    }
+  }
+
+  /** Saves a host; throws a SaveError on failure. */
+  async save(host: Host): Promise<Host> {
+    try {
+      const saved = await HostService.Save(host)
+      await this.load()
+      return saved
+    } catch (e) {
+      throw toSaveError(e)
+    }
+  }
+
+  async remove(id: number) {
+    await HostService.Delete(id)
+    await this.load()
+  }
+
+  get(id: number) {
+    return this.list.find((h) => h.id === id)
+  }
+}
+
+export const hostStore = new HostStore()
+
+/** Wails rejects with { message, cause } where cause is the marshalled Go error. */
+function toSaveError(e: unknown): SaveError {
+  const cause = (e as { cause?: { field?: string; message?: string } })?.cause
+  if (cause?.field && cause.message) return { field: cause.field, message: cause.message }
+  return { message: errorMessage(e) }
+}
+
+export function errorMessage(e: unknown): string {
+  if (e && typeof e === 'object' && 'message' in e) return String((e as { message: unknown }).message)
+  return String(e)
+}
+
+/** "user@hostname:port" for display. */
+export function describe(h: Host): string {
+  const host = h.hostname || h.alias
+  const user = h.user ? `${h.user}@` : ''
+  const port = h.port && h.port !== 22 ? `:${h.port}` : ''
+  return `${user}${host}${port}`
+}
+
+export function initials(name: string): string {
+  const parts = name.split(/[-_.\s]+/).filter(Boolean)
+  const s = parts.length > 1 ? parts[0][0] + parts[1][0] : name.slice(0, 2)
+  return s.toUpperCase()
+}
