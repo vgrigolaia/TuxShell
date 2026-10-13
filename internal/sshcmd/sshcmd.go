@@ -150,6 +150,16 @@ func (r Resolver) HostRemote(id int64, user string) (Remote, error) {
 	return r.remote(h)
 }
 
+// DraftRemote returns a batch runner for host values that may not be saved
+// yet (the host editor's Test button). They're validated like saved hosts.
+func (r Resolver) DraftRemote(h hosts.Host) (Remote, error) {
+	h.Normalize()
+	if err := h.Validate(); err != nil {
+		return Remote{}, err
+	}
+	return r.remote(h)
+}
+
 // TargetRemote returns a batch runner for an ad-hoc target.
 func (r Resolver) TargetRemote(target string) (Remote, error) {
 	h, err := ParseTarget(target)

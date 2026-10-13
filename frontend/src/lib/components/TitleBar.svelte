@@ -29,9 +29,12 @@
     onSearch: () => void
     onToggleClipboard: () => void
     onPreferences: () => void
+    /** The Home screen (hosts launchpad) is showing. */
+    homeActive: boolean
+    onHome: () => void
   }
 
-  let { tabs, activeKey, clipboardOpen, hostsOpen, onToggleHosts, filesOpen, onToggleFiles, onSelect, onClose, onCloseMany, onMerge, onSplit, onUnsplit, onRename, onNew, onSearch, onToggleClipboard, onPreferences }: Props = $props()
+  let { tabs, activeKey, clipboardOpen, hostsOpen, onToggleHosts, filesOpen, onToggleFiles, onSelect, onClose, onCloseMany, onMerge, onSplit, onUnsplit, onRename, onNew, onSearch, onToggleClipboard, onPreferences, homeActive, onHome }: Props = $props()
 
   let maximised = $state(false)
   let strip: HTMLDivElement
@@ -163,6 +166,17 @@
       class="tab-strip flex min-w-0 items-center gap-1 overflow-x-auto"
       onwheel={onWheel}
     >
+      <button
+        role="tab"
+        id="tab-home"
+        aria-selected={homeActive}
+        tabindex={homeActive ? 0 : -1}
+        class="flex h-[30px] shrink-0 items-center gap-2 rounded-[9px] px-3 text-[13px] transition-colors {homeActive ? 'tab-current bg-tab text-fg' : 'text-muted hover:text-fg'}"
+        title="Home: all hosts"
+        onclick={onHome}
+      >
+        <span class={homeActive ? 'text-accent-text' : ''}><Icon name="home" size={14} /></span>Home
+      </button>
       {#each tabs as tab, i (tab.key)}
         {@const current = tab.key === activeKey}
         <!-- Middle-click closes, like browser and terminal tabs. -->

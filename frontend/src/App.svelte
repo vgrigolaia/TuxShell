@@ -19,7 +19,8 @@
   import { closer } from './lib/close.svelte'
   import { hostStatus } from './lib/status.svelte'
   import { emptyHost, hostStore, type Host } from './lib/hosts.svelte'
-  import { workspace } from './lib/workspace.svelte'
+  import { HOME, workspace } from './lib/workspace.svelte'
+  import Launchpad from './lib/components/Launchpad.svelte'
   import { MAX_PANES, type Orientation, type Direction } from './lib/layout'
   import type { PaneActions, Source, TabInfo } from './lib/tabs'
 
@@ -108,6 +109,7 @@
   )
 
   const tab = $derived(workspace.activeTab)
+  const home = $derived(workspace.activeKey === HOME)
 
   const arrows: Record<string, Direction> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' }
 
@@ -292,10 +294,32 @@
     onSearch={() => openQuick(null)}
     onToggleClipboard={toggleClipboard}
     onPreferences={() => (prefsOpen = true)}
+    homeActive={home}
+    onHome={() => (workspace.activeKey = HOME)}
   />
 
-  <main class="flex min-h-0 flex-1 gap-2.5">
-    {#if hostsOpen}
+  <main class="relative flex min-h-0 flex-1 gap-2.5">
+    {#if home}
+      <Launchpad
+        selectedId={panel.kind === 'host' ? panel.host.id : null}
+        onSelect={(host) => (panel = { kind: 'host', host })}
+        onConnect={connect}
+        onConnectTarget={(target) => open({ kind: 'target', target }, target)}
+        onNew={() => (panel = { kind: 'host', host: emptyHost() })}
+        onImport={() => (importOpen = true)}
+      >
+        {#snippet editor()}
+          {#if panel.kind === 'host'}
+            {#key panel.host}
+              <HostForm host={panel.host} onClose={() => (panel = { kind: 'none' })} {onSaved} onConnect={connect} />
+            {/key}
+          {/if}
+        {/snippet}
+      </Launchpad>
+    {/if}
+
+    <!-- Terminals stay mounted while Home shows, so sessions keep running. -->
+    {#if hostsOpen && !home}
       <Sidebar
         selectedId={panel.kind === 'host' ? panel.host.id : activeHostId}
         onConnect={connect}
@@ -309,7 +333,7 @@
       />
     {/if}
 
-    <section aria-label="Terminals" class="relative flex min-w-0 flex-1 flex-col gap-2.5 rounded-panel border border-line bg-panel p-2.5">
+    <section aria-label="Terminals" class:hidden={home} class="relative flex min-w-0 flex-1 flex-col gap-2.5 rounded-panel border border-line bg-panel p-2.5">
       {#if tab?.broadcast}
         {@const receivers = tab.paneIds.filter((id) => !tab.excluded.includes(id))}
         <div role="status" class="flex shrink-0 flex-wrap items-center gap-3 rounded-xl border border-accent-line bg-accent-soft px-3 py-2 text-[12.5px] text-accent-ink">
@@ -331,13 +355,16 @@
       {/if}
       <TerminalArea bind:refs={panes} actions={paneActions} />
 
-      {#if panel.kind === 'clipboard'}
-        <!-- Floats over the tiles, as in the design. -->
-        <ClipboardPanel activeHost={activeHost?.name} onPaste={pasteToActive} onClose={() => (panel = { kind: 'none' })} />
-      {/if}
     </section>
 
-    {#if panel.kind === 'host'}
+    {#if panel.kind === 'clipboard'}
+      <!-- Floats over the tiles (or Home), as in the design. -->
+      <ClipboardPanel activeHost={activeHost?.name} onPaste={pasteToActive} onClose={() => (panel = { kind: 'none' })} />
+    {/if}
+
+    {#if home}
+      <!-- Home shows the editor inside the launchpad. -->
+    {:else if panel.kind === 'host'}
       {#key panel.host}
         <HostForm host={panel.host} onClose={() => (panel = { kind: 'none' })} {onSaved} onConnect={connect} />
       {/key}

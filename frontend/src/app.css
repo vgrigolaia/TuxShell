@@ -97,9 +97,13 @@ body {
   user-select: none;
 }
 
-:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
+/* In the base layer so utilities like focus-visible:outline-none can opt out
+   (fields that show focus with their border instead). */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
 }
 
 /* Wails reads this property to decide which regions drag the frameless window. */

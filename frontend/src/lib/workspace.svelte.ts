@@ -39,10 +39,14 @@ export interface Tab {
   name: string
 }
 
+/** activeKey of the Home screen (the hosts launchpad); real tabs start at 1. */
+export const HOME = 0
+
 class Workspace {
   panes = $state<Pane[]>([])
   tabs = $state<Tab[]>([])
-  activeKey = $state(0)
+  /** The shown tab, or HOME. */
+  activeKey = $state(HOME)
 
   private nextPane = 1
   private nextTab = 1
@@ -50,9 +54,6 @@ class Workspace {
   activeTab = $derived(this.tabs.find((t) => t.key === this.activeKey))
   activePane = $derived(this.activeTab ? this.pane(this.activeTab.activePane) : undefined)
 
-  constructor() {
-    this.openTab({ kind: 'shell' }, 'Local shell')
-  }
 
   pane(id: number) {
     return this.panes.find((p) => p.id === id)
@@ -182,7 +183,8 @@ class Workspace {
     const goneIds = new Set(before.filter((t) => drop.has(t.key)).flatMap((t) => t.paneIds))
     this.tabs = before.filter((t) => !drop.has(t.key))
     this.panes = this.panes.filter((p) => !goneIds.has(p.id))
-    if (this.tabs.length === 0) return this.openTab({ kind: 'shell' }, 'Local shell')
+    // Closing the last tab goes back to Home.
+    if (this.tabs.length === 0) return void (this.activeKey = HOME)
     if (drop.has(this.activeKey)) {
       // Prefer the nearest surviving tab to the left of the old active one.
       const left = before.slice(0, activeIndex).reverse().find((t) => !drop.has(t.key))

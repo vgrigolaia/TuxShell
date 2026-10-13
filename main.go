@@ -80,7 +80,7 @@ func main() {
 		func() (string, bool) { return app.Clipboard.Text() },
 		func() { app.Event.Emit(cliphist.EventChanged) },
 	)
-	hostStatus := status.NewService(store,
+	hostStatus := status.NewService(store, resolver,
 		func() bool { return prefs.Get().Settings.HostStatus },
 		func(r []status.Result) { app.Event.Emit(status.EventChanged, r) },
 	)

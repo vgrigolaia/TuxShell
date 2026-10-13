@@ -3,6 +3,7 @@ package status
 import (
 	"context"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 
@@ -22,7 +23,7 @@ func TestRoundStates(t *testing.T) {
 		{ID: 5, Alias: "-oProxyCommand=evil"},
 	}
 	var got []Result
-	s := NewService(list, func() bool { return true }, func(r []Result) { got = r })
+	s := NewService(list, nil, func() bool { return true }, func(r []Result) { got = r })
 	var (
 		mu     sync.Mutex
 		pinged []string
@@ -76,5 +77,17 @@ func TestParsePing(t *testing.T) {
 func TestSystemPingLoopback(t *testing.T) {
 	if _, ok := systemPing(context.Background(), "127.0.0.1"); !ok {
 		t.Skip("ping to 127.0.0.1 not permitted here")
+	}
+}
+
+func TestExplain(t *testing.T) {
+	for in, want := range map[string]string{
+		"user@10.0.0.1: Permission denied (publickey,password).":          "no key or agent",
+		"ssh: Could not resolve hostname nope: Name or service not known": "resolve",
+		"ssh: connect to host 10.0.0.1 port 22: Connection refused":       "refused",
+	} {
+		if got := explain(in, nil); !strings.Contains(got, want) {
+			t.Errorf("explain(%q) = %q, want it to mention %q", in, got, want)
+		}
 	}
 }

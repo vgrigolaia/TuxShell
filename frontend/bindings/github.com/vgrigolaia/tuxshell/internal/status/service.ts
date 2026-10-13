@@ -12,6 +12,10 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as hosts$0 from "../hosts/models.js";
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
 /**
@@ -26,4 +30,12 @@ export function Refresh(): $CancellablePromise<void> {
  */
 export function Results(): $CancellablePromise<$models.Result[] | null> {
     return $Call.ByID(150951063);
+}
+
+/**
+ * Test logs in to h without a terminal and runs `true`. It never prompts:
+ * hosts that need a typed password report that instead.
+ */
+export function Test(h: hosts$0.Host): $CancellablePromise<$models.TestResult> {
+    return $Call.ByID(1996111955, h);
 }

@@ -46,6 +46,7 @@ type Lister interface {
 // Service pings hosts in the background and reports results.
 type Service struct {
 	hosts   Lister
+	drafts  Drafts
 	emit    func([]Result)
 	enabled func() bool
 	ping    func(ctx context.Context, host string) (float64, bool)
@@ -56,9 +57,9 @@ type Service struct {
 }
 
 // NewService checks hosts from list while enabled() is true and reports
-// each round through emit.
-func NewService(list Lister, enabled func() bool, emit func([]Result)) *Service {
-	return &Service{hosts: list, emit: emit, enabled: enabled, ping: systemPing, results: map[int64]Result{}, kick: make(chan struct{}, 1)}
+// each round through emit; drafts (may be nil) backs Test.
+func NewService(list Lister, drafts Drafts, enabled func() bool, emit func([]Result)) *Service {
+	return &Service{hosts: list, drafts: drafts, emit: emit, enabled: enabled, ping: systemPing, results: map[int64]Result{}, kick: make(chan struct{}, 1)}
 }
 
 // ServiceStartup starts background checks; Wails cancels ctx at shutdown.

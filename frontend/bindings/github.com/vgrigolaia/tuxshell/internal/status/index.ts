@@ -7,5 +7,6 @@ export {
 };
 
 export type {
-    Result
+    Result,
+    TestResult
 } from "./models.js";

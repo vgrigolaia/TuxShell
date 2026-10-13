@@ -32,6 +32,7 @@
     refresh: 'M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7',
     shield: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',
     copy: 'M9 9h11v11H9zM5 15H4V4h11v1',
+    home: 'M4 11l8-7 8 7v9H4zM10 20v-6h4v6',
     selectAll: 'M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M9 9h6v6H9z',
     eraser: 'M8 20h12M5 15l9-9 5 5-8 8H8z',
     tag: 'M4 4h8l8 8-8 8-8-8zM8.5 8.5h.01',

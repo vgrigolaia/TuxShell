@@ -22,3 +22,12 @@ export interface Result {
      */
     "checked": number;
 }
+
+/**
+ * TestResult is the outcome of a test login.
+ */
+export interface TestResult {
+    "ok": boolean;
+    "message": string;
+    "ms": number;
+}
