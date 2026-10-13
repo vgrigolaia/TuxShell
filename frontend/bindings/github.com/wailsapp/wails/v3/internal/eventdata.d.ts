@@ -10,6 +10,9 @@ import type { Events } from "@wailsio/runtime";
 import type * as files$0 from "../../../../vgrigolaia/tuxshell/internal/files/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import type * as status$0 from "../../../../vgrigolaia/tuxshell/internal/status/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import type * as terminal$0 from "../../../../vgrigolaia/tuxshell/internal/terminal/models.js";
 
 declare module "@wailsio/runtime" {
@@ -18,6 +21,7 @@ declare module "@wailsio/runtime" {
             "app:confirm-close": number;
             "clipboard:changed": void;
             "files:dropped": files$0.DropEvent;
+            "hosts:status": status$0.Result[] | null;
             "terminal:data": terminal$0.DataEvent;
             "terminal:exit": terminal$0.ExitEvent;
         }

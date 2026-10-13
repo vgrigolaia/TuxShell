@@ -17,6 +17,7 @@
   import PromptDialog from './lib/components/PromptDialog.svelte'
   import { prefs } from './lib/settings.svelte'
   import { closer } from './lib/close.svelte'
+  import { hostStatus } from './lib/status.svelte'
   import { emptyHost, hostStore, type Host } from './lib/hosts.svelte'
   import { workspace } from './lib/workspace.svelte'
   import { MAX_PANES, type Orientation, type Direction } from './lib/layout'
@@ -113,6 +114,7 @@
   onMount(() => {
     void hostStore.load()
     void prefs.load()
+    const offStatus = hostStatus.start()
     void Terminals.DisplayServer().then((d) => (displayServer = d), () => {})
     const clock = setInterval(() => (now = Date.now()), 30000)
     // The window manager's close (or ours) was held back because sessions are live.
@@ -173,6 +175,7 @@
     }
     window.addEventListener('keydown', onKey, { capture: true })
     return () => {
+      offStatus()
       clearInterval(clock)
       offClose()
       window.removeEventListener('keydown', onKey, { capture: true })
@@ -241,6 +244,16 @@
   $effect(() => {
     if (panel.kind === 'host' && panel.host.id !== 0 && hostStore.loaded && !hostStore.get(panel.host.id)) {
       panel = { kind: 'none' }
+    }
+  })
+
+  // Check new or edited hosts right away rather than at the next round.
+  let knownHosts = ''
+  $effect(() => {
+    const key = hostStore.list.map((h) => `${h.id}:${h.hostname}:${h.proxyJump}`).join(',')
+    if (hostStore.loaded && key !== knownHosts) {
+      if (knownHosts) hostStatus.refresh()
+      knownHosts = key
     }
   })
 

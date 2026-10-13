@@ -4,6 +4,7 @@
   import { schemes, schemeTheme } from '../schemes'
   import { theme } from '../theme.svelte'
   import Icon from './Icon.svelte'
+  import { hostStatus } from '../status.svelte'
 
   interface Props {
     onClose: () => void
@@ -244,6 +245,22 @@
           <label class={check}>
             <input type="checkbox" class="mt-0.5 accent-accent" checked={t.ctrlWheelZoom} onchange={(e) => prefs.update({ ctrlWheelZoom: e.currentTarget.checked })} />
             <span>Ctrl+mouse wheel zooms text</span>
+          </label>
+          <label class={check}>
+            <input
+              type="checkbox"
+              class="mt-0.5 accent-accent"
+              checked={prefs.value.hostStatus}
+              onchange={(e) => {
+                prefs.setHostStatus(e.currentTarget.checked)
+                if (e.currentTarget.checked) setTimeout(() => hostStatus.refresh(), 400)
+              }}
+            />
+            <span
+              >Show which hosts are up<span class={hint}
+                >Pings saved hosts once a minute (ICMP, never the SSH port, so server logs and fail2ban aren't affected). Hosts behind a jump host show as up while a session is open.</span
+              ></span
+            >
           </label>
           <label class={check}>
             <input type="checkbox" class="mt-0.5 accent-accent" checked={t.confirmClose} onchange={(e) => prefs.update({ confirmClose: e.currentTarget.checked })} />

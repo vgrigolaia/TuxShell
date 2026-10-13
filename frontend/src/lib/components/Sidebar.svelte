@@ -3,6 +3,8 @@
   import { MAX_PANES } from '../layout'
   import { workspace } from '../workspace.svelte'
   import HostBadge from './HostBadge.svelte'
+  import StatusDot from './StatusDot.svelte'
+  import { hostStatus } from '../status.svelte'
   import { best } from '../fuzzy'
   import { SvelteSet } from 'svelte/reactivity'
   import ContextMenu, { type MenuItem } from './ContextMenu.svelte'
@@ -65,6 +67,7 @@
   })
 
   const visibleHosts = $derived(visible.flatMap((g) => g.hosts))
+  const up = $derived(hostStatus.upCount(hostStore.list.map((h) => h.id)))
   // Hosts with a running session in some pane.
   const open = $derived(new Set(workspace.panes.filter((p) => p.source.kind === 'host' && !p.exited).map((p) => (p.source as { hostId: number }).hostId)))
   const pickedVisible = $derived(visibleHosts.filter((h) => picked.has(h.id)))
@@ -165,7 +168,7 @@
 <aside aria-label="Hosts" class="flex w-60 shrink-0 flex-col gap-3.5 overflow-hidden rounded-panel border border-line bg-panel px-2.5 py-3.5">
   <div class="flex items-center gap-1 px-1.5">
     <h2 class="font-display text-[15px] font-semibold">Hosts</h2>
-    <span class="ml-auto font-mono text-[11px] whitespace-nowrap text-subtle">{hostStore.list.length}{open.size ? ` · ${open.size} open` : ''}</span>
+    <span class="ml-auto font-mono text-[11px] whitespace-nowrap text-subtle">{hostStore.list.length}{up ? ` · ${up} up` : ''}</span>
     {#if hostStore.list.length > 0}
       <button
         class="ml-1 rounded-md px-1.5 py-0.5 text-[11px] {selecting ? 'bg-accent-chip text-accent-ink' : 'text-subtle hover:bg-raised hover:text-fg'}"
@@ -275,7 +278,7 @@
               {:else}
                 <button
                   class="flex w-full items-center gap-2.5 rounded-[10px] px-2 py-1.5 text-left text-[13px] transition-colors hover:bg-raised {chosen || host.id === selectedId ? 'bg-select text-fg' : 'text-text'}"
-                  title="Connect to {describe(host)} · Ctrl+click to pick for tiles"
+                  title="Connect to {describe(host)}{hostStatus.label(host.id) ? ` · ${hostStatus.label(host.id)}` : ''} · Ctrl+click to pick for tiles"
                   aria-haspopup="menu"
                   aria-pressed={chosen || undefined}
                   onclick={(e) => onRowClick(e, host)}
@@ -286,9 +289,10 @@
                   <span class="min-w-0 flex-1 truncate">{host.name}</span>
                   {#if group.name === JUMP_GROUP}
                     <span class="text-[10.5px] text-subtle group-focus-within:opacity-0 group-hover:opacity-0">gateway</span>
-                  {:else if open.has(host.id)}
-                    <span class="size-2 shrink-0 rounded-full bg-success group-focus-within:opacity-0 group-hover:opacity-0" title="Session open"></span>
-                    <span class="sr-only">session open</span>
+                  {:else}
+                    <span class="flex group-focus-within:opacity-0 group-hover:opacity-0">
+                      <StatusDot state={hostStatus.state(host.id)} label={hostStatus.label(host.id)} />
+                    </span>
                   {/if}
                 </button>
                 <button

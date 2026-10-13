@@ -18,6 +18,7 @@ const BUNDLED_CSS = '"JetBrains Mono Variable"'
 const defaults = (): Settings => ({
   theme: 'dark',
   hostsSidebar: true,
+  hostStatus: true,
   terminal: {
     fontFamily: '',
     fontSize: 13,
@@ -103,6 +104,11 @@ class Preferences {
 
   cycleTheme() {
     this.setTheme(theme.mode === 'dark' ? 'light' : theme.mode === 'light' ? 'system' : 'dark')
+  }
+
+  setHostStatus(on: boolean) {
+    this.value.hostStatus = on
+    this.queueSave()
   }
 
   setHostsSidebar(open: boolean) {
