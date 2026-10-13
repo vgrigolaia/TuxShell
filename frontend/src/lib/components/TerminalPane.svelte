@@ -21,12 +21,14 @@
     /** This pane gets keyboard focus. */
     focused: boolean
     onStart?: () => void
+    /** Claims typed input (e.g. to broadcast it); return true when handled. */
+    onInput?: (data: string) => boolean
     onTitle?: (title: string) => void
     onSize?: (cols: number, rows: number) => void
     onExit?: (code: number) => void
   }
 
-  let { source, visible, focused, onStart, onTitle, onSize, onExit }: Props = $props()
+  let { source, visible, focused, onStart, onInput, onTitle, onSize, onExit }: Props = $props()
 
   let host: HTMLDivElement
   let term: Terminal | undefined
@@ -59,6 +61,14 @@
   }
 
   let submitLogin: (user: string, save: boolean) => void = () => {}
+
+  // Set once the session machinery exists; writes to this pane's session only.
+  let sendToSession: (data: string) => void = () => {}
+
+  /** Writes input straight to this pane's session (used by broadcast). */
+  export function send(data: string) {
+    sendToSession(data)
+  }
 
   /** Pastes text into the session (used by clipboard history). */
   export function paste(text: string) {
@@ -140,8 +150,12 @@
       }
       fit.fit()
 
-      const input = term.onData((data) => {
+      sendToSession = (data) => {
         if (sessionId) void Terminals.Write(sessionId, data)
+      }
+      const input = term.onData((data) => {
+        if (onInput?.(data)) return
+        sendToSession(data)
       })
       const resize = term.onResize(({ cols, rows }) => {
         onSize?.(cols, rows)

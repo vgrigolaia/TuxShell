@@ -37,6 +37,9 @@
     })),
   )
 
+  const tab = $derived(workspace.activeTab)
+  const receiving = $derived(tab?.broadcast ? tab.paneIds.filter((id) => !tab.excluded.includes(id)).length : 0)
+
   const arrows: Record<string, Direction> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' }
 
   onMount(() => {
@@ -50,6 +53,8 @@
         if (!importOpen) openQuick(null)
       } else if (e.shiftKey && key === 'w') {
         if (active) workspace.closePane(active.id)
+      } else if (e.shiftKey && key === 'b') {
+        if (workspace.activeTab) workspace.toggleBroadcast(workspace.activeTab.key)
       } else if (e.shiftKey && key === 'h') {
         toggleClipboard()
       } else if (e.shiftKey && arrows[e.key]) {
@@ -156,6 +161,19 @@
           <span class="truncate font-mono text-xs text-subtle">{active.termTitle}</span>
         {/if}
         <span class="flex-1"></span>
+        {#if tab && tab.paneIds.length > 1}
+          <button
+            class="flex h-7 items-center gap-1.5 rounded-lg px-2 text-xs transition-colors {tab.broadcast
+              ? 'bg-warning/15 text-warning'
+              : 'text-muted hover:bg-raised hover:text-fg'}"
+            aria-pressed={tab.broadcast}
+            aria-keyshortcuts="Control+Shift+B"
+            title="Broadcast typing to all panes (Ctrl+Shift+B)"
+            onclick={() => workspace.toggleBroadcast(tab.key)}
+          >
+            <Icon name="broadcast" size={14} /> Broadcast
+          </button>
+        {/if}
         {#if workspace.activeTab && workspace.activeTab.paneIds.length < 4}
           {@const key = workspace.activeTab.key}
           <button class="grid size-7 place-items-center rounded-lg text-muted hover:bg-raised hover:text-fg" aria-label="Split right" title="Split right" onclick={() => openQuick({ key, orientation: 'row' })}>
@@ -166,6 +184,20 @@
           </button>
         {/if}
       </div>
+      {#if tab?.broadcast}
+        <div role="status" class="mx-2 mt-2 flex shrink-0 items-center gap-3 rounded-xl border border-warning/50 bg-warning/10 px-3 py-2 text-[13px]">
+          <span class="text-warning"><Icon name="broadcast" size={15} /></span>
+          <span class="flex-1">
+            <strong class="font-semibold">Broadcast on</strong> — keystrokes go to {receiving} of {tab.paneIds.length} panes
+            {#if tab.excluded.length}
+              <span class="text-subtle">· {tab.excluded.map((id) => workspace.pane(id)?.title).join(', ')} excluded</span>
+            {/if}
+          </span>
+          <button class="rounded-lg bg-warning px-2.5 py-1 text-xs font-semibold text-ground hover:bg-warning/90" onclick={() => workspace.toggleBroadcast(tab.key)}>
+            Stop · Ctrl+Shift+B
+          </button>
+        </div>
+      {/if}
       <TerminalArea bind:refs={panes} />
     </section>
 

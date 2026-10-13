@@ -20,6 +20,10 @@ export interface Tab {
   orientation: Orientation
   sizes: number[]
   activePane: number
+  /** Keystrokes typed in an included pane go to every included pane. */
+  broadcast: boolean
+  /** Panes left out of broadcast. */
+  excluded: number[]
 }
 
 class Workspace {
@@ -58,7 +62,15 @@ class Workspace {
   }
 
   private makeTab(paneIds: number[], orientation: Orientation = 'row'): Tab {
-    return { key: this.nextTab++, paneIds, orientation, sizes: defaultSizes(paneIds.length), activePane: paneIds[0] }
+    return {
+      key: this.nextTab++,
+      paneIds,
+      orientation,
+      sizes: defaultSizes(paneIds.length),
+      activePane: paneIds[0],
+      broadcast: false,
+      excluded: [],
+    }
   }
 
   /** Opens source in a new tab after the active one and switches to it. */
@@ -79,6 +91,8 @@ class Workspace {
     tab.paneIds.push(pane.id)
     tab.sizes = defaultSizes(tab.paneIds.length)
     tab.activePane = pane.id
+    // A pane added mid-broadcast starts excluded, so it never gets keystrokes by surprise.
+    if (tab.broadcast) tab.excluded = [...tab.excluded, pane.id]
     this.activeKey = key
     return true
   }
@@ -92,6 +106,8 @@ class Workspace {
     target.paneIds = ids
     target.orientation = orientation
     target.sizes = defaultSizes(ids.length)
+    target.broadcast = false
+    target.excluded = []
     this.tabs = this.tabs.filter((t) => !rest.includes(t))
     this.activeKey = target.key
     return true
@@ -115,6 +131,8 @@ class Workspace {
     tab.paneIds = [first]
     tab.sizes = defaultSizes(1)
     tab.activePane = first
+    tab.broadcast = false
+    tab.excluded = []
     this.tabs.splice(this.tabs.indexOf(tab) + 1, 0, ...rest.map((id) => this.makeTab([id])))
   }
 
@@ -131,6 +149,9 @@ class Workspace {
     const i = tab.paneIds.indexOf(paneId)
     tab.paneIds.splice(i, 1)
     tab.sizes = defaultSizes(tab.paneIds.length)
+    tab.excluded = tab.excluded.filter((id) => id !== paneId)
+    // Broadcasting to a single pane is just typing.
+    if (tab.paneIds.length < 2) tab.broadcast = false
     if (tab.activePane === paneId) tab.activePane = tab.paneIds[Math.min(i, tab.paneIds.length - 1)]
   }
 
@@ -162,6 +183,28 @@ class Workspace {
     const all = rects(tab.paneIds.length, tab.orientation, tab.sizes)
     const next = neighbour(all, tab.paneIds.indexOf(tab.activePane), dir)
     if (next >= 0) tab.activePane = tab.paneIds[next]
+  }
+
+  /** Turns broadcast on (all panes included) or off for a split tab. */
+  toggleBroadcast(key: number) {
+    const tab = this.tabs.find((t) => t.key === key)
+    if (!tab || tab.paneIds.length < 2) return
+    tab.broadcast = !tab.broadcast
+    tab.excluded = []
+  }
+
+  /** Includes or excludes a pane from its tab's broadcast. */
+  toggleExcluded(paneId: number) {
+    const tab = this.tabOf(paneId)
+    if (!tab) return
+    tab.excluded = tab.excluded.includes(paneId) ? tab.excluded.filter((id) => id !== paneId) : [...tab.excluded, paneId]
+  }
+
+  /** Panes that receive broadcast keystrokes from paneId, or null when it isn't broadcasting. */
+  broadcastTargets(paneId: number): number[] | null {
+    const tab = this.tabOf(paneId)
+    if (!tab?.broadcast || tab.excluded.includes(paneId)) return null
+    return tab.paneIds.filter((id) => !tab.excluded.includes(id))
   }
 
   updatePane(id: number, patch: Partial<Pane>) {

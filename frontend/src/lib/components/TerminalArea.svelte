@@ -3,6 +3,7 @@
   import Icon from './Icon.svelte'
   import { workspace, type Pane } from '../workspace.svelte'
   import { dividers, drag, rects, type Divider } from '../layout'
+  import { isTerminalReport } from '../broadcast'
 
   interface Props {
     /** Registered so clipboard history can paste into the focused pane. */
@@ -24,7 +25,17 @@
       visible: tab.key === workspace.activeKey,
       split: tab.paneIds.length > 1,
       focused: tab.activePane === pane.id,
+      broadcasting: tab.broadcast && !tab.excluded.includes(pane.id),
+      excluded: tab.broadcast && tab.excluded.includes(pane.id),
     }
+  }
+
+  // Typing in a broadcasting pane goes to every included, still-connected pane.
+  function broadcastInput(paneId: number, data: string): boolean {
+    const targets = workspace.broadcastTargets(paneId)
+    if (!targets || isTerminalReport(data)) return false
+    for (const id of targets) if (!workspace.pane(id)?.exited) refs[id]?.send(data)
+    return true
   }
 
   const activeDividers = $derived(
@@ -79,11 +90,15 @@
       >
         <section
           aria-label={pane.title}
-          class="flex h-full flex-col overflow-hidden rounded-xl border transition-colors {at.split && at.focused
-            ? 'border-accent/70'
-            : at.split
-              ? 'border-line'
-              : 'border-transparent'}"
+          class="flex h-full flex-col overflow-hidden rounded-xl border transition-colors {at.broadcasting
+            ? at.focused
+              ? 'border-warning'
+              : 'border-warning/50'
+            : at.split && at.focused
+              ? 'border-accent/70'
+              : at.split
+                ? 'border-line'
+                : 'border-transparent'}"
         >
           {#if at.split}
             <header class="flex h-7 shrink-0 items-center gap-2 border-b border-line px-2.5">
@@ -91,6 +106,19 @@
               <span class="min-w-0 flex-1 truncate font-mono text-[11px] {at.focused ? 'text-fg' : 'text-muted'}">
                 {pane.title}{#if pane.termTitle && pane.termTitle !== pane.title}<span class="text-subtle"> · {pane.termTitle}</span>{/if}
               </span>
+              {#if at.broadcasting || at.excluded}
+                <button
+                  class="rounded-md px-1.5 py-0.5 font-mono text-[10px] {at.broadcasting
+                    ? 'bg-warning/15 text-warning hover:bg-warning/25'
+                    : 'bg-raised text-subtle hover:text-fg'}"
+                  aria-pressed={at.broadcasting}
+                  aria-label="{at.broadcasting ? 'Exclude' : 'Include'} {pane.title} {at.broadcasting ? 'from' : 'in'} broadcast"
+                  title={at.broadcasting ? 'Receiving broadcast — click to exclude' : 'Excluded — click to include'}
+                  onclick={() => workspace.toggleExcluded(pane.id)}
+                >
+                  {at.broadcasting ? '● broadcast' : 'excluded'}
+                </button>
+              {/if}
               <button class="grid size-5 place-items-center rounded text-subtle hover:bg-line hover:text-fg" aria-label="Move {pane.title} to its own tab" title="Move to own tab" onclick={() => workspace.detachPane(pane.id)}>
                 <Icon name="detach" size={12} />
               </button>
@@ -106,6 +134,7 @@
               visible={at.visible}
               focused={at.visible && at.focused}
               onStart={() => workspace.updatePane(pane.id, { exited: false })}
+              onInput={(data) => broadcastInput(pane.id, data)}
               onTitle={(title) =>
                 workspace.updatePane(pane.id, pane.source.kind === 'shell' ? { title, termTitle: title } : { termTitle: title })}
               onSize={(cols, rows) => workspace.updatePane(pane.id, { size: `${cols}×${rows}` })}
