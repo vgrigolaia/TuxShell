@@ -6,6 +6,7 @@
   import ContextMenu, { type MenuItem } from './ContextMenu.svelte'
   import type { TabInfo } from '../tabs'
   import { theme } from '../theme.svelte'
+  import { prefs } from '../settings.svelte'
   import type { Orientation } from '../layout'
   import { MAX_PANES } from '../layout'
 
@@ -26,9 +27,10 @@
     onNew: () => void
     onSearch: () => void
     onToggleClipboard: () => void
+    onPreferences: () => void
   }
 
-  let { tabs, activeKey, clipboardOpen, hostsOpen, onToggleHosts, filesOpen, onToggleFiles, onSelect, onClose, onCloseMany, onMerge, onSplit, onUnsplit, onNew, onSearch, onToggleClipboard }: Props = $props()
+  let { tabs, activeKey, clipboardOpen, hostsOpen, onToggleHosts, filesOpen, onToggleFiles, onSelect, onClose, onCloseMany, onMerge, onSplit, onUnsplit, onNew, onSearch, onToggleClipboard, onPreferences }: Props = $props()
 
   let maximised = $state(false)
   let strip: HTMLDivElement
@@ -215,7 +217,7 @@
     class={iconButton}
     aria-label="Theme: {theme.mode}. Switch theme"
     title="Theme: {theme.mode === 'system' ? 'follow system' : theme.mode} (click to change)"
-    onclick={() => theme.cycle()}
+    onclick={() => prefs.cycleTheme()}
   >
     <Icon name={theme.mode === 'dark' ? 'moon' : theme.mode === 'light' ? 'sun' : 'monitor'} />
   </button>
@@ -240,6 +242,10 @@
     onclick={onToggleClipboard}
   >
     <Icon name="clipboard" />
+  </button>
+
+  <button class={iconButton} aria-label="Preferences" aria-keyshortcuts="Control+," title="Preferences (Ctrl+,)" onclick={onPreferences}>
+    <Icon name="gear" />
   </button>
 
   <div class="flex items-center gap-0.5 border-l border-line pl-2">

@@ -4,6 +4,9 @@
   import { workspace, type Pane } from '../workspace.svelte'
   import { dividers, drag, rects, type Divider } from '../layout'
   import { isTerminalReport } from '../broadcast'
+  import { prefs } from '../settings.svelte'
+  import { closer } from '../close.svelte'
+  import { schemeBackground } from '../schemes'
 
   interface Props {
     /** Registered so clipboard history can paste into the focused pane. */
@@ -12,6 +15,8 @@
   let { refs = $bindable() }: Props = $props()
 
   let area: HTMLDivElement
+  // A chosen colour scheme paints the gap around the terminal too.
+  const paneBackground = $derived(schemeBackground(prefs.value.terminal.colorScheme))
 
   // Every pane is rendered exactly once, keyed by id; tabs only decide where
   // it sits. Merging or splitting tabs therefore never restarts a session.
@@ -122,12 +127,12 @@
               <button class="grid size-5 place-items-center rounded text-subtle hover:bg-line hover:text-fg" aria-label="Move {pane.title} to its own tab" title="Move to own tab" onclick={() => workspace.detachPane(pane.id)}>
                 <Icon name="detach" size={12} />
               </button>
-              <button class="grid size-5 place-items-center rounded text-subtle hover:bg-line hover:text-fg" aria-label="Close {pane.title}" title="Close pane" onclick={() => workspace.closePane(pane.id)}>
+              <button class="grid size-5 place-items-center rounded text-subtle hover:bg-line hover:text-fg" aria-label="Close {pane.title}" title="Close pane" onclick={() => closer.closePane(pane.id)}>
                 <Icon name="x" size={12} />
               </button>
             </header>
           {/if}
-          <div class="min-h-0 flex-1 py-1 pl-2">
+          <div class="min-h-0 flex-1 py-1 pl-2" style:background={paneBackground}>
             <TerminalPane
               bind:this={refs[pane.id]}
               source={pane.source}

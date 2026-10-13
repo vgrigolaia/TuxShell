@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
+  import { Events, Window } from '@wailsio/runtime'
+  import * as Terminals from '../bindings/github.com/vgrigolaia/tuxshell/internal/terminal/service'
   import TitleBar from './lib/components/TitleBar.svelte'
   import Sidebar from './lib/components/Sidebar.svelte'
   import HostForm from './lib/components/HostForm.svelte'
@@ -11,6 +13,9 @@
   import ClipboardPanel from './lib/components/ClipboardPanel.svelte'
   import Icon from './lib/components/Icon.svelte'
   import FilePanel from './lib/components/FilePanel.svelte'
+  import Preferences from './lib/components/Preferences.svelte'
+  import { prefs } from './lib/settings.svelte'
+  import { closer } from './lib/close.svelte'
   import { emptyHost, hostStore, type Host } from './lib/hosts.svelte'
   import { workspace } from './lib/workspace.svelte'
   import type { Orientation, Direction } from './lib/layout'
@@ -24,25 +29,11 @@
   // When set, the next connection from quick connect splits this tab instead of opening a new one.
   let splitInto = $state<{ key: number; orientation: Orientation } | null>(null)
   let deleting = $state<Host | null>(null)
-  let hostsOpen = $state(loadFlag('tuxshell.hostsOpen', true))
-
-  // Per-user layout preference; the app works the same without storage.
-  function loadFlag(key: string, fallback: boolean): boolean {
-    try {
-      const v = localStorage.getItem(key)
-      return v === null ? fallback : v === '1'
-    } catch {
-      return fallback
-    }
-  }
+  let prefsOpen = $state(false)
+  const hostsOpen = $derived(prefs.value.hostsSidebar)
 
   function toggleHosts() {
-    hostsOpen = !hostsOpen
-    try {
-      localStorage.setItem('tuxshell.hostsOpen', hostsOpen ? '1' : '0')
-    } catch {
-      // Not remembered this time.
-    }
+    prefs.setHostsSidebar(!hostsOpen)
   }
   // Terminal panes by pane id, so clipboard history can paste into the focused one.
   let panes = $state<Record<number, TerminalPane>>({})
@@ -65,15 +56,31 @@
 
   onMount(() => {
     void hostStore.load()
+    void prefs.load()
+    // The window manager's close (or ours) was held back because sessions are live.
+    const offClose = Events.On('app:confirm-close', (ev) =>
+      closer.ask(ev.data, 'TuxShell', async () => {
+        await Terminals.CloseAll()
+        await Window.Close()
+      }),
+    )
     // Capture phase, so shortcuts win over the focused terminal.
     const onKey = (e: KeyboardEvent) => {
       if (!e.ctrlKey || e.altKey || e.metaKey) return
       const key = e.key.toLowerCase()
       let handled = true
-      if (!e.shiftKey && key === 'k') {
+      if (!e.shiftKey && key === ',') {
+        prefsOpen = true
+      } else if (key === '=' || key === '+') {
+        prefs.zoomBy(1)
+      } else if (!e.shiftKey && key === '-') {
+        prefs.zoomBy(-1)
+      } else if (!e.shiftKey && key === '0') {
+        prefs.zoom = 0
+      } else if (!e.shiftKey && key === 'k') {
         if (!importOpen) openQuick(null)
       } else if (e.shiftKey && key === 'w') {
-        if (active) workspace.closePane(active.id)
+        if (active) closer.closePane(active.id)
       } else if (e.shiftKey && key === 'b') {
         if (workspace.activeTab) workspace.toggleBroadcast(workspace.activeTab.key)
       } else if (e.shiftKey && key === 'e') {
@@ -93,7 +100,10 @@
       }
     }
     window.addEventListener('keydown', onKey, { capture: true })
-    return () => window.removeEventListener('keydown', onKey, { capture: true })
+    return () => {
+      offClose()
+      window.removeEventListener('keydown', onKey, { capture: true })
+    }
   })
 
   function openQuick(split: { key: number; orientation: Orientation } | null) {
@@ -171,14 +181,15 @@
     filesOpen={panel.kind === 'files'}
     onToggleFiles={toggleFiles}
     onSelect={(key) => (workspace.activeKey = key)}
-    onClose={(key) => workspace.closeTabs([key])}
-    onCloseMany={(keys) => workspace.closeTabs(keys)}
+    onClose={(key) => closer.closeTabs([key])}
+    onCloseMany={(keys) => closer.closeTabs(keys)}
     onMerge={(keys, orientation) => workspace.mergeTabs(keys, orientation)}
     onSplit={(key, orientation) => openQuick({ key, orientation })}
     onUnsplit={(key) => workspace.unsplit(key)}
     onNew={() => workspace.openTab({ kind: 'shell' }, 'Local shell')}
     onSearch={() => openQuick(null)}
     onToggleClipboard={toggleClipboard}
+    onPreferences={() => (prefsOpen = true)}
   />
 
   <main class="flex min-h-0 flex-1 gap-3 px-3">
@@ -283,6 +294,15 @@
     onNewHost={() => (panel = { kind: 'host', host: emptyHost() })}
     onImport={() => (importOpen = true)}
   />
+{/if}
+
+{#if prefsOpen}
+  <Preferences onClose={() => (prefsOpen = false)} />
+{/if}
+
+{#if closer.pending}
+  {@const pending = closer.pending}
+  <ConfirmDialog title={pending.title} message={pending.message} confirmLabel="Close" onConfirm={pending.run} onClose={() => (closer.pending = null)} />
 {/if}
 
 {#if deleting}

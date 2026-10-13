@@ -1,6 +1,7 @@
 export type ThemeMode = 'dark' | 'light' | 'system'
 export type Resolved = 'dark' | 'light'
 
+// A cache of the saved theme, read synchronously so the first paint has the right colours.
 const KEY = 'tuxshell.theme'
 
 /** App colour theme. Dark is the default; "system" follows the desktop setting. */
@@ -36,11 +37,6 @@ class Theme {
     } catch {
       // Not persisted this time; the choice still applies now.
     }
-  }
-
-  /** Dark → Light → System → Dark. */
-  cycle() {
-    this.set(this.mode === 'dark' ? 'light' : this.mode === 'light' ? 'system' : 'dark')
   }
 }
 

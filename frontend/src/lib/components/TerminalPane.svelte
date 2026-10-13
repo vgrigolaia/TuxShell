@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { Terminal } from '@xterm/xterm'
+  import { Terminal, type FontWeight } from '@xterm/xterm'
   import { FitAddon } from '@xterm/addon-fit'
   import { WebglAddon } from '@xterm/addon-webgl'
   import { SearchAddon } from '@xterm/addon-search'
@@ -13,7 +13,9 @@
   import { errorMessage, hostStore } from '../hosts.svelte'
   import LoginPrompt from './LoginPrompt.svelte'
   import { clipboardHistory } from '../clipboard.svelte'
-  import { terminalThemes, theme } from '../theme.svelte'
+  import { theme } from '../theme.svelte'
+  import { prefs } from '../settings.svelte'
+  import { schemeTheme } from '../schemes'
 
   interface Props {
     source: Source
@@ -48,7 +50,7 @@
   const hostName = $derived(source.kind === 'host' ? (hostStore.get(source.hostId)?.name ?? 'host') : '')
   const savedUser = $derived(source.kind === 'host' ? (hostStore.get(source.hostId)?.user ?? '') : '')
 
-  const FONT = '"JetBrains Mono Variable", monospace'
+  let bell = $state(false)
 
   function launch(cols: number, rows: number): Promise<string> {
     switch (source.kind) {
@@ -87,18 +89,10 @@
 
     const start = async () => {
       // Measure cell size with the real font, not the fallback.
-      await document.fonts.load(`13px ${FONT}`)
+      await loadFont(prefs.fontFamily)
       if (disposed) return
 
-      term = new Terminal({
-        allowProposedApi: true,
-        cursorBlink: true,
-        fontFamily: FONT,
-        fontSize: 13,
-        lineHeight: 1.25,
-        scrollback: 10000,
-        theme: terminalThemes[theme.resolved],
-      })
+      term = new Terminal({ allowProposedApi: true, ...termOptions() })
       fit = new FitAddon()
       term.loadAddon(fit)
       term.loadAddon(new SearchAddon())
@@ -149,10 +143,36 @@
         if (sessionId) void Terminals.Resize(sessionId, cols, rows)
       })
       const title = term.onTitleChange((t) => onTitle?.(t))
+      let bellTimer: ReturnType<typeof setTimeout> | undefined
+      const ring = term.onBell(() => {
+        if (prefs.value.terminal.bell !== 'visual') return
+        bell = true
+        clearTimeout(bellTimer)
+        bellTimer = setTimeout(() => (bell = false), 150)
+      })
+      // Copy on select: copy when the mouse selection is finished, not on every change.
+      const onMouseUp = () => {
+        const text = prefs.value.terminal.copyOnSelect && term?.hasSelection() ? term.getSelection() : ''
+        if (text) {
+          void Clipboard.SetText(text)
+          clipboardHistory.record(text)
+        }
+      }
+      const onContextMenu = (e: MouseEvent) => {
+        if (!prefs.value.terminal.rightClickPaste) return
+        e.preventDefault()
+        void Clipboard.Text().then((text) => text && term?.paste(text))
+      }
+      host.addEventListener('mouseup', onMouseUp)
+      host.addEventListener('contextmenu', onContextMenu)
       cleanups.push(() => {
         input.dispose()
         resize.dispose()
         title.dispose()
+        ring.dispose()
+        clearTimeout(bellTimer)
+        host.removeEventListener('mouseup', onMouseUp)
+        host.removeEventListener('contextmenu', onContextMenu)
       })
 
       let frame = 0
@@ -234,10 +254,41 @@
     }
   })
 
-  // Recolour live terminals when the theme changes.
+  function termOptions() {
+    const t = prefs.value.terminal
+    return {
+      fontFamily: prefs.fontFamily,
+      fontSize: prefs.fontSize,
+      lineHeight: t.lineHeight,
+      letterSpacing: t.letterSpacing,
+      fontWeight: t.fontWeight as FontWeight,
+      fontWeightBold: t.fontWeightBold as FontWeight,
+      cursorStyle: t.cursorStyle as 'block' | 'bar' | 'underline',
+      cursorBlink: t.cursorBlink,
+      scrollback: t.scrollback,
+      theme: schemeTheme(t.colorScheme, theme.resolved),
+    }
+  }
+
+  // Waits for a font so xterm measures cells with it rather than a fallback.
+  async function loadFont(family: string) {
+    try {
+      await document.fonts.load(`${prefs.fontSize}px ${family}`)
+    } catch {
+      // Unknown font: xterm uses the fallback in the list.
+    }
+  }
+
+  // Apply preference changes to the live terminal.
   $effect(() => {
-    const palette = terminalThemes[theme.resolved]
-    if (term) term.options.theme = palette
+    const opts = termOptions()
+    if (!term) return
+    void loadFont(opts.fontFamily).then(() => {
+      if (!term) return
+      Object.assign(term.options, opts)
+      // Cell size may have changed; refit so the PTY gets the new size.
+      if (host.offsetWidth > 0) fit?.fit()
+    })
   })
 
   $effect(() => {
@@ -254,6 +305,9 @@
   <!-- isolate keeps xterm's own z-indexed layers (e.g. the WebGL link canvas)
        inside this box, so the overlays below can sit on top and get clicks. -->
   <div bind:this={host} class="isolate h-full w-full select-text"></div>
+  {#if bell}
+    <div class="pointer-events-none absolute inset-0 z-10 rounded-md bg-fg/10" aria-hidden="true"></div>
+  {/if}
   {#if asking && source.kind === 'host'}
     <LoginPrompt
       hostId={source.hostId}
