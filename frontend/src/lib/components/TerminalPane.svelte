@@ -240,7 +240,9 @@
 </script>
 
 <div class="relative h-full w-full" class:hidden={!active}>
-  <div bind:this={host} class="h-full w-full select-text"></div>
+  <!-- isolate keeps xterm's own z-indexed layers (e.g. the WebGL link canvas)
+       inside this box, so the overlays below can sit on top and get clicks. -->
+  <div bind:this={host} class="isolate h-full w-full select-text"></div>
   {#if asking && source.kind === 'host'}
     <LoginPrompt
       hostId={source.hostId}
@@ -252,7 +254,7 @@
   {:else if exited !== null}
     <div
       role="status"
-      class="absolute right-4 bottom-3 flex max-w-[80%] items-center gap-3 rounded-lg border border-line bg-raised py-1.5 pr-1.5 pl-3 text-xs"
+      class="absolute right-4 bottom-3 z-10 flex max-w-[80%] items-center gap-3 rounded-lg border border-line bg-raised py-1.5 pr-1.5 pl-3 text-xs"
     >
       <span class="min-w-0 truncate font-mono {failed ? 'text-warning' : 'text-muted'}">
         {failed ?? `Session ended · exit code ${exited}`}
