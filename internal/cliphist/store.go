@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	_ "modernc.org/sqlite"
 )
@@ -30,6 +31,8 @@ type Clip struct {
 	Label     string    `json:"label"`
 	Pinned    bool      `json:"pinned"`
 	CreatedAt time.Time `json:"createdAt"`
+	// Source names the host the text was copied from; empty for other apps.
+	Source string `json:"source"`
 }
 
 // Settings control how much unpinned history is kept.
@@ -77,6 +80,9 @@ var migrations = []string{
 	ALTER TABLE clips ADD COLUMN label_nonce BLOB;
 	ALTER TABLE clips ADD COLUMN label_ciphertext BLOB;
 	CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
+	// Where text was copied (a host name), encrypted like the text.
+	`ALTER TABLE clips ADD COLUMN source_nonce BLOB;
+	ALTER TABLE clips ADD COLUMN source_ciphertext BLOB`,
 }
 
 // Open opens the history at path, encrypting with a 32-byte key.
@@ -175,17 +181,34 @@ func (s *Store) Close() error { return s.db.Close() }
 // Add records copied text, moving an identical earlier entry to the top
 // (keeping its pin and label). It returns false when the text is filtered out.
 func (s *Store) Add(text string, settings Settings) (bool, error) {
+	return s.AddFrom(text, "", settings)
+}
+
+// MaxSourceBytes caps the source host name stored with a clip.
+const MaxSourceBytes = 200
+
+// AddFrom is Add with the host the text was copied from.
+func (s *Store) AddFrom(text, source string, settings Settings) (bool, error) {
 	if !Recordable(text) {
 		return false, nil
 	}
+	source = cleanSource(source)
 	digest := s.digest(text)
 	nonce, sealed, err := s.seal(text, digest)
 	if err != nil {
 		return false, err
 	}
-	_, err = s.db.Exec(`INSERT INTO clips (digest, nonce, ciphertext, created_at) VALUES (?, ?, ?, ?)
-		ON CONFLICT(digest) DO UPDATE SET nonce = excluded.nonce, ciphertext = excluded.ciphertext, created_at = excluded.created_at`,
-		digest, nonce, sealed, s.now().UnixMilli())
+	var sNonce, sSealed []byte
+	if source != "" {
+		// Bound to the row with its own prefix, like labels.
+		if sNonce, sSealed, err = s.seal(source, "source:"+digest); err != nil {
+			return false, err
+		}
+	}
+	_, err = s.db.Exec(`INSERT INTO clips (digest, nonce, ciphertext, created_at, source_nonce, source_ciphertext) VALUES (?, ?, ?, ?, ?, ?)
+		ON CONFLICT(digest) DO UPDATE SET nonce = excluded.nonce, ciphertext = excluded.ciphertext, created_at = excluded.created_at,
+			source_nonce = excluded.source_nonce, source_ciphertext = excluded.source_ciphertext`,
+		digest, nonce, sealed, s.now().UnixMilli(), sNonce, sSealed)
 	if err != nil {
 		return false, err
 	}
@@ -305,7 +328,21 @@ func (s *Store) Prune(settings Settings) error {
 	return nil
 }
 
-const clipColumns = `id, digest, nonce, ciphertext, created_at, pinned, label_nonce, label_ciphertext`
+const clipColumns = `id, digest, nonce, ciphertext, created_at, pinned, label_nonce, label_ciphertext, source_nonce, source_ciphertext`
+
+// cleanSource keeps a source name short and printable.
+func cleanSource(src string) string {
+	src = strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return -1
+		}
+		return r
+	}, strings.TrimSpace(src))
+	if len(src) > MaxSourceBytes {
+		src = src[:MaxSourceBytes]
+	}
+	return src
+}
 
 type scanner interface{ Scan(...any) error }
 
@@ -316,8 +353,9 @@ func (s *Store) scan(row scanner) (c Clip, ok bool, err error) {
 		created                        int64
 		digest                         string
 		nonce, sealed, lNonce, lSealed []byte
+		sNonce, sSealed                []byte
 	)
-	if err := row.Scan(&c.ID, &digest, &nonce, &sealed, &created, &c.Pinned, &lNonce, &lSealed); err != nil {
+	if err := row.Scan(&c.ID, &digest, &nonce, &sealed, &created, &c.Pinned, &lNonce, &lSealed, &sNonce, &sSealed); err != nil {
 		return c, false, err
 	}
 	plain, err := s.aead.Open(nil, nonce, sealed, []byte(digest))
@@ -328,6 +366,11 @@ func (s *Store) scan(row scanner) (c Clip, ok bool, err error) {
 	if len(lSealed) > 0 {
 		if label, err := s.aead.Open(nil, lNonce, lSealed, []byte("label:"+digest)); err == nil {
 			c.Label = string(label)
+		}
+	}
+	if len(sSealed) > 0 {
+		if src, err := s.aead.Open(nil, sNonce, sSealed, []byte("source:"+digest)); err == nil {
+			c.Source = string(src)
 		}
 	}
 	c.CreatedAt = time.UnixMilli(created)

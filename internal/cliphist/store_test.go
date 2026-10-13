@@ -242,3 +242,30 @@ func TestMigratesVersionZeroDatabase(t *testing.T) {
 		t.Fatalf("after upgrade = %+v", list)
 	}
 }
+
+func TestSourceIsKeptAndBound(t *testing.T) {
+	s := openStore(t, filepath.Join(t.TempDir(), "clip.db"), testKey(1))
+	if _, err := s.AddFrom("uptime", " pg-primary\x07 ", DefaultSettings); err != nil {
+		t.Fatal(err)
+	}
+	s.Add("from another app", DefaultSettings)
+	list, _ := s.List()
+	got := map[string]string{}
+	for _, c := range list {
+		got[c.Text] = c.Source
+	}
+	if got["uptime"] != "pg-primary" || got["from another app"] != "" {
+		t.Fatalf("sources = %v", got)
+	}
+	// A source ciphertext moved onto another row must not decrypt there.
+	if _, err := s.db.Exec(`UPDATE clips SET source_nonce = (SELECT source_nonce FROM clips WHERE source_ciphertext IS NOT NULL),
+		source_ciphertext = (SELECT source_ciphertext FROM clips WHERE source_ciphertext IS NOT NULL)`); err != nil {
+		t.Fatal(err)
+	}
+	list, _ = s.List()
+	for _, c := range list {
+		if c.Text == "from another app" && c.Source != "" {
+			t.Fatalf("moved source decrypted on another row: %q", c.Source)
+		}
+	}
+}

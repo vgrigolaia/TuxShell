@@ -8,14 +8,14 @@
   import Icon from './Icon.svelte'
 
   interface Props {
-    /** Name of the focused pane's host, for future per-host filtering. */
+    /** Name of the focused pane's host, for the "This host" filter. */
     activeHost?: string
     onPaste: (text: string) => void
     onClose: () => void
   }
-  let { onPaste, onClose }: Props = $props()
+  let { activeHost, onPaste, onClose }: Props = $props()
 
-  let show = $state<'all' | 'pinned'>('all')
+  let show = $state<'all' | 'pinned' | 'host'>('all')
   let panelEl: HTMLElement
 
   type View = { kind: 'list' } | { kind: 'edit'; clip: Clip | null } | { kind: 'settings' }
@@ -32,8 +32,10 @@
   }
   const saved = $derived(clipboardHistory.saved.filter(matches))
   const history = $derived(clipboardHistory.history.filter(matches))
-  const shown = $derived(show === 'pinned' ? saved : [...saved, ...history])
+  const shown = $derived(show === 'pinned' ? saved : show === 'host' ? [...saved, ...history].filter((c) => c.source === activeHost) : [...saved, ...history])
   const first = $derived(shown[0])
+  type Show = typeof show
+  const filters = $derived<[Show, string][]>(activeHost ? [['all', 'All'], ['pinned', 'Pinned'], ['host', 'This host']] : [['all', 'All'], ['pinned', 'Pinned']])
 
   onMount(() => {
     void clipboardHistory.load()
@@ -78,7 +80,7 @@
         {#if clip.pinned}
           <span class="text-accent"><Icon name="pin" size={11} /></span>pinned{clip.label ? ` · ${clip.label}` : ''}
         {:else}
-          <span class="size-2 rounded-full bg-success" aria-hidden="true"></span>{ago(clip.createdAt)}
+          <span class="size-2 rounded-full {clip.source ? 'bg-success' : 'bg-subtle'}" aria-hidden="true"></span>{clip.source || 'other app'} · {ago(clip.createdAt)}
         {/if}
       </span>
       <span class="truncate font-mono text-xs text-fg">{clip.text}</span>
@@ -160,7 +162,7 @@
       />
     </label>
     <div role="radiogroup" aria-label="Show" class="flex gap-1.5">
-      {#each [['all', 'All'], ['pinned', 'Pinned']] as const as [value, label] (value)}
+      {#each filters as [value, label] (value)}
         <button
           role="radio"
           aria-checked={show === value}
@@ -182,7 +184,7 @@
           Nothing yet. Copy with Ctrl+Shift+C in a terminal, copy anywhere and come back, or add a saved clip with +.
         </p>
       {:else if !shown.length}
-        <p class="px-3 pt-8 text-center text-[13px] text-muted">{query ? 'No matches' : 'No pinned clips yet'}</p>
+        <p class="px-3 pt-8 text-center text-[13px] text-muted">{query ? 'No matches' : show === 'host' ? `Nothing copied from ${activeHost} yet` : 'No pinned clips yet'}</p>
       {/if}
       <ul class="flex flex-col gap-1.5">
         {#each shown as clip (clip.id)}{@render entry(clip)}{/each}

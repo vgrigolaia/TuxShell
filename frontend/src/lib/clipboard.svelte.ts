@@ -40,9 +40,9 @@ class ClipboardHistory {
     this.settings = settings
   }
 
-  /** Records text copied inside TuxShell (filtered and encrypted in Go). */
-  record(text: string) {
-    void ClipService.Add(text)
+  /** Records text copied inside TuxShell (filtered and encrypted in Go), with the host it came from. */
+  record(text: string, source = '') {
+    void ClipService.AddFrom(text, source)
   }
 
   async setPaused(paused: boolean) {

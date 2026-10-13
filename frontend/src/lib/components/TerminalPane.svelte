@@ -60,6 +60,8 @@
   let asking = $state(source.kind === 'host' && !!source.askUser)
   let loginError = $state<string | null>(null)
   const hostName = $derived(source.kind === 'host' ? (hostStore.get(source.hostId)?.name ?? 'host') : '')
+  // Shown on clipboard entries copied here ("This host" filter).
+  const clipSource = $derived(source.kind === 'host' ? hostName : source.kind === 'target' ? source.target : 'local shell')
   const savedUser = $derived(source.kind === 'host' ? (hostStore.get(source.hostId)?.user ?? '') : '')
 
   let bell = $state(false)
@@ -166,7 +168,7 @@
         const text = prefs.value.terminal.copyOnSelect && term?.hasSelection() ? term.getSelection() : ''
         if (text) {
           void Clipboard.SetText(text)
-          clipboardHistory.record(text)
+          clipboardHistory.record(text, clipSource)
         }
       }
       // Our own menu replaces WebKit's (Cut/Inspect Element) over the terminal.
@@ -285,7 +287,7 @@
     const text = term?.getSelection()
     if (text) {
       void Clipboard.SetText(text)
-      clipboardHistory.record(text)
+      clipboardHistory.record(text, clipSource)
     }
   }
 
