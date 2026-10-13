@@ -8,7 +8,7 @@
   import Icon from './Icon.svelte'
 
   interface Props {
-    /** The focused terminal pane; files are browsed on its host. */
+    /** The focused terminal pane; files are browsed on its host, or on this computer without one. */
     pane: Pane | undefined
     /** Types a command line into the pane's shell. */
     onRunInPane: (paneId: number, line: string) => void
@@ -24,32 +24,33 @@
   let busy = $state<string | null>(null)
   let selected = $state<string | null>(null)
   // Last folder per pane, so switching panes and back keeps your place.
+  // Without a pane (e.g. on Home) the panel shows this computer under LOCAL.
+  const LOCAL = -1
+  const paneKey = $derived(pane?.id ?? LOCAL)
   const lastDir = new Map<number, string>()
   // The folder a pane's first listing opened in (its home), for "~" paths.
   const homeDir = new Map<number, string>()
 
   const location = $derived<Location | null>(
-    !pane
-      ? null
-      : pane.source.kind === 'shell'
-        ? { kind: 'local', hostId: 0, user: '', target: '' }
-        : pane.source.kind === 'host'
-          ? { kind: 'host', hostId: pane.source.hostId, user: pane.loginUser, target: '' }
-          : { kind: 'target', hostId: 0, user: '', target: pane.source.target },
+    !pane || pane.source.kind === 'shell'
+      ? { kind: 'local', hostId: 0, user: '', target: '' }
+      : pane.source.kind === 'host'
+        ? { kind: 'host', hostId: pane.source.hostId, user: pane.loginUser, target: '' }
+        : { kind: 'target', hostId: 0, user: '', target: pane.source.target },
   )
   const where = $derived(
-    !pane ? '' : pane.source.kind === 'shell' ? 'This computer' : pane.source.kind === 'host' ? (hostStore.get(pane.source.hostId)?.name ?? pane.title) : pane.source.target,
+    !pane || pane.source.kind === 'shell' ? 'This computer' : pane.source.kind === 'host' ? (hostStore.get(pane.source.hostId)?.name ?? pane.title) : pane.source.target,
   )
 
   // Reload when the focused pane (or its login) changes.
   let shownFor = ''
   $effect(() => {
-    const key = pane ? `${pane.id}:${pane.loginUser}` : ''
+    const key = pane ? `${pane.id}:${pane.loginUser}` : 'local'
     if (key === shownFor) return
     shownFor = key
     listing = null
     error = null
-    if (pane) void open(lastDir.get(pane.id) ?? '')
+    void open(lastDir.get(paneKey) ?? '')
   })
 
   onMount(() =>
@@ -60,13 +61,13 @@
   )
 
   async function open(dir: string) {
-    if (!location || !pane) return
-    const forPane = pane.id
+    if (!location) return
+    const forPane = paneKey
     loading = true
     error = null
     try {
       const l = await Files.List(location, dir)
-      if (pane?.id !== forPane) return // focus moved while loading
+      if (paneKey !== forPane) return // focus moved while loading
       listing = l
       pathInput = l.path
       selected = null
@@ -148,7 +149,7 @@
 
   // ~ for the home folder, like the prompt.
   function shortPath(p: string) {
-    const home = homeDir.get(pane?.id ?? -1)
+    const home = homeDir.get(paneKey)
     return home && (p === home || p.startsWith(home + '/')) ? '~' + p.slice(home.length) : p
   }
 
@@ -170,7 +171,7 @@
     <button class={iconBtn} aria-label="Upload files" title="Upload files (or drop them here)" disabled={!listing || !!busy} onclick={upload}>
       <Icon name="upload" size={15} />
     </button>
-    <button class={iconBtn} aria-label="Refresh" title="Refresh" disabled={!pane || loading} onclick={() => open(listing?.path ?? '')}>
+    <button class={iconBtn} aria-label="Refresh" title="Refresh" disabled={loading} onclick={() => open(listing?.path ?? '')}>
       <Icon name="refresh" size={15} />
     </button>
     <button class={iconBtn} aria-label="Close files" onclick={onClose}>
@@ -179,10 +180,7 @@
   </div>
   {#if where}<p class="truncate px-4 pb-2 text-xs text-subtle">{where}</p>{/if}
 
-  {#if !pane}
-    <p class="px-4 pt-8 text-center text-[13px] text-muted">Open a terminal to browse its files.</p>
-  {:else}
-    <form
+  <form
       class="flex items-center gap-1 px-3 pb-2"
       onsubmit={(e) => {
         e.preventDefault()
@@ -202,7 +200,7 @@
           spellcheck="false"
         />
       </label>
-      {#if listing}
+      {#if listing && pane}
         <button type="button" class="h-7 shrink-0 rounded-lg px-2 text-xs text-muted hover:bg-raised hover:text-fg" title="Type cd to this folder in the terminal" onclick={() => listing && cdHere(listing.path)}>cd here</button>
       {/if}
     </form>
@@ -236,7 +234,7 @@
                 <span class="shrink-0 font-mono text-[11px] text-subtle group-focus-within:opacity-0 group-hover:opacity-0">{isDir ? 'dir' : size(e.size)}</span>
               </button>
               <div class="absolute top-1/2 right-1.5 flex -translate-y-1/2 gap-0.5 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100">
-                {#if isDir}
+                {#if isDir && pane}
                   <button class={rowBtn} aria-label="cd to {e.name} in the terminal" title="cd here" onclick={() => listing && cdHere(join(listing.path, e.name))}>
                     <Icon name="terminal" size={13} />
                   </button>
@@ -273,7 +271,6 @@
         Drop to upload · or click to pick files
       </button>
     </div>
-  {/if}
 </aside>
 
 <style>

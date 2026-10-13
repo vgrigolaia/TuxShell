@@ -151,8 +151,14 @@
     >
       <Icon name="sidebar" size={14} />
     </button>
-    <span class="logo grid size-[30px] place-items-center rounded-[10px] bg-accent text-on-accent" aria-hidden="true">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17l6-5-6-5" /><path d="M13 19h6" /></svg>
+    <!-- Same mark as build/appicon.svg: a prompt whose cursor line runs on to two hosts. -->
+    <span class="logo grid size-[30px] place-items-center rounded-[10px] border border-strong bg-raised" aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path class="text-subtle" stroke="currentColor" stroke-width="1.1" d="M14 17.85C18.4 17.85 17.25 5.55 21.6 5.55M14 17.85H21.6" />
+        <path class="text-accent" stroke="currentColor" stroke-width="3.1" d="M1.6 5.7l5.6 5.85-5.6 5.85M9.8 17.85H14" />
+        <circle class="text-success" fill="currentColor" cx="21.6" cy="5.55" r="2.25" />
+        <circle class="text-success" fill="currentColor" cx="21.6" cy="17.85" r="2.25" />
+      </svg>
     </span>
     <span class="font-display text-[17px] font-bold tracking-[-0.02em]">TuxShell</span>
   </div>
@@ -288,7 +294,7 @@
 
 <style>
   .logo {
-    box-shadow: 0 0 24px color-mix(in srgb, var(--color-accent) 40%, transparent);
+    box-shadow: 0 0 20px color-mix(in srgb, var(--color-accent) 22%, transparent);
   }
   .tab-current {
     box-shadow: inset 0 0 0 1px var(--color-tab-ring);

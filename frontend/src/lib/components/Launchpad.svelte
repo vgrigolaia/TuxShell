@@ -94,7 +94,7 @@
   const chip = 'flex h-[34px] items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold'
 </script>
 
-<div class="flex min-h-0 flex-1 gap-2.5">
+<div class="flex min-h-0 min-w-0 flex-1 gap-2.5">
   <nav aria-label="Home" class="flex w-[232px] shrink-0 flex-col gap-1 rounded-panel border border-line bg-raised px-3.5 py-5">
     {#each [['hosts', 'Hosts', 'server', hostStore.list.length], ['snippets', 'Snippets', 'code', snippets.list.length], ['tunnels', 'Tunnels', 'tunnel', tunnels.list.length]] as const as [id, name, icon, count] (id)}
       <button
