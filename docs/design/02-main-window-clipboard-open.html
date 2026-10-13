@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Relay — Combined</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&amp;family=Geist:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#08090C}
+a{color:#B3A8FF}a:hover{color:#D4CDFF}
+.panel{background:#111318;border:1px solid #1E212A;border-radius:16px}
+.cap{font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#7E8696}
+.host{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:10px;font-size:13px;color:#C7CBD4}
+.mono{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-family:'Space Grotesk',sans-serif;font-size:10.5px;font-weight:700;flex:none}
+.ring{width:8px;height:8px;border-radius:50%;box-sizing:border-box;flex:none}
+.ln{white-space:pre;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:20px;color:#C7CBD4}
+.kbd{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#A5ACB9;background:#1A1D24;border:1px solid #2A2E38;border-bottom-width:2px;border-radius:6px;padding:2px 7px}
+.tile{background:#0C0D12;border:1.5px solid #1E212A;border-radius:14px;display:flex;flex-direction:column;overflow:hidden;min-height:220px}
+.th{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid #1A1C24;font-size:12px;flex-wrap:wrap}
+.hop{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;background:#17191F;color:#9BA2B0;font-family:'JetBrains Mono',monospace;font-size:10.5px}
+.clip{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:12px;background:#15171E;border:1px solid #1E212A}
+.cm{display:flex;align-items:center;gap:8px;font-size:11px;color:#7E8696}
+.ct{font-family:'JetBrains Mono',monospace;font-size:12px;color:#E2E5EB;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wc{width:30px;height:30px;border-radius:10px;border:0;background:#14161C;color:#9BA2B0;display:grid;place-items:center}
+</style>
+</head>
+<body>
+
+
+<div style="min-height: 900px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; padding: 10px; background: #08090C; color: #ECEEF2; font-family: 'Geist', system-ui, sans-serif; border-radius: 14px; box-shadow: inset 0 0 0 1px #1E212A">
+
+  <header aria-label="Window title bar — drag to move" style="display: flex; align-items: center; gap: 14px; padding: 2px 4px 0 6px; flex-wrap: wrap">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <div style="width: 30px; height: 30px; border-radius: 10px; background: #8B7CFF; display: grid; place-items: center; box-shadow: 0 0 24px #8B7CFF66">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0B0C10" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17l6-5-6-5"></path><path d="M13 19h6"></path></svg>
+      </div>
+      <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 17px; letter-spacing: -0.02em">relay</span>
+    </div>
+    <div role="tablist" aria-label="Workspaces" style="display: flex; gap: 4px; padding: 4px; background: #111318; border: 1px solid #1E212A; border-radius: 12px; margin-left: 8px">
+      <button role="tab" aria-selected="true" style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border: 0; border-radius: 9px; background: #1F2230; color: #F4F5F8; font: inherit; font-size: 13px; box-shadow: inset 0 0 0 1px #2E3244"><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B7CFF">1</span>pg-prod cluster<span style="font-size: 11px; color: #7E8696">3</span></button>
+      <button role="tab" aria-selected="false" style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: #9BA2B0; font: inherit; font-size: 13px"><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px">2</span>proxmox</button>
+      <button role="tab" aria-selected="false" style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: #9BA2B0; font: inherit; font-size: 13px"><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px">3</span>win-ad01<span style="height: 18px; padding: 0 6px; border-radius: 5px; background: #102A43; color: #7CC4FA; font-size: 10px; font-weight: 600; display: flex; align-items: center">RDP</span></button>
+      <button aria-label="New workspace" style="width: 30px; height: 30px; border: 0; border-radius: 9px; background: transparent; color: #9BA2B0; display: grid; place-items: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
+    </div>
+    <div style="flex: 1 1 40px; align-self: stretch"></div>
+    
+      <button aria-pressed="true" style="display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px 0 10px; border-radius: 11px; border: 1px solid #8B7CFF; background: #1E1A3A; color: #E4DFFF; font: inherit; font-size: 13px; cursor: pointer">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="7" y="4" width="10" height="4" rx="1.5"></rect><path d="M7 6H5v15h14V6h-2"></path></svg>
+        Clipboard <span class="kbd">Ctrl Shift V</span>
+      </button>
+    
+    
+    <button style="display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px 0 10px; border-radius: 11px; border: 1px solid #23262F; background: #111318; color: #9BA2B0; font: inherit; font-size: 13px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+      Jump to anything <span class="kbd">Ctrl K</span>
+    </button>
+    <div style="display: flex; gap: 6px; padding-left: 10px; border-left: 1px solid #1E212A">
+      <button class="wc" aria-label="Minimize"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path></svg></button>
+      <button class="wc" aria-label="Maximize"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="2" y="2" width="6" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"></rect></svg></button>
+      <button class="wc" aria-label="Close" style="background: #2A1418; color: #FCA5B4"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 2.5l5 5M7.5 2.5l-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path></svg></button>
+    </div>
+  </header>
+
+  <div style="flex: 1; display: flex; flex-wrap: wrap; gap: 10px; min-height: 0; position: relative">
+
+    <nav aria-label="Hosts" class="panel" style="flex: 0 0 236px; display: flex; flex-direction: column; gap: 14px; padding: 14px 10px">
+      <div style="display: flex; align-items: center; padding: 0 6px">
+        <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 15px">Hosts</span>
+        <span style="margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7E8696">26 · 23 up</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <div class="cap" style="padding: 0 8px 6px">Jump hosts</div>
+        <div class="host"><span class="mono" style="background: #1F2A16; color: #BEF264">BH</span>bastion-01<span style="margin-left: auto; font-size: 10.5px; color: #7E8696">gateway</span></div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <div class="cap" style="padding: 0 8px 6px">PostgreSQL · prod</div>
+        <div class="host" style="background: #1A1C26; color: #F4F5F8"><span class="mono" style="background: #2B2550; color: #C9BFFF">PG</span>pg-primary<span class="ring" style="margin-left: auto; background: #A3E635"></span></div>
+        <div class="host" style="background: #1A1C26; color: #F4F5F8"><span class="mono" style="background: #2B2550; color: #C9BFFF">PG</span>pg-replica-1<span class="ring" style="margin-left: auto; background: #A3E635"></span></div>
+        <div class="host" style="background: #1A1C26; color: #F4F5F8"><span class="mono" style="background: #2B2550; color: #C9BFFF">PG</span>pg-replica-2<span class="ring" style="margin-left: auto; background: #A3E635"></span></div>
+        <div class="host"><span class="mono" style="background: #3A2716; color: #FDBA74">HA</span>haproxy-01<span class="ring" style="margin-left: auto; border: 2px solid #FB923C"></span></div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <div class="cap" style="padding: 0 8px 6px">Proxmox · gra</div>
+        <div class="host"><span class="mono" style="background: #123234; color: #7EE7D8">PV</span>pve-node-01<span class="ring" style="margin-left: auto; background: #A3E635"></span></div>
+        <div class="host"><span class="mono" style="background: #123234; color: #7EE7D8">PV</span>pve-node-02<span class="ring" style="margin-left: auto; background: #A3E635"></span></div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <div class="cap" style="padding: 0 8px 6px">Windows · RDP</div>
+        <div class="host"><span class="mono" style="background: #102A43; color: #7CC4FA">RD</span>win-ad01<span style="margin-left: auto; font-size: 10px; font-weight: 600; color: #7CC4FA">RDP</span></div>
+        <div class="host"><span class="mono" style="background: #102A43; color: #7CC4FA">RD</span>win-jump01<span style="margin-left: auto; font-size: 10px; font-weight: 600; color: #7CC4FA">RDP</span></div>
+      </div>
+      <div style="margin-top: auto; padding: 12px; border-radius: 12px; background: #15171E; border: 1px solid #23262F; display: flex; flex-direction: column; gap: 8px">
+        <span style="font-size: 12px; color: #C7CBD4">Select hosts, then</span>
+        <button style="height: 32px; border-radius: 9px; border: 0; background: #8B7CFF; color: #0B0C10; font: inherit; font-size: 12.5px; font-weight: 600">Open 3 in tiles</button>
+      </div>
+    </nav>
+
+    <main class="panel" style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 10px">
+      <div role="status" style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 12px; background: #1E1A3A; border: 1px solid #3B3470; font-size: 12.5px; color: #D4CDFF; flex-wrap: wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B7CFF" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="2"></circle><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 4.9a10 10 0 0 1 0 14.2"></path></svg>
+        <span><strong style="color: #FFFFFF">Multi-exec</strong> — typing goes to 3 tiles at once</span>
+        <span style="display: flex; gap: 4px"><span class="hop" style="background: #2B2550; color: #D4CDFF">primary</span><span class="hop" style="background: #2B2550; color: #D4CDFF">replica-1</span><span class="hop" style="background: #2B2550; color: #D4CDFF">replica-2</span></span>
+        <button style="margin-left: auto; height: 28px; padding: 0 12px; border-radius: 8px; border: 0; background: #8B7CFF; color: #0B0C10; font: inherit; font-size: 12px; font-weight: 600">Stop</button>
+      </div>
+
+      <div style="flex: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+        <section class="tile" aria-label="pg-primary terminal" style="grid-column: span 2; border-color: #8B7CFF; box-shadow: 0 0 0 4px #8B7CFF26">
+          <div class="th">
+            <span class="ring" style="background: #A3E635"></span><span style="font-weight: 600; color: #FFFFFF">pg-primary</span>
+            <span style="display: flex; align-items: center; gap: 4px; margin-left: 6px"><span class="hop">you</span><span style="color: #5D6474">→</span><span class="hop" style="background: #1F2A16; color: #BEF264">bastion-01</span><span style="color: #5D6474">→</span><span class="hop" style="background: #2B2550; color: #D4CDFF">pg-primary</span></span>
+            <span style="margin-left: auto; font-size: 11px; color: #7E8696">key op://Infra/pg-primary</span>
+          </div>
+          <div style="padding: 12px 14px">
+            <div class="ln"><span style="color: #A3E635">❯</span> sudo dnf -q check-update postgresql17-server; echo exit=$?</div>
+            <div class="ln">postgresql17-server.x86_64    17.6-1PGDG.rhel10    pgdg17</div>
+            <div class="ln">exit=100</div>
+            <div class="ln"><span style="color: #A3E635">❯</span> <span style="display: inline-block; width: 9px; height: 16px; background: #8B7CFF; vertical-align: -3px; border-radius: 2px"></span></div>
+          </div>
+        </section>
+        <section class="tile" aria-label="pg-replica-1 terminal">
+          <div class="th"><span class="ring" style="background: #A3E635"></span><span style="font-weight: 600">pg-replica-1</span><span style="display: flex; align-items: center; gap: 4px; margin-left: 6px"><span class="hop" style="background: #1F2A16; color: #BEF264">bastion-01</span><span style="color: #5D6474">→</span><span class="hop">replica-1</span></span></div>
+          <div style="padding: 12px 14px">
+            <div class="ln"><span style="color: #A3E635">❯</span> sudo dnf -q check-update ...</div>
+            <div class="ln">postgresql17-server   17.6-1PGDG</div>
+            <div class="ln">exit=100</div>
+          </div>
+        </section>
+        <section class="tile" aria-label="pg-replica-2 terminal">
+          <div class="th"><span class="ring" style="background: #A3E635"></span><span style="font-weight: 600">pg-replica-2</span><span style="display: flex; align-items: center; gap: 4px; margin-left: 6px"><span class="hop" style="background: #1F2A16; color: #BEF264">bastion-01</span><span style="color: #5D6474">→</span><span class="hop">replica-2</span></span></div>
+          <div style="padding: 12px 14px">
+            <div class="ln"><span style="color: #A3E635">❯</span> sudo dnf -q check-update ...</div>
+            <div class="ln">postgresql17-server   17.6-1PGDG</div>
+            <div class="ln">exit=100</div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    
+      <aside aria-label="Clipboard history" style="position: absolute; top: 8px; right: 8px; bottom: 8px; width: 320px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; padding: 14px 12px; background: #13151BF2; border: 1px solid #2B2F3B; border-radius: 16px; box-shadow: 0 30px 80px rgba(0,0,0,0.6)">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 0 4px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B7CFF" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="7" y="4" width="10" height="4" rx="1.5"></rect><path d="M7 6H5v15h14V6h-2"></path></svg>
+          <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 15px">Clipboard</span>
+          <button aria-label="Close clipboard" style="margin-left: auto; width: 28px; height: 28px; border-radius: 8px; border: 0; background: #1A1D24; color: #9BA2B0; display: grid; place-items: center; cursor: pointer"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 2.5l5 5M7.5 2.5l-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path></svg></button>
+        </div>
+        <label for="cs" style="position: absolute; left: -9999px">Search clipboard</label>
+        <input id="cs" placeholder="Search copied text…" style="height: 34px; box-sizing: border-box; padding: 0 12px; border-radius: 10px; border: 1px solid #23262F; background: #0C0D12; color: #ECEEF2; font: inherit; font-size: 13px; outline: none">
+        <div style="display: flex; gap: 6px">
+          <span style="height: 24px; padding: 0 10px; border-radius: 999px; background: #262245; color: #D4CDFF; font-size: 11.5px; display: flex; align-items: center">All</span>
+          <span style="height: 24px; padding: 0 10px; border-radius: 999px; background: #17191F; color: #9BA2B0; font-size: 11.5px; display: flex; align-items: center">Pinned</span>
+          <span style="height: 24px; padding: 0 10px; border-radius: 999px; background: #17191F; color: #9BA2B0; font-size: 11.5px; display: flex; align-items: center">This host</span>
+        </div>
+        <div class="clip" style="border-color: #3B3470">
+          <div class="cm"><svg width="12" height="12" viewBox="0 0 24 24" fill="#8B7CFF" aria-hidden="true"><path d="M12 2l3 6 6 1-4.5 4.5L18 20l-6-3-6 3 1.5-6.5L3 9l6-1z"></path></svg>pinned · pg-primary</div>
+          <div class="ct">select * from pg_stat_replication;</div>
+        </div>
+        <div class="clip">
+          <div class="cm"><span class="ring" style="background: #A3E635"></span>pg-primary · 2 min ago<span style="margin-left: auto">output</span></div>
+          <div class="ct">postgresql17-server.x86_64 17.6-1PGDG</div>
+        </div>
+        <div class="clip">
+          <div class="cm"><span class="ring" style="background: #7EE7D8"></span>pve-node-01 · 18 min ago<span style="margin-left: auto">command</span></div>
+          <div class="ct">qm migrate 214 pve-node-02 --online</div>
+        </div>
+        <div class="clip">
+          <div class="cm"><span class="ring" style="background: #7CC4FA"></span>win-ad01 · RDP · 40 min ago<span style="margin-left: auto">synced</span></div>
+          <div class="ct">Get-ADUser -Filter * | Measure-Object</div>
+        </div>
+        <div class="clip" style="background: #0F1A12; border-color: #1D3A22">
+          <div class="cm" style="color: #8FA88F"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#A3E635" stroke-width="2.2" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"></path></svg>secret from 1Password · not saved</div>
+          <div class="ct" style="color: #8FA88F; letter-spacing: 0.2em">••••••••••••</div>
+        </div>
+        <div style="margin-top: auto; font-size: 11px; color: #7E8696; line-height: 1.5; padding: 0 4px">Encrypted locally · 30 days · secrets skipped. Esc closes.</div>
+      </aside>
+    
+  </div>
+
+  <footer style="display: flex; align-items: center; gap: 18px; padding: 0 8px; height: 22px; font-size: 11.5px; color: #7E8696; flex-wrap: wrap">
+    <span style="display: flex; align-items: center; gap: 6px"><span class="ring" style="background: #A3E635"></span>1Password unlocked</span>
+    <span>via bastion-01 · ProxyJump</span>
+    <span>2 tunnels</span>
+    <span style="margin-left: auto; font-family: 'JetBrains Mono', monospace">own title bar · no GNOME header</span>
+  </footer>
+</div>
+
+</body>
+</html>

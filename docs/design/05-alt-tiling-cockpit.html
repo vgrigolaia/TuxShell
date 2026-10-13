@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Relay — Tiling cockpit</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0C0F}
+a{color:#FFC46B}a:hover{color:#FFD99E}
+.tile{background:#0F1216;border:2px solid #1C2128;border-radius:14px;display:flex;flex-direction:column;overflow:hidden;min-height:250px}
+.th{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid #1A1E25;font-size:12px}
+.ln{white-space:pre;font-family:'IBM Plex Mono',monospace;font-size:12.5px;line-height:20px;color:#C3C9D2}
+.rail{width:44px;height:44px;border-radius:13px;border:0;background:transparent;color:#7F8794;display:grid;place-items:center}
+.chip{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px;border-radius:7px;font-size:11px}
+.ws{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-weight:600;font-size:12px}
+.tun{flex:1 1 220px;display:flex;flex-direction:column;gap:8px;padding:12px 14px;background:#12161B;border:1px solid #1E232B;border-radius:12px}
+.kb{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#C3C9D2;background:#171B21;border:1px solid #262C35;border-radius:5px;padding:1px 6px}
+</style>
+</head>
+<body>
+
+
+<div style="min-height: 900px; box-sizing: border-box; display: flex; background: #0A0C0F; color: #E8EBEF; font-family: 'IBM Plex Mono', monospace; flex-wrap: wrap">
+
+  <nav aria-label="Main" style="flex: 0 0 64px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 0; border-right: 1px solid #161A20">
+    <div style="width: 40px; height: 40px; border-radius: 12px; background: #FFB347; color: #1A1206; display: grid; place-items: center; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 18px; margin-bottom: 10px">r</div>
+    <button class="rail" aria-label="Workspaces" style="background: #1A1F26; color: #FFB347"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2"></rect><rect x="13" y="3" width="8" height="8" rx="2"></rect><rect x="3" y="13" width="8" height="8" rx="2"></rect><rect x="13" y="13" width="8" height="8" rx="2"></rect></svg></button>
+    <button class="rail" aria-label="Hosts"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="2"></rect><rect x="3" y="13" width="18" height="7" rx="2"></rect><path d="M7 7.5h.01M7 16.5h.01" stroke-linecap="round"></path></svg></button>
+    <button class="rail" aria-label="Tunnels"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 20V10a8 8 0 0 1 16 0v10"></path><path d="M9 20v-6a3 3 0 0 1 6 0v6"></path></svg></button>
+    <button class="rail" aria-label="Snippets"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 6l-6 6 6 6M16 6l6 6-6 6"></path></svg></button>
+    <button class="rail" aria-label="Recordings"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg></button>
+    <button class="rail" aria-label="Settings" style="margin-top: auto"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"></path><circle cx="16" cy="6" r="2"></circle><circle cx="10" cy="12" r="2"></circle><circle cx="18" cy="18" r="2"></circle></svg></button>
+  </nav>
+
+  <div style="flex: 999 1 600px; min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px">
+
+    <header style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap">
+      <div style="display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: #11151A; border: 1px solid #1C2128">
+        <span class="ws" style="background: #FFB347; color: #1A1206">1</span>
+        <span class="ws" style="color: #C3C9D2">2</span>
+        <span class="ws" style="color: #C3C9D2">3</span>
+        <span class="ws" style="color: #5E6672">4</span>
+      </div>
+      <div style="display: flex; flex-direction: column">
+        <span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 18px; letter-spacing: -0.01em">pg-prod cluster</span>
+        <span style="font-size: 11px; color: #7F8794">workspace 1 · 4 tiles · layout: grid</span>
+      </div>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 8px">
+        <span class="chip" style="background: #11151A; border: 1px solid #1C2128; color: #C3C9D2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7DD3A8" stroke-width="2.4" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"></path></svg>1Password</span>
+        <span class="chip" style="background: #11151A; border: 1px solid #1C2128; color: #C3C9D2">3 tunnels up</span>
+        <button style="display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; border-radius: 10px; border: 1px solid #262C35; background: #12161B; color: #C3C9D2; font: inherit; font-size: 12px">Command <span class="kb">Super K</span></button>
+      </div>
+    </header>
+
+    <div role="status" style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 12px; background: #2A1C08; border: 1px solid #5C3D10; color: #FFD99E; font-size: 12.5px; flex-wrap: wrap">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFB347" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="2"></circle><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 4.9a10 10 0 0 1 0 14.2"></path></svg>
+      <span><strong style="color: #FFFFFF">Broadcast on</strong> — keystrokes go to 3 of 4 tiles</span>
+      <span style="color: #C9A46A">haproxy-01 excluded</span>
+      <button style="margin-left: auto; height: 28px; padding: 0 12px; border-radius: 8px; border: 0; background: #FFB347; color: #1A1206; font: inherit; font-size: 12px; font-weight: 600">Stop · Esc Esc</button>
+    </div>
+
+    <div style="flex: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+      <section class="tile" aria-label="pg-primary terminal" style="border-color: #FFB347; box-shadow: 0 0 0 4px #FFB34722, 0 0 40px #FFB34722">
+        <div class="th"><span style="width: 8px; height: 8px; border-radius: 50%; background: #7DD3A8"></span><span style="color: #FFFFFF; font-weight: 600">pg-primary</span><span style="color: #7F8794">leader</span><span class="chip" style="margin-left: auto; background: #2A1C08; color: #FFC46B">● broadcast</span><span class="kb">1</span></div>
+        <div style="padding: 12px 14px; flex: 1">
+          <div class="ln"><span style="color: #FFB347">λ</span> sudo systemctl status patroni --no-pager | head -3</div>
+          <div class="ln"><span style="color: #7DD3A8">●</span> patroni.service - Runners to orchestrate a HA PostgreSQL</div>
+          <div class="ln">     Loaded: loaded (/etc/systemd/system/patroni.service)</div>
+          <div class="ln">     Active: <span style="color: #7DD3A8">active (running)</span> since Mon 09:12:04</div>
+          <div class="ln"><span style="color: #FFB347">λ</span> <span style="display: inline-block; width: 8px; height: 15px; background: #FFB347; vertical-align: -2px"></span></div>
+        </div>
+      </section>
+      <section class="tile" aria-label="pg-replica-1 terminal">
+        <div class="th"><span style="width: 8px; height: 8px; border-radius: 50%; background: #7DD3A8"></span><span style="color: #E8EBEF; font-weight: 600">pg-replica-1</span><span style="color: #7F8794">replica</span><span class="chip" style="margin-left: auto; background: #2A1C08; color: #FFC46B">● broadcast</span><span class="kb">2</span></div>
+        <div style="padding: 12px 14px; flex: 1">
+          <div class="ln"><span style="color: #7F8794">λ</span> sudo systemctl status patroni --no-pager | head -3</div>
+          <div class="ln"><span style="color: #7DD3A8">●</span> patroni.service - Runners to orchestrate a HA PostgreSQL</div>
+          <div class="ln">     Loaded: loaded (/etc/systemd/system/patroni.service)</div>
+          <div class="ln">     Active: <span style="color: #7DD3A8">active (running)</span> since Mon 09:12:31</div>
+        </div>
+      </section>
+      <section class="tile" aria-label="pg-replica-2 terminal">
+        <div class="th"><span style="width: 8px; height: 8px; border-radius: 50%; background: #7DD3A8"></span><span style="color: #E8EBEF; font-weight: 600">pg-replica-2</span><span style="color: #7F8794">replica</span><span class="chip" style="margin-left: auto; background: #2A1C08; color: #FFC46B">● broadcast</span><span class="kb">3</span></div>
+        <div style="padding: 12px 14px; flex: 1">
+          <div class="ln"><span style="color: #7F8794">λ</span> sudo systemctl status patroni --no-pager | head -3</div>
+          <div class="ln"><span style="color: #7DD3A8">●</span> patroni.service - Runners to orchestrate a HA PostgreSQL</div>
+          <div class="ln">     Loaded: loaded (/etc/systemd/system/patroni.service)</div>
+          <div class="ln">     Active: <span style="color: #7DD3A8">active (running)</span> since Mon 09:12:47</div>
+        </div>
+      </section>
+      <section class="tile" aria-label="haproxy-01 terminal" style="opacity: 0.85">
+        <div class="th"><span style="width: 8px; height: 8px; border-radius: 50%; border: 2px solid #F59E0B; box-sizing: border-box"></span><span style="color: #E8EBEF; font-weight: 600">haproxy-01</span><span style="color: #7F8794">88 ms · degraded</span><span class="chip" style="margin-left: auto; background: #171B21; color: #7F8794">excluded</span><span class="kb">4</span></div>
+        <div style="padding: 12px 14px; flex: 1">
+          <div class="ln"><span style="color: #7F8794">λ</span> echo "show stat" | socat stdio /run/haproxy.sock | cut -d, -f1,2,18</div>
+          <div class="ln">pg_rw,pg-primary,<span style="color: #7DD3A8">UP</span></div>
+          <div class="ln">pg_ro,pg-replica-1,<span style="color: #7DD3A8">UP</span></div>
+          <div class="ln">pg_ro,pg-replica-2,<span style="color: #7DD3A8">UP</span></div>
+        </div>
+      </section>
+    </div>
+
+    <section aria-label="Tunnels" style="display: flex; flex-direction: column; gap: 8px">
+      <div style="display: flex; align-items: center; gap: 10px">
+        <span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 15px">Tunnels</span>
+        <button style="height: 26px; padding: 0 10px; border-radius: 8px; border: 1px dashed #343B45; background: transparent; color: #C3C9D2; font: inherit; font-size: 11.5px">+ new forward</button>
+        <span style="margin-left: auto; font-size: 11px; color: #7F8794"><span class="kb">Super ↵</span> new tile <span class="kb">Super H/J/K/L</span> move focus <span class="kb">Super B</span> broadcast</span>
+      </div>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap">
+        <div class="tun"><div style="display: flex; align-items: center; gap: 8px"><span class="chip" style="background: #0E2A1D; color: #7DD3A8">LOCAL</span><span style="margin-left: auto; font-size: 11px; color: #7DD3A8">↑ 1.2 MB/s</span></div><div style="font-size: 14px; color: #FFFFFF">:5432 → pg-primary:5432</div><div style="font-size: 11px; color: #7F8794">via bastion-01 · 2h 14m</div></div>
+        <div class="tun"><div style="display: flex; align-items: center; gap: 8px"><span class="chip" style="background: #0E2A1D; color: #7DD3A8">LOCAL</span><span style="margin-left: auto; font-size: 11px; color: #7F8794">idle</span></div><div style="font-size: 14px; color: #FFFFFF">:3000 → grafana:3000</div><div style="font-size: 11px; color: #7F8794">via bastion-01 · 41m</div></div>
+        <div class="tun"><div style="display: flex; align-items: center; gap: 8px"><span class="chip" style="background: #1B1A35; color: #B9B2FF">SOCKS</span><span style="margin-left: auto; font-size: 11px; color: #7DD3A8">↓ 220 KB/s</span></div><div style="font-size: 14px; color: #FFFFFF">:1080 dynamic</div><div style="font-size: 11px; color: #7F8794">via pve-node-01 · 12m</div></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+</body>
+</html>
