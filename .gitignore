@@ -12,3 +12,8 @@ build/android/gen/
 # Local assistant config (never commit)
 CLAUDE.md
 .claude/
+
+# AppImage build leftovers
+build/linux/appimage/tuxshell
+build/linux/appimage/tuxshell.png
+build/linux/appimage/build/

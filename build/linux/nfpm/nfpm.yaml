@@ -6,28 +6,37 @@
 name: "tuxshell"
 arch: ${GOARCH}
 platform: "linux"
-version: "0.1.0"
-section: "default"
+version: "1.0.0"
+section: "net"
 priority: "extra"
-maintainer: ${GIT_COMMITTER_NAME} <${GIT_COMMITTER_EMAIL}>
-description: "SSH connection manager for Linux"
+maintainer: "vgrigolaia <vgrigolaia@outlook.com>"
+# The first line is the package summary.
+description: |
+  SSH connection manager for Linux
+  Saved hosts, ~/.ssh/config import, split panes, broadcast typing,
+  a file browser and encrypted clipboard history.
 vendor: "vgrigolaia"
-homepage: "https://wails.io"
-license: "MIT"
+homepage: "https://github.com/vgrigolaia/tuxshell"
+license: "GPL-3.0-or-later"
 release: "1"
 
 contents:
   - src: "./bin/tuxshell"
-    dst: "/usr/local/bin/tuxshell"
-  - src: "./build/appicon.png"
-    dst: "/usr/share/icons/hicolor/128x128/apps/tuxshell.png"
+    dst: "/usr/bin/tuxshell"
+  - src: "./build/appicon.svg"
+    dst: "/usr/share/icons/hicolor/scalable/apps/tuxshell.svg"
   - src: "./build/linux/tuxshell.desktop"
     dst: "/usr/share/applications/tuxshell.desktop"
+  - src: "./LICENSE"
+    dst: "/usr/share/licenses/tuxshell/LICENSE"
 
 # Default dependencies for the GTK4 + WebKitGTK 6.0 stack (Ubuntu 24.04+ / Debian 13+)
+# TuxShell runs the system ssh, and lists fonts with fontconfig.
 depends:
   - libgtk-4-1
   - libwebkitgtk-6.0-4
+  - openssh-client
+  - fontconfig
 
 # Distribution-specific overrides for different package formats
 overrides:
@@ -36,6 +45,8 @@ overrides:
     depends:
       - gtk4
       - webkitgtk6.0
+      - openssh-clients
+      - fontconfig
 
   # Arch Linux packages
   archlinux:

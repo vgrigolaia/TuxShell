@@ -1,59 +1,97 @@
-# Welcome to Your New Wails3 Project!
+# TuxShell
 
-Congratulations on generating your Wails3 application! This README will guide you through the next steps to get your project up and running.
+A free, open-source SSH connection manager for Linux, in the spirit of Termius and MobaXterm.
 
-## Getting Started
+TuxShell keeps your hosts in one place and connects with the system `ssh`, so your
+`~/.ssh/config`, keys, agents and jump hosts work as they already do.
 
-1. Navigate to your project directory in the terminal.
+## Features
 
-2. To run your application in development mode, use the following command:
+- **Hosts**: saved hosts with groups, tags, jump hosts (ProxyJump) and identity files.
+  Filter, bulk select and delete. Import from `~/.ssh/config` (usernames optional).
+  Hosts without a saved user ask for one when you connect, with an option to save it.
+- **Quick connect** (Ctrl+K): fuzzy search your hosts, or type `user@host:port`.
+- **Tabs and split view**: up to four panes per tab. Merge tabs into a split, move a pane
+  out to its own tab, maximize a pane, drag dividers to resize.
+- **Broadcast typing** (Ctrl+Shift+B): type into all panes of a tab at once, leaving
+  out any pane you choose.
+- **Shared connections**: new panes, splits and the file browser reuse an open SSH
+  connection, so you log in once.
+- **File browser** (Ctrl+Shift+E): browse the focused pane's host, download, upload with a
+  file picker or drag-and-drop. Never overwrites files on either side.
+- **Clipboard history** (Ctrl+Shift+H): encrypted at rest with a key in your keyring.
+  Skips password- and token-looking text. Pin and edit clips, choose how long they're kept.
+- **Preferences** (Ctrl+,): font (bundled or any installed monospace font), size, spacing,
+  weights, cursor, colour schemes (Solarized, Dracula, Nord, Gruvbox, One Dark, Tango…),
+  scrollback, copy on select, right-click paste, bell, local shell. Saved to
+  `~/.config/tuxshell/settings.json`.
+- **Terminal menu** (right-click): copy, paste, set title, split, open in new tab, read
+  only, scrollbar, zoom. Ctrl+mouse wheel zooms text.
+- **Dark and light themes**, or follow the system.
 
-   ```
-   wails3 dev
-   ```
+All shortcuts are listed in Preferences → Shortcuts.
 
-   This will start your application and enable hot-reloading for both frontend and backend changes.
+## Install
 
-3. To build your application for production, use:
+Download the package for your distribution from the
+[releases page](https://github.com/vgrigolaia/tuxshell/releases):
 
-   ```
-   wails3 build
-   ```
+```sh
+# Fedora, RHEL, AlmaLinux, Rocky Linux
+sudo dnf install ./tuxshell-1.0.0-1.x86_64.rpm
 
-   This will create a production-ready executable in the `build` directory.
+# Debian, Ubuntu
+sudo apt install ./tuxshell_1.0.0-1_amd64.deb
+```
 
-## Exploring Wails3 Features
+Or run the AppImage on any distribution:
 
-Now that you have your project set up, it's time to explore the features that Wails3 offers:
+```sh
+chmod +x TuxShell-1.0.0-x86_64.AppImage
+./TuxShell-1.0.0-x86_64.AppImage
+```
 
-1. **Check out the examples**: The best way to learn is by example. Visit the `examples` directory in the `v3/examples` directory to see various sample applications.
+Supported: Fedora 39+, RHEL/Alma/Rocky 10, Debian 13+ and Ubuntu 24.04+. TuxShell needs
+GTK 4 and WebKitGTK 6.0. Remote hosts need GNU `find` for the file browser.
 
-2. **Run an example**: To run any of the examples, navigate to the example's directory and use:
+## Where your data lives
 
-   ```
-   go run .
-   ```
+| What | Where |
+|---|---|
+| Hosts | `~/.local/share/tuxshell/hosts.db` |
+| Clipboard history (encrypted) | `~/.local/share/tuxshell/clipboard.db` |
+| Clipboard key | your desktop keyring, as "TuxShell" |
+| Preferences | `~/.config/tuxshell/settings.json` |
 
-   Note: Some examples may be under development during the alpha phase.
+TuxShell never stores passwords.
 
-3. **Explore the documentation**: Visit the [Wails3 documentation](https://v3.wails.io/) for in-depth guides and API references.
+## Build from source
 
-4. **Join the community**: Have questions or want to share your progress? Join the [Wails Discord](https://discord.gg/JDdSxwjhGf) or visit the [Wails discussions on GitHub](https://github.com/wailsapp/wails/discussions).
+Requirements: Go 1.26+, Node.js 22+, [Task](https://taskfile.dev) and the Wails v3 CLI
+(`go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.28`).
 
-## Project Structure
+System packages:
 
-Take a moment to familiarize yourself with your project structure:
+```sh
+# Fedora
+sudo dnf install gcc pkgconf-pkg-config gtk4-devel webkitgtk6.0-devel
 
-- `frontend/`: Contains your frontend code (HTML, CSS, JavaScript/TypeScript)
-- `main.go`: The entry point of your Go backend
-- `app.go`: Define your application structure and methods here
-- `wails.json`: Configuration file for your Wails project
+# Debian 13+ / Ubuntu 24.04+
+sudo apt install build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev
+```
 
-## Next Steps
+Then:
 
-1. Modify the frontend in the `frontend/` directory to create your desired UI.
-2. Add backend functionality in `main.go`.
-3. Use `wails3 dev` to see your changes in real-time.
-4. When ready, build your application with `wails3 build`.
+```sh
+task dev       # run with live reload
+task build     # build bin/tuxshell
+task package   # build .rpm, .deb and AppImage into bin/
+task lint      # go vet, gofmt, svelte-check
+task test      # Go tests
+```
 
-Happy coding with Wails3! If you encounter any issues or have questions, don't hesitate to consult the documentation or reach out to the Wails community.
+If the window stays blank on Wayland, try `WEBKIT_DISABLE_DMABUF_RENDERER=1 task dev`.
+
+## License
+
+TuxShell is free software under the [GNU General Public License v3.0 or later](LICENSE).

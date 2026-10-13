@@ -1,10 +1,12 @@
 [Desktop Entry]
 Type=Application
-Name=tuxshell
+Name=TuxShell
+GenericName=SSH Connection Manager
+Comment=Manage and connect to SSH hosts
 Exec=tuxshell
 Icon=tuxshell
-Categories=Development;
 Terminal=false
-Keywords=wails
-Version=1.0
-StartupNotify=false
+Categories=Network;RemoteAccess;
+Keywords=ssh;terminal;sftp;remote;server;
+StartupNotify=true
+StartupWMClass=tuxshell
