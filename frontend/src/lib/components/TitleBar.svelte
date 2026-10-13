@@ -4,21 +4,26 @@
   import { SvelteSet } from 'svelte/reactivity'
   import Icon from './Icon.svelte'
   import ContextMenu, { type MenuItem } from './ContextMenu.svelte'
-  import type { Tab } from '../tabs'
+  import type { TabInfo } from '../tabs'
+  import type { Orientation } from '../layout'
+  import { MAX_PANES } from '../layout'
 
   interface Props {
-    tabs: Tab[]
+    tabs: TabInfo[]
     activeKey: number
     clipboardOpen: boolean
     onSelect: (key: number) => void
     onClose: (key: number) => void
     onCloseMany: (keys: number[]) => void
+    onMerge: (keys: number[], orientation: Orientation) => void
+    onSplit: (key: number, orientation: Orientation) => void
+    onUnsplit: (key: number) => void
     onNew: () => void
     onSearch: () => void
     onToggleClipboard: () => void
   }
 
-  let { tabs, activeKey, clipboardOpen, onSelect, onClose, onCloseMany, onNew, onSearch, onToggleClipboard }: Props = $props()
+  let { tabs, activeKey, clipboardOpen, onSelect, onClose, onCloseMany, onMerge, onSplit, onUnsplit, onNew, onSearch, onToggleClipboard }: Props = $props()
 
   let maximised = $state(false)
   let strip: HTMLDivElement
@@ -68,11 +73,22 @@
     const i = tabs.findIndex((t) => t.key === key)
     const others = tabs.filter((t) => t.key !== key).map((t) => t.key)
     const right = tabs.slice(i + 1).map((t) => t.key)
+    const tab = tabs[i]
     const items: MenuItem[] = []
     if (picked.size > 1) {
       const sel = [...picked]
+      const total = tabs.filter((t) => picked.has(t.key)).reduce((n, t) => n + t.panes, 0)
+      if (total <= MAX_PANES) {
+        items.push({ label: `Split selected side by side (${sel.length})`, run: () => (onMerge(sel, 'row'), picked.clear()) })
+        if (total < 4) items.push({ label: `Split selected stacked (${sel.length})`, run: () => (onMerge(sel, 'column'), picked.clear()) })
+      }
       items.push({ label: `Close selected (${sel.length})`, run: () => (onCloseMany(sel), picked.clear()) })
     }
+    if (tab.panes < MAX_PANES) {
+      items.push({ label: 'Split right…', run: () => onSplit(key, 'row') })
+      items.push({ label: 'Split down…', run: () => onSplit(key, 'column') })
+    }
+    if (tab.panes > 1) items.push({ label: 'Unsplit into tabs', run: () => onUnsplit(key) })
     items.push({ label: 'Close', run: () => onClose(key) })
     if (others.length) items.push({ label: 'Close others', run: () => onCloseMany(others) })
     if (right.length) items.push({ label: 'Close tabs to the right', run: () => onCloseMany(right) })
@@ -143,12 +159,13 @@
             aria-controls="panel-{tab.key}"
             tabindex={tab.key === activeKey ? 0 : -1}
             class="flex max-w-48 items-center gap-2 py-1 pr-1 pl-2.5 text-[13px]"
-            title="{tab.title} — Ctrl+click to select, right-click for more"
+            title="{tab.title} — Ctrl+click to select, right-click to split or close"
             onclick={(e) => onTabClick(e, tab.key)}
             onkeydown={(e) => onTabKey(e, i)}
           >
             <span class="size-1.5 shrink-0 rounded-full {tab.exited ? 'bg-subtle' : 'bg-success'}"></span>
             <span class="truncate">{tab.title}</span>
+            {#if tab.panes > 1}<span class="shrink-0 text-subtle" aria-label="{tab.panes} panes"><Icon name="splitRight" size={12} /></span>{/if}
           </button>
           <button
             class="mr-1 grid size-5 place-items-center rounded text-subtle hover:bg-line hover:text-fg"

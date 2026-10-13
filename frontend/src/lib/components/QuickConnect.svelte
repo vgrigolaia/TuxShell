@@ -5,6 +5,7 @@
   import Icon from './Icon.svelte'
 
   interface Props {
+    placeholder?: string
     onClose: () => void
     onConnectHost: (host: Host) => void
     onConnectTarget: (target: string) => void
@@ -12,7 +13,7 @@
     onNewHost: () => void
     onImport: () => void
   }
-  let { onClose, onConnectHost, onConnectTarget, onNewShell, onNewHost, onImport }: Props = $props()
+  let { placeholder = 'Search hosts, or type user@host to connect', onClose, onConnectHost, onConnectTarget, onNewShell, onNewHost, onImport }: Props = $props()
 
   type Item =
     | { kind: 'host'; id: string; host: Host }
@@ -103,7 +104,7 @@
       bind:value={query}
       onkeydown={onKey}
       class="h-12 flex-1 bg-transparent text-[15px] placeholder:text-subtle focus:outline-none"
-      placeholder="Search hosts, or type user@host to connect"
+      {placeholder}
       role="combobox"
       aria-expanded="true"
       aria-controls="qc-list"

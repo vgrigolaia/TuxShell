@@ -16,14 +16,17 @@
 
   interface Props {
     source: Source
-    active: boolean
+    /** The pane's tab is showing. */
+    visible: boolean
+    /** This pane gets keyboard focus. */
+    focused: boolean
     onStart?: () => void
     onTitle?: (title: string) => void
     onSize?: (cols: number, rows: number) => void
     onExit?: (code: number) => void
   }
 
-  let { source, active, onStart, onTitle, onSize, onExit }: Props = $props()
+  let { source, visible, focused, onStart, onTitle, onSize, onExit }: Props = $props()
 
   let host: HTMLDivElement
   let term: Terminal | undefined
@@ -214,7 +217,7 @@
           onExit?.(code)
         },
       })
-      if (active) term.focus()
+      if (focused) term.focus()
     }
     void start()
 
@@ -230,7 +233,7 @@
   })
 
   $effect(() => {
-    if (active && term && !asking) {
+    if (visible && focused && term && !asking) {
       requestAnimationFrame(() => {
         fit?.fit()
         term?.focus()
@@ -239,7 +242,7 @@
   })
 </script>
 
-<div class="relative h-full w-full" class:hidden={!active}>
+<div class="relative h-full w-full">
   <!-- isolate keeps xterm's own z-indexed layers (e.g. the WebGL link canvas)
        inside this box, so the overlays below can sit on top and get clicks. -->
   <div bind:this={host} class="isolate h-full w-full select-text"></div>
