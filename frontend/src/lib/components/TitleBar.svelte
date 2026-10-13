@@ -108,7 +108,8 @@
     class="{iconButton} {clipboardOpen ? 'bg-raised text-accent' : ''}"
     aria-label="Clipboard history"
     aria-pressed={clipboardOpen}
-    title="Clipboard history (Ctrl+Shift+V)"
+    title="Clipboard history (Ctrl+Shift+H)"
+    aria-keyshortcuts="Control+Shift+H"
     onclick={onToggleClipboard}
   >
     <Icon name="clipboard" />

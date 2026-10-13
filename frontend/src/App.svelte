@@ -7,6 +7,7 @@
   import ImportDialog from './lib/components/ImportDialog.svelte'
   import QuickConnect from './lib/components/QuickConnect.svelte'
   import ConfirmDialog from './lib/components/ConfirmDialog.svelte'
+  import ClipboardPanel from './lib/components/ClipboardPanel.svelte'
   import { emptyHost, hostStore, type Host } from './lib/hosts.svelte'
   import type { Source, Tab } from './lib/tabs'
 
@@ -22,6 +23,8 @@
   let importOpen = $state(false)
   let quickOpen = $state(false)
   let deleting = $state<Host | null>(null)
+  // Terminal panes by tab key, so clipboard history can paste into the active one.
+  const panes: Record<number, TerminalPane> = {}
 
   const active = $derived(tabs.find((t) => t.key === activeKey))
   const activeHostId = $derived(active?.source.kind === 'host' ? active.source.hostId : null)
@@ -30,10 +33,15 @@
     void hostStore.load()
     // Capture phase, so the shortcut wins over the focused terminal.
     const onKey = (e: KeyboardEvent) => {
-      if (e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey && e.key.toLowerCase() === 'k') {
+      const key = e.key.toLowerCase()
+      if (e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey && key === 'k') {
         e.preventDefault()
         e.stopPropagation()
         if (!importOpen) quickOpen = true
+      } else if (e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey && key === 'h') {
+        e.preventDefault()
+        e.stopPropagation()
+        toggleClipboard()
       }
     }
     window.addEventListener('keydown', onKey, { capture: true })
@@ -59,6 +67,7 @@
     const i = tabs.findIndex((t) => t.key === key)
     if (i < 0) return
     tabs.splice(i, 1)
+    delete panes[key]
     if (tabs.length === 0) tabs.push(makeTab({ kind: 'shell' }, 'Local shell'))
     if (activeKey === key) activeKey = tabs[Math.min(i, tabs.length - 1)].key
   }
@@ -70,6 +79,14 @@
 
   function onTitle(tab: Tab, title: string) {
     update(tab.key, tab.source.kind === 'shell' ? { title, termTitle: title } : { termTitle: title })
+  }
+
+  function toggleClipboard() {
+    panel = panel.kind === 'clipboard' ? { kind: 'none' } : { kind: 'clipboard' }
+  }
+
+  function pasteToActive(text: string) {
+    panes[activeKey]?.paste(text)
   }
 
   function duplicate(host: Host) {
@@ -104,7 +121,7 @@
     onClose={closeTab}
     onNew={() => openTab({ kind: 'shell' }, 'Local shell')}
     onSearch={() => (quickOpen = true)}
-    onToggleClipboard={() => (panel = panel.kind === 'clipboard' ? { kind: 'none' } : { kind: 'clipboard' })}
+    onToggleClipboard={toggleClipboard}
   />
 
   <main class="flex min-h-0 flex-1 gap-3 px-3">
@@ -130,6 +147,7 @@
         {#each tabs as tab (tab.key)}
           <div id="panel-{tab.key}" role="tabpanel" aria-labelledby="tab-{tab.key}" class="h-full" class:hidden={tab.key !== activeKey}>
             <TerminalPane
+              bind:this={panes[tab.key]}
               source={tab.source}
               active={tab.key === activeKey}
               onStart={() => update(tab.key, { exited: false })}
@@ -147,10 +165,7 @@
         <HostForm host={panel.host} onClose={() => (panel = { kind: 'none' })} {onSaved} onConnect={connect} />
       {/key}
     {:else if panel.kind === 'clipboard'}
-      <aside aria-label="Clipboard history" class="flex w-72 shrink-0 flex-col rounded-panel border border-line bg-panel p-4">
-        <h2 class="font-display text-[15px] font-semibold">Clipboard</h2>
-        <p class="mt-2 text-[13px] text-subtle">Encrypted clipboard history is coming in a later step.</p>
-      </aside>
+      <ClipboardPanel onPaste={pasteToActive} onClose={() => (panel = { kind: 'none' })} />
     {/if}
   </main>
 

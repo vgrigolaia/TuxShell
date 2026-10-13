@@ -12,6 +12,7 @@
   import type { Source } from '../tabs'
   import { errorMessage, hostStore } from '../hosts.svelte'
   import LoginPrompt from './LoginPrompt.svelte'
+  import { clipboardHistory } from '../clipboard.svelte'
 
   interface Props {
     source: Source
@@ -55,6 +56,13 @@
   }
 
   let submitLogin: (user: string, save: boolean) => void = () => {}
+
+  /** Pastes text into the session (used by clipboard history). */
+  export function paste(text: string) {
+    if (asking || exited !== null) return
+    term?.paste(text)
+    term?.focus()
+  }
 
   onMount(() => {
     let sessionId: string | undefined
@@ -106,7 +114,10 @@
         if (copy) {
           e.preventDefault()
           const text = term?.getSelection()
-          if (text) void Clipboard.SetText(text)
+          if (text) {
+            void Clipboard.SetText(text)
+            clipboardHistory.record(text)
+          }
           return false
         }
         if (paste) {
