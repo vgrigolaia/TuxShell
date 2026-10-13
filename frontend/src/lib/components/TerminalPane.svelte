@@ -6,7 +6,7 @@
   import { SearchAddon } from '@xterm/addon-search'
   import { WebLinksAddon } from '@xterm/addon-web-links'
   import { Unicode11Addon } from '@xterm/addon-unicode11'
-  import { Browser } from '@wailsio/runtime'
+  import { Browser, Clipboard } from '@wailsio/runtime'
   import { claim, release } from '../terminal-events'
   import * as Terminals from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/terminal/service'
   import type { Source } from '../tabs'
@@ -83,6 +83,25 @@
       term.loadAddon(new WebLinksAddon((_e, uri) => void Browser.OpenURL(uri)))
       term.loadAddon(new Unicode11Addon())
       term.unicode.activeVersion = '11'
+      // Linux terminal conventions; xterm.js leaves copy/paste keys to the embedder.
+      term.attachCustomKeyEventHandler((e) => {
+        if (e.type !== 'keydown') return true
+        const key = e.key.toLowerCase()
+        const copy = (e.ctrlKey && e.shiftKey && key === 'c') || (e.ctrlKey && !e.shiftKey && key === 'insert')
+        const paste = (e.ctrlKey && e.shiftKey && key === 'v') || (e.shiftKey && !e.ctrlKey && key === 'insert')
+        if (copy) {
+          e.preventDefault()
+          const text = term?.getSelection()
+          if (text) void Clipboard.SetText(text)
+          return false
+        }
+        if (paste) {
+          e.preventDefault()
+          void Clipboard.Text().then((text) => text && term?.paste(text))
+          return false
+        }
+        return true
+      })
       term.open(host)
       try {
         const webgl = new WebglAddon()
