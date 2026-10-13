@@ -395,14 +395,15 @@
       <ClipboardPanel activeHost={activeHost?.name} onPaste={pasteToActive} onClose={() => (panel = { kind: 'none' })} />
     {/if}
 
-    {#if home}
+    {#if panel.kind === 'files'}
+      <!-- On Home there is no terminal, so it browses this computer. -->
+      <FilePanel pane={home ? undefined : active} onRunInPane={runInPane} onClose={() => (panel = { kind: 'none' })} />
+    {:else if home}
       <!-- Home shows the editor inside the launchpad. -->
     {:else if panel.kind === 'host'}
       {#key panel.host}
         <HostForm host={panel.host} onClose={() => (panel = { kind: 'none' })} {onSaved} onConnect={connect} />
       {/key}
-    {:else if panel.kind === 'files'}
-      <FilePanel pane={active} onRunInPane={runInPane} onClose={() => (panel = { kind: 'none' })} />
     {/if}
   </main>
 
