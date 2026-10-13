@@ -3,6 +3,14 @@
     label: string
     run: () => void
     danger?: boolean
+    /** Greyed out and skipped by the keyboard. */
+    disabled?: boolean
+    /** Shortcut shown on the right, e.g. "Ctrl+Shift+C". */
+    hint?: string
+    /** Draws a divider above this item. */
+    separator?: boolean
+    /** Makes it a checkbox item (ticked when true). */
+    checked?: boolean
   }
 </script>
 
@@ -31,7 +39,7 @@
   })
 
   function focusItem(i: number) {
-    const buttons = menu.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')
+    const buttons = menu.querySelectorAll<HTMLButtonElement>('[role^="menuitem"]:not(:disabled)')
     buttons[(i + buttons.length) % buttons.length]?.focus()
   }
 
@@ -41,7 +49,7 @@
   }
 
   function onKey(e: KeyboardEvent) {
-    const buttons = [...menu.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')]
+    const buttons = [...menu.querySelectorAll<HTMLButtonElement>('[role^="menuitem"]:not(:disabled)')]
     const i = buttons.indexOf(document.activeElement as HTMLButtonElement)
     if (e.key === 'ArrowDown') focusItem(i + 1)
     else if (e.key === 'ArrowUp') focusItem(i - 1)
@@ -69,10 +77,14 @@
   onkeydown={onKey}
 >
   {#each items as item (item.label)}
+    {#if item.separator}<li role="separator" class="mx-2 my-1 border-t border-line"></li>{/if}
     <li role="none">
       <button
-        role="menuitem"
-        class="w-full rounded-lg px-3 py-1.5 text-left text-[13px] focus:outline-none {item.danger
+        role={item.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
+        aria-checked={item.checked}
+        disabled={item.disabled}
+        aria-keyshortcuts={item.hint?.replaceAll('Ctrl', 'Control')}
+        class="flex w-full items-center gap-6 rounded-lg px-3 py-1.5 text-left text-[13px] focus:outline-none disabled:pointer-events-none disabled:text-subtle {item.danger
           ? 'text-danger-text hover:bg-danger/15 focus:bg-danger/15'
           : 'hover:bg-line focus:bg-line'}"
         onclick={() => {
@@ -80,7 +92,11 @@
           item.run()
         }}
       >
-        {item.label}
+        {#if items.some((i) => i.checked !== undefined)}
+          <span class="-mr-3 w-3.5 text-accent" aria-hidden="true">{item.checked ? '✓' : ''}</span>
+        {/if}
+        <span class="flex-1">{item.label}</span>
+        {#if item.hint}<span class="font-mono text-[11px] text-subtle">{item.hint}</span>{/if}
       </button>
     </li>
   {/each}

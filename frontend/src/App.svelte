@@ -14,12 +14,13 @@
   import Icon from './lib/components/Icon.svelte'
   import FilePanel from './lib/components/FilePanel.svelte'
   import Preferences from './lib/components/Preferences.svelte'
+  import PromptDialog from './lib/components/PromptDialog.svelte'
   import { prefs } from './lib/settings.svelte'
   import { closer } from './lib/close.svelte'
   import { emptyHost, hostStore, type Host } from './lib/hosts.svelte'
   import { workspace } from './lib/workspace.svelte'
-  import type { Orientation, Direction } from './lib/layout'
-  import type { Source, TabInfo } from './lib/tabs'
+  import { MAX_PANES, type Orientation, type Direction } from './lib/layout'
+  import type { PaneActions, Source, TabInfo } from './lib/tabs'
 
   type Panel = { kind: 'none' } | { kind: 'clipboard' } | { kind: 'files' } | { kind: 'host'; host: Host }
 
@@ -30,7 +31,53 @@
   let splitInto = $state<{ key: number; orientation: Orientation } | null>(null)
   let deleting = $state<Host | null>(null)
   let prefsOpen = $state(false)
+  let renaming = $state<{ paneId: number; title: string } | null>(null)
   const hostsOpen = $derived(prefs.value.hostsSidebar)
+
+  // Splits a pane's tab with the same connection (no new login thanks to
+  // shared ssh connections). "auto" splits along the pane's longer side.
+  function splitSame(paneId: number, orientation: Orientation | 'auto') {
+    const t = workspace.tabOf(paneId)
+    const p = workspace.pane(paneId)
+    const source = workspace.sameSource(paneId)
+    if (!t || !p || !source) return
+    if (orientation === 'auto') {
+      const r = document.querySelector(`[data-pane-id="${paneId}"]`)?.getBoundingClientRect()
+      orientation = r && r.height > r.width ? 'column' : 'row'
+    }
+    workspace.focusPane(paneId)
+    workspace.splitTab(t.key, source, p.customTitle ? p.title : (hostTitle(source) ?? p.title), orientation)
+  }
+
+  function hostTitle(source: Source) {
+    return source.kind === 'host' ? hostStore.get(source.hostId)?.name : source.kind === 'shell' ? 'Local shell' : source.target
+  }
+
+  function newTabSame(paneId: number) {
+    const source = workspace.sameSource(paneId)
+    if (source) workspace.openTab(source, hostTitle(source) ?? 'Terminal')
+  }
+
+  function paneActions(paneId: number): PaneActions {
+    const t = workspace.tabOf(paneId)
+    const full = !t || t.paneIds.length >= MAX_PANES
+    return {
+      split: full ? undefined : (o) => splitSame(paneId, o),
+      splitOther: full
+        ? undefined
+        : () => {
+            workspace.focusPane(paneId)
+            if (t) openQuick({ key: t.key, orientation: 'row' })
+          },
+      newTab: () => newTabSame(paneId),
+      rename: () => (renaming = { paneId, title: workspace.pane(paneId)?.title ?? '' }),
+      close: () => closer.closePane(paneId),
+      toggleMaximized: () => workspace.toggleMaximized(paneId),
+      toggleReadOnly: () => workspace.updatePane(paneId, { readOnly: !workspace.pane(paneId)?.readOnly }),
+      toggleScrollbar: () => workspace.updatePane(paneId, { showScrollbar: !workspace.pane(paneId)?.showScrollbar }),
+      preferences: () => (prefsOpen = true),
+    }
+  }
 
   function toggleHosts() {
     prefs.setHostsSidebar(!hostsOpen)
@@ -66,10 +113,14 @@
     )
     // Capture phase, so shortcuts win over the focused terminal.
     const onKey = (e: KeyboardEvent) => {
-      if (!e.ctrlKey || e.altKey || e.metaKey) return
+      if (!e.ctrlKey || e.metaKey) return
       const key = e.key.toLowerCase()
       let handled = true
-      if (!e.shiftKey && key === ',') {
+      if (e.altKey) {
+        // Ctrl+Alt+W: set the pane title (Terminator's key).
+        if (key === 'w' && active) renaming = { paneId: active.id, title: active.title }
+        else handled = false
+      } else if (!e.shiftKey && key === ',') {
         prefsOpen = true
       } else if (key === '=' || key === '+') {
         prefs.zoomBy(1)
@@ -81,6 +132,16 @@
         if (!importOpen) openQuick(null)
       } else if (e.shiftKey && key === 'w') {
         if (active) closer.closePane(active.id)
+      } else if (e.shiftKey && key === 'a') {
+        if (active) splitSame(active.id, 'auto')
+      } else if (e.shiftKey && key === 'o') {
+        if (active) splitSame(active.id, 'column')
+      } else if (e.shiftKey && key === 't') {
+        if (active) newTabSame(active.id)
+      } else if (e.shiftKey && key === 'x') {
+        if (active) workspace.toggleMaximized(active.id)
+      } else if (e.shiftKey && key === 's') {
+        if (active) workspace.updatePane(active.id, { showScrollbar: !active.showScrollbar })
       } else if (e.shiftKey && key === 'b') {
         if (workspace.activeTab) workspace.toggleBroadcast(workspace.activeTab.key)
       } else if (e.shiftKey && key === 'e') {
@@ -250,7 +311,7 @@
           </button>
         </div>
       {/if}
-      <TerminalArea bind:refs={panes} />
+      <TerminalArea bind:refs={panes} actions={paneActions} />
     </section>
 
     {#if panel.kind === 'host'}
@@ -298,6 +359,19 @@
 
 {#if prefsOpen}
   <Preferences onClose={() => (prefsOpen = false)} />
+{/if}
+
+{#if renaming}
+  {@const r = renaming}
+  <PromptDialog
+    title="Set pane title"
+    label="Title"
+    initial={r.title}
+    hint="Leave empty to use the terminal's own title again."
+    submitLabel="Save"
+    onSubmit={(title) => workspace.renamePane(r.paneId, title)}
+    onClose={() => (renaming = null)}
+  />
 {/if}
 
 {#if closer.pending}

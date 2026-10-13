@@ -3,6 +3,7 @@
   import Icon from './Icon.svelte'
   import { workspace, type Pane } from '../workspace.svelte'
   import { dividers, drag, rects, type Divider } from '../layout'
+  import type { PaneActions } from '../tabs'
   import { isTerminalReport } from '../broadcast'
   import { prefs } from '../settings.svelte'
   import { closer } from '../close.svelte'
@@ -11,8 +12,10 @@
   interface Props {
     /** Registered so clipboard history can paste into the focused pane. */
     refs: Record<number, TerminalPane>
+    /** Right-click menu actions for a pane. */
+    actions: (paneId: number) => PaneActions
   }
-  let { refs = $bindable() }: Props = $props()
+  let { refs = $bindable(), actions }: Props = $props()
 
   let area: HTMLDivElement
   // A chosen colour scheme paints the gap around the terminal too.
@@ -24,10 +27,13 @@
     const tab = workspace.tabOf(pane.id)
     if (!tab) return null
     const i = tab.paneIds.indexOf(pane.id)
+    // A maximized pane fills the tab; the others stay mounted but hidden.
+    const max = tab.maximized
     return {
       tab,
-      rect: rects(tab.paneIds.length, tab.orientation, tab.sizes)[i],
-      visible: tab.key === workspace.activeKey,
+      rect: max === pane.id ? { left: 0, top: 0, width: 100, height: 100 } : rects(tab.paneIds.length, tab.orientation, tab.sizes)[i],
+      visible: tab.key === workspace.activeKey && (max === null || max === pane.id),
+      maximized: max === pane.id,
       split: tab.paneIds.length > 1,
       focused: tab.activePane === pane.id,
       broadcasting: tab.broadcast && !tab.excluded.includes(pane.id),
@@ -44,7 +50,7 @@
   }
 
   const activeDividers = $derived(
-    workspace.activeTab ? dividers(workspace.activeTab.paneIds.length, workspace.activeTab.orientation, workspace.activeTab.sizes) : [],
+    workspace.activeTab && workspace.activeTab.maximized === null ? dividers(workspace.activeTab.paneIds.length, workspace.activeTab.orientation, workspace.activeTab.sizes) : [],
   )
 
   function setSize(d: Divider, pos: number) {
@@ -109,7 +115,7 @@
             <header class="flex h-7 shrink-0 items-center gap-2 border-b border-line px-2.5">
               <span class="size-1.5 shrink-0 rounded-full {pane.exited ? 'bg-subtle' : 'bg-success'}" aria-hidden="true"></span>
               <span class="min-w-0 flex-1 truncate font-mono text-[11px] {at.focused ? 'text-fg' : 'text-muted'}">
-                {pane.title}{#if pane.termTitle && pane.termTitle !== pane.title}<span class="text-subtle"> · {pane.termTitle}</span>{/if}
+                {#if at.tab.maximized !== null && at.maximized}<span class="text-accent">{at.tab.paneIds.length - 1} hidden · </span>{/if}{pane.title}{#if pane.termTitle && pane.termTitle !== pane.title}<span class="text-subtle"> · {pane.termTitle}</span>{/if}
               </span>
               {#if at.broadcasting || at.excluded}
                 <button
@@ -124,6 +130,15 @@
                   {at.broadcasting ? '● broadcast' : 'excluded'}
                 </button>
               {/if}
+              <button
+                class="grid size-5 place-items-center rounded text-subtle hover:bg-line hover:text-fg"
+                aria-label="{at.maximized ? 'Restore split' : 'Maximize'} {pane.title}"
+                aria-pressed={at.maximized}
+                title="{at.maximized ? 'Restore split' : 'Maximize pane'} (Ctrl+Shift+X)"
+                onclick={() => workspace.toggleMaximized(pane.id)}
+              >
+                <Icon name={at.maximized ? 'restore' : 'maximize'} size={11} />
+              </button>
               <button class="grid size-5 place-items-center rounded text-subtle hover:bg-line hover:text-fg" aria-label="Move {pane.title} to its own tab" title="Move to own tab" onclick={() => workspace.detachPane(pane.id)}>
                 <Icon name="detach" size={12} />
               </button>
@@ -142,9 +157,14 @@
               onInput={(data) => broadcastInput(pane.id, data)}
               onLogin={(user) => workspace.updatePane(pane.id, { loginUser: user })}
               onTitle={(title) =>
-                workspace.updatePane(pane.id, pane.source.kind === 'shell' ? { title, termTitle: title } : { termTitle: title })}
+                workspace.updatePane(pane.id, pane.source.kind === 'shell' && !pane.customTitle ? { title, termTitle: title } : { termTitle: title })}
               onSize={(cols, rows) => workspace.updatePane(pane.id, { size: `${cols}×${rows}` })}
               onExit={() => workspace.updatePane(pane.id, { exited: true })}
+              readOnly={pane.readOnly}
+              showScrollbar={pane.showScrollbar}
+              split={at.split}
+              maximized={at.maximized}
+              actions={actions(pane.id)}
             />
           </div>
         </section>

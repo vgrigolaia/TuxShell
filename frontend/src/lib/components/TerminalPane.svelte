@@ -8,10 +8,12 @@
   import { Unicode11Addon } from '@xterm/addon-unicode11'
   import { Browser, Clipboard } from '@wailsio/runtime'
   import { claim, release } from '../terminal-events'
+  import { isTerminalReport } from '../broadcast'
   import * as Terminals from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/terminal/service'
-  import type { Source } from '../tabs'
+  import type { PaneActions, Source } from '../tabs'
   import { errorMessage, hostStore } from '../hosts.svelte'
   import LoginPrompt from './LoginPrompt.svelte'
+  import ContextMenu, { type MenuItem } from './ContextMenu.svelte'
   import { clipboardHistory } from '../clipboard.svelte'
   import { theme } from '../theme.svelte'
   import { prefs } from '../settings.svelte'
@@ -31,9 +33,17 @@
     onTitle?: (title: string) => void
     onSize?: (cols: number, rows: number) => void
     onExit?: (code: number) => void
+    /** Typing and pasting are blocked. */
+    readOnly?: boolean
+    showScrollbar?: boolean
+    /** Pane is in a split (enables maximize). */
+    split?: boolean
+    maximized?: boolean
+    /** Right-click menu actions; splits reuse this pane's connection. */
+    actions?: PaneActions
   }
 
-  let { source, visible, focused, onStart, onInput, onLogin, onTitle, onSize, onExit }: Props = $props()
+  let { source, visible, focused, onStart, onInput, onLogin, onTitle, onSize, onExit, readOnly = false, showScrollbar = true, split = false, maximized = false, actions }: Props = $props()
 
   let host: HTMLDivElement
   let term: Terminal | undefined
@@ -42,8 +52,10 @@
   let failed = $state<string | null>(null)
   let reconnect: () => void = () => {}
 
-  // Username typed in the login prompt; overrides the host's saved user.
-  let loginUser = $state<string | null>(null)
+  // Username typed in the login prompt (or carried over from the pane this
+  // one was split from); overrides the host's saved user.
+  // svelte-ignore state_referenced_locally
+  let loginUser = $state<string | null>(source.kind === 'host' && source.user ? source.user : null)
   // svelte-ignore state_referenced_locally
   let asking = $state(source.kind === 'host' && !!source.askUser)
   let loginError = $state<string | null>(null)
@@ -51,6 +63,7 @@
   const savedUser = $derived(source.kind === 'host' ? (hostStore.get(source.hostId)?.user ?? '') : '')
 
   let bell = $state(false)
+  let menu = $state<{ x: number; y: number } | null>(null)
 
   function launch(cols: number, rows: number): Promise<string> {
     switch (source.kind) {
@@ -77,7 +90,7 @@
 
   /** Pastes text into the session (used by clipboard history). */
   export function paste(text: string) {
-    if (asking || exited !== null) return
+    if (asking || exited !== null || readOnly) return
     term?.paste(text)
     term?.focus()
   }
@@ -107,16 +120,12 @@
         const paste = (e.ctrlKey && e.shiftKey && key === 'v') || (e.shiftKey && !e.ctrlKey && key === 'insert')
         if (copy) {
           e.preventDefault()
-          const text = term?.getSelection()
-          if (text) {
-            void Clipboard.SetText(text)
-            clipboardHistory.record(text)
-          }
+          copySelection()
           return false
         }
         if (paste) {
           e.preventDefault()
-          void Clipboard.Text().then((text) => text && term?.paste(text))
+          pasteClipboard()
           return false
         }
         return true
@@ -135,6 +144,8 @@
         if (sessionId) void Terminals.Write(sessionId, data)
       }
       const input = term.onData((data) => {
+        // Read-only drops keystrokes; terminal reports (e.g. cursor position) still go through.
+        if (readOnly && !isTerminalReport(data)) return
         if (onInput?.(data)) return
         sendToSession(data)
       })
@@ -158,13 +169,28 @@
           clipboardHistory.record(text)
         }
       }
+      // Our own menu replaces WebKit's (Cut/Inspect Element) over the terminal.
+      // With right-click paste on, Shift+right-click still opens the menu.
       const onContextMenu = (e: MouseEvent) => {
-        if (!prefs.value.terminal.rightClickPaste) return
         e.preventDefault()
-        void Clipboard.Text().then((text) => text && term?.paste(text))
+        if (prefs.value.terminal.rightClickPaste && !e.shiftKey) pasteClipboard()
+        else menu = { x: e.clientX, y: e.clientY }
+      }
+      // Ctrl+wheel zooms; trackpads send many small deltas, so add them up.
+      let wheel = 0
+      const onWheel = (e: WheelEvent) => {
+        if (!e.ctrlKey || !prefs.value.terminal.ctrlWheelZoom) return
+        e.preventDefault()
+        e.stopPropagation()
+        wheel += e.deltaMode === WheelEvent.DOM_DELTA_PIXEL ? e.deltaY : e.deltaY * 40
+        if (Math.abs(wheel) < 40) return
+        prefs.zoomBy(wheel < 0 ? 1 : -1)
+        wheel = 0
       }
       host.addEventListener('mouseup', onMouseUp)
       host.addEventListener('contextmenu', onContextMenu)
+      // Capture, so xterm doesn't scroll the buffer as well.
+      host.addEventListener('wheel', onWheel, { capture: true, passive: false })
       cleanups.push(() => {
         input.dispose()
         resize.dispose()
@@ -173,6 +199,7 @@
         clearTimeout(bellTimer)
         host.removeEventListener('mouseup', onMouseUp)
         host.removeEventListener('contextmenu', onContextMenu)
+        host.removeEventListener('wheel', onWheel, { capture: true })
       })
 
       let frame = 0
@@ -254,6 +281,55 @@
     }
   })
 
+  function copySelection() {
+    const text = term?.getSelection()
+    if (text) {
+      void Clipboard.SetText(text)
+      clipboardHistory.record(text)
+    }
+  }
+
+  function pasteClipboard() {
+    if (asking || exited !== null || readOnly) return
+    void Clipboard.Text().then((text) => text && term?.paste(text))
+  }
+
+  function menuItems(): MenuItem[] {
+    const live = !asking && exited === null
+    const a = actions
+    const items: MenuItem[] = [
+      { label: 'Copy', hint: 'Ctrl+Shift+C', disabled: !term?.hasSelection(), run: copySelection },
+      { label: 'Paste', hint: 'Ctrl+Shift+V', disabled: !live || readOnly, run: pasteClipboard },
+      { label: 'Select all', run: () => term?.selectAll() },
+      { label: 'Clear scrollback', run: () => term?.clear() },
+    ]
+    if (!a) return items
+    items.push({ label: 'Set title…', hint: 'Ctrl+Alt+W', separator: true, run: a.rename })
+    if (a.split) {
+      const sp = a.split
+      items.push(
+        { label: 'Split auto', hint: 'Ctrl+Shift+A', run: () => sp('auto') },
+        { label: 'Split right', run: () => sp('row') },
+        { label: 'Split down', hint: 'Ctrl+Shift+O', run: () => sp('column') },
+      )
+    }
+    if (a.splitOther) items.push({ label: 'Split with another host…', run: a.splitOther })
+    items.push(
+      { label: 'Open in new tab', hint: 'Ctrl+Shift+T', run: a.newTab },
+      { label: 'Close', hint: 'Ctrl+Shift+W', separator: true, run: a.close },
+    )
+    if (split) items.push({ label: 'Maximize pane', hint: 'Ctrl+Shift+X', checked: maximized, run: a.toggleMaximized })
+    items.push(
+      { label: 'Read only', checked: readOnly, separator: !split, run: a.toggleReadOnly },
+      { label: 'Show scrollbar', hint: 'Ctrl+Shift+S', checked: showScrollbar, run: a.toggleScrollbar },
+      { label: 'Zoom in', hint: 'Ctrl+=', separator: true, run: () => prefs.zoomBy(1) },
+      { label: 'Zoom out', hint: 'Ctrl+-', run: () => prefs.zoomBy(-1) },
+      { label: 'Reset zoom', hint: 'Ctrl+0', disabled: prefs.zoom === 0, run: () => (prefs.zoom = 0) },
+      { label: 'Preferences…', hint: 'Ctrl+,', separator: true, run: a.preferences },
+    )
+    return items
+  }
+
   function termOptions() {
     const t = prefs.value.terminal
     return {
@@ -304,9 +380,24 @@
 <div class="relative h-full w-full">
   <!-- isolate keeps xterm's own z-indexed layers (e.g. the WebGL link canvas)
        inside this box, so the overlays below can sit on top and get clicks. -->
-  <div bind:this={host} class="isolate h-full w-full select-text"></div>
+  <div bind:this={host} class="isolate h-full w-full select-text" class:hide-scrollbar={!showScrollbar}></div>
+  {#if readOnly}
+    <span class="pointer-events-none absolute top-1.5 right-3 z-10 rounded-md bg-warning/15 px-2 py-0.5 font-mono text-[10px] text-warning">read only</span>
+  {/if}
   {#if bell}
     <div class="pointer-events-none absolute inset-0 z-10 rounded-md bg-fg/10" aria-hidden="true"></div>
+  {/if}
+  {#if menu}
+    <ContextMenu
+      x={menu.x}
+      y={menu.y}
+      label="Terminal"
+      items={menuItems()}
+      onClose={() => {
+        menu = null
+        term?.focus()
+      }}
+    />
   {/if}
   {#if asking && source.kind === 'host'}
     <LoginPrompt

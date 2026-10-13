@@ -47,10 +47,18 @@
     ['Ctrl+Shift+E', 'Files panel'],
     ['Ctrl+Shift+H', 'Clipboard history'],
     ['Ctrl+Shift+B', 'Broadcast typing to split panes'],
+    ['Ctrl+Shift+A', 'Split auto (same connection)'],
+    ['Ctrl+Shift+O', 'Split down (same connection)'],
+    ['Ctrl+Shift+T', 'Open the same connection in a new tab'],
+    ['Ctrl+Shift+X', 'Maximize pane / restore split'],
+    ['Ctrl+Shift+S', 'Show or hide the scrollbar'],
+    ['Ctrl+Alt+W', 'Set pane title'],
     ['Ctrl+Shift+W', 'Close pane'],
     ['Ctrl+Shift+Arrows', 'Move between panes'],
     ['Ctrl+= / Ctrl+-', 'Zoom terminal text in / out'],
+    ['Ctrl+mouse wheel', 'Zoom terminal text'],
     ['Ctrl+0', 'Reset zoom'],
+    ['Right-click terminal', 'Copy, paste, split, title, read only, zoom, preferences'],
     ['Ctrl+Shift+C / Ctrl+Insert', 'Copy selection'],
     ['Ctrl+Shift+V / Shift+Insert', 'Paste'],
     ['Middle-click tab', 'Close tab'],
@@ -231,7 +239,11 @@
           </label>
           <label class={check}>
             <input type="checkbox" class="mt-0.5 accent-accent" checked={t.rightClickPaste} onchange={(e) => prefs.update({ rightClickPaste: e.currentTarget.checked })} />
-            <span>Right-click pastes<span class={hint}>Like PuTTY and MobaXterm.</span></span>
+            <span>Right-click pastes<span class={hint}>Like PuTTY and MobaXterm. Shift+right-click still opens the menu.</span></span>
+          </label>
+          <label class={check}>
+            <input type="checkbox" class="mt-0.5 accent-accent" checked={t.ctrlWheelZoom} onchange={(e) => prefs.update({ ctrlWheelZoom: e.currentTarget.checked })} />
+            <span>Ctrl+mouse wheel zooms text</span>
           </label>
           <label class={check}>
             <input type="checkbox" class="mt-0.5 accent-accent" checked={t.confirmClose} onchange={(e) => prefs.update({ confirmClose: e.currentTarget.checked })} />

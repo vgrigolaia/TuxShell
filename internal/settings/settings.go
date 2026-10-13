@@ -40,6 +40,8 @@ type Terminal struct {
 	Scrollback      int    `json:"scrollback"`
 	CopyOnSelect    bool   `json:"copyOnSelect"`
 	RightClickPaste bool   `json:"rightClickPaste"`
+	// CtrlWheelZoom zooms terminal text with Ctrl+mouse wheel.
+	CtrlWheelZoom bool `json:"ctrlWheelZoom"`
 	// Bell is "off" or "visual".
 	Bell string `json:"bell"`
 	// ConfirmClose asks before closing tabs or the window with live sessions.
@@ -72,6 +74,7 @@ func Defaults() Settings {
 			Scrollback:     10000,
 			Bell:           "off",
 			ConfirmClose:   true,
+			CtrlWheelZoom:  true,
 		},
 	}
 }

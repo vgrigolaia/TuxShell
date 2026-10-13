@@ -78,3 +78,8 @@ body {
   scrollbar-width: thin;
   scrollbar-color: var(--color-line) transparent;
 }
+
+/* Per-pane "Show scrollbar" off. */
+.hide-scrollbar .xterm-scrollable-element > .scrollbar {
+  display: none;
+}

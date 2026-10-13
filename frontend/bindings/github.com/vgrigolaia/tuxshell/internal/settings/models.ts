@@ -55,6 +55,11 @@ export interface Terminal {
     "rightClickPaste": boolean;
 
     /**
+     * CtrlWheelZoom zooms terminal text with Ctrl+mouse wheel.
+     */
+    "ctrlWheelZoom": boolean;
+
+    /**
      * Bell is "off" or "visual".
      */
     "bell": string;

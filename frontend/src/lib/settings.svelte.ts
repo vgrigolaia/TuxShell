@@ -33,6 +33,7 @@ const defaults = (): Settings => ({
     confirmClose: true,
     copyOnSelect: false,
     rightClickPaste: false,
+    ctrlWheelZoom: true,
     shell: '',
   },
 })

@@ -13,6 +13,11 @@ export interface Pane {
   size: string
   /** Login typed at connect time, when it differs from the host's saved user. */
   loginUser: string
+  /** Title set by the user; terminal title changes no longer replace it. */
+  customTitle: boolean
+  /** Typing and pasting are blocked. */
+  readOnly: boolean
+  showScrollbar: boolean
 }
 
 /** A workspace tab showing 1–4 panes. */
@@ -26,6 +31,8 @@ export interface Tab {
   broadcast: boolean
   /** Panes left out of broadcast. */
   excluded: number[]
+  /** A pane temporarily filling the whole tab, or null. */
+  maximized: number | null
 }
 
 class Workspace {
@@ -58,7 +65,7 @@ class Workspace {
   }
 
   private makePane(source: Source, title: string): Pane {
-    const pane: Pane = { id: this.nextPane++, title, termTitle: '', source, exited: false, size: '', loginUser: '' }
+    const pane: Pane = { id: this.nextPane++, title, termTitle: '', source, exited: false, size: '', loginUser: '', customTitle: false, readOnly: false, showScrollbar: true }
     this.panes.push(pane)
     return pane
   }
@@ -72,6 +79,7 @@ class Workspace {
       activePane: paneIds[0],
       broadcast: false,
       excluded: [],
+      maximized: null,
     }
   }
 
@@ -93,6 +101,7 @@ class Workspace {
     tab.paneIds.push(pane.id)
     tab.sizes = defaultSizes(tab.paneIds.length)
     tab.activePane = pane.id
+    tab.maximized = null
     // A pane added mid-broadcast starts excluded, so it never gets keystrokes by surprise.
     if (tab.broadcast) tab.excluded = [...tab.excluded, pane.id]
     this.activeKey = key
@@ -110,6 +119,7 @@ class Workspace {
     target.sizes = defaultSizes(ids.length)
     target.broadcast = false
     target.excluded = []
+    target.maximized = null
     this.tabs = this.tabs.filter((t) => !rest.includes(t))
     this.activeKey = target.key
     return true
@@ -155,6 +165,7 @@ class Workspace {
     // Broadcasting to a single pane is just typing.
     if (tab.paneIds.length < 2) tab.broadcast = false
     if (tab.activePane === paneId) tab.activePane = tab.paneIds[Math.min(i, tab.paneIds.length - 1)]
+    if (tab.maximized === paneId || tab.paneIds.length < 2) tab.maximized = null
   }
 
   /** Closes tabs and their panes, keeping at least one tab open. */
@@ -207,6 +218,32 @@ class Workspace {
     const tab = this.tabOf(paneId)
     if (!tab?.broadcast || tab.excluded.includes(paneId)) return null
     return tab.paneIds.filter((id) => !tab.excluded.includes(id))
+  }
+
+  /** The pane's connection again (same host and login), for splits and new tabs. */
+  sameSource(paneId: number): Source | null {
+    const p = this.pane(paneId)
+    if (!p) return null
+    if (p.source.kind !== 'host') return { ...p.source }
+    return p.loginUser ? { kind: 'host', hostId: p.source.hostId, user: p.loginUser } : { kind: 'host', hostId: p.source.hostId, askUser: p.source.askUser }
+  }
+
+  /** Lets one pane fill its tab, or restores the split. */
+  toggleMaximized(paneId: number) {
+    const tab = this.tabOf(paneId)
+    if (!tab || tab.paneIds.length < 2) return
+    tab.maximized = tab.maximized === paneId ? null : paneId
+    tab.activePane = paneId
+  }
+
+  /** Sets a pane's title; an empty title goes back to the automatic one. */
+  renamePane(paneId: number, title: string) {
+    const p = this.pane(paneId)
+    if (!p) return
+    const t = title.trim()
+    p.customTitle = !!t
+    if (t) p.title = t
+    else if (p.source.kind === 'shell') p.title = p.termTitle || 'Local shell'
   }
 
   updatePane(id: number, patch: Partial<Pane>) {
