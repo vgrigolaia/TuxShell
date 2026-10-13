@@ -1,7 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { Window } from '@wailsio/runtime'
+  import { SvelteSet } from 'svelte/reactivity'
   import Icon from './Icon.svelte'
+  import ContextMenu, { type MenuItem } from './ContextMenu.svelte'
   import type { Tab } from '../tabs'
 
   interface Props {
@@ -10,14 +12,73 @@
     clipboardOpen: boolean
     onSelect: (key: number) => void
     onClose: (key: number) => void
+    onCloseMany: (keys: number[]) => void
     onNew: () => void
     onSearch: () => void
     onToggleClipboard: () => void
   }
 
-  let { tabs, activeKey, clipboardOpen, onSelect, onClose, onNew, onSearch, onToggleClipboard }: Props = $props()
+  let { tabs, activeKey, clipboardOpen, onSelect, onClose, onCloseMany, onNew, onSearch, onToggleClipboard }: Props = $props()
 
   let maximised = $state(false)
+  let strip: HTMLDivElement
+  let menu = $state<{ x: number; y: number; key: number } | null>(null)
+  // Ctrl+click builds a multi-tab selection for bulk actions.
+  const picked = new SvelteSet<number>()
+
+  // Forget selections for tabs that were closed.
+  $effect(() => {
+    const keys = new Set(tabs.map((t) => t.key))
+    for (const k of picked) if (!keys.has(k)) picked.delete(k)
+  })
+
+  // Keep the active tab visible when the strip overflows.
+  $effect(() => {
+    const key = activeKey
+    requestAnimationFrame(() => document.getElementById(`tab-${key}`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' }))
+  })
+
+  // A vertical mouse wheel scrolls the strip sideways.
+  function onWheel(e: WheelEvent) {
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      strip.scrollLeft += e.deltaY
+      e.preventDefault()
+    }
+  }
+
+  function onTabClick(e: MouseEvent, key: number) {
+    if (e.ctrlKey || e.metaKey) {
+      if (picked.has(key)) picked.delete(key)
+      else picked.add(key)
+      // Ctrl+clicking starts a selection that includes the current tab.
+      if (picked.size && !picked.has(activeKey)) picked.add(activeKey)
+      return
+    }
+    picked.clear()
+    onSelect(key)
+  }
+
+  function openMenu(e: MouseEvent, key: number) {
+    e.preventDefault()
+    if (!picked.has(key)) picked.clear()
+    menu = { x: e.clientX, y: e.clientY, key }
+  }
+
+  function menuItems(key: number): MenuItem[] {
+    const i = tabs.findIndex((t) => t.key === key)
+    const others = tabs.filter((t) => t.key !== key).map((t) => t.key)
+    const right = tabs.slice(i + 1).map((t) => t.key)
+    const items: MenuItem[] = []
+    if (picked.size > 1) {
+      const sel = [...picked]
+      items.push({ label: `Close selected (${sel.length})`, run: () => (onCloseMany(sel), picked.clear()) })
+    }
+    items.push({ label: 'Close', run: () => onClose(key) })
+    if (others.length) items.push({ label: 'Close others', run: () => onCloseMany(others) })
+    if (right.length) items.push({ label: 'Close tabs to the right', run: () => onCloseMany(right) })
+    items.push({ label: `Close all (${tabs.length})`, run: () => onCloseMany(tabs.map((t) => t.key)), danger: true })
+    return items
+  }
 
   async function syncMaximised() {
     maximised = await Window.IsMaximised()
@@ -57,21 +118,33 @@
   </div>
 
   <div class="no-drag flex min-w-0 items-center gap-1 rounded-xl border border-line bg-panel p-1">
-    <div role="tablist" aria-label="Workspace tabs" class="flex min-w-0 items-center gap-1 overflow-x-auto">
+    <div
+      bind:this={strip}
+      role="tablist"
+      aria-label="Workspace tabs"
+      aria-multiselectable="true"
+      class="tab-strip flex min-w-0 items-center gap-1 overflow-x-auto"
+      onwheel={onWheel}
+    >
       {#each tabs as tab, i (tab.key)}
+        <!-- Middle-click closes, like browser and terminal tabs. -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
           class="group flex shrink-0 items-center rounded-lg transition-colors {tab.key === activeKey
             ? 'bg-raised text-fg'
-            : 'text-muted hover:text-fg'}"
+            : 'text-muted hover:text-fg'} {picked.has(tab.key) ? 'ring-1 ring-accent' : ''}"
+          onauxclick={(e) => e.button === 1 && (e.preventDefault(), onClose(tab.key))}
+          oncontextmenu={(e) => openMenu(e, tab.key)}
         >
           <button
             id="tab-{tab.key}"
             role="tab"
-            aria-selected={tab.key === activeKey}
+            aria-selected={tab.key === activeKey || picked.has(tab.key)}
             aria-controls="panel-{tab.key}"
             tabindex={tab.key === activeKey ? 0 : -1}
             class="flex max-w-48 items-center gap-2 py-1 pr-1 pl-2.5 text-[13px]"
-            onclick={() => onSelect(tab.key)}
+            title="{tab.title} — Ctrl+click to select, right-click for more"
+            onclick={(e) => onTabClick(e, tab.key)}
             onkeydown={(e) => onTabKey(e, i)}
           >
             <span class="size-1.5 shrink-0 rounded-full {tab.exited ? 'bg-subtle' : 'bg-success'}"></span>
@@ -80,6 +153,7 @@
           <button
             class="mr-1 grid size-5 place-items-center rounded text-subtle hover:bg-line hover:text-fg"
             aria-label="Close {tab.title}"
+            tabindex="-1"
             onclick={() => onClose(tab.key)}
           >
             <Icon name="x" size={12} />
@@ -134,3 +208,17 @@
     </button>
   </div>
 </header>
+
+{#if menu}
+  <ContextMenu x={menu.x} y={menu.y} label="Tab actions" items={menuItems(menu.key)} onClose={() => (menu = null)} />
+{/if}
+
+<style>
+  /* Scroll with the wheel instead of a scrollbar drawn over the close buttons. */
+  .tab-strip {
+    scrollbar-width: none;
+  }
+  .tab-strip::-webkit-scrollbar {
+    display: none;
+  }
+</style>

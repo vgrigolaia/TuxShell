@@ -38,6 +38,10 @@
         e.preventDefault()
         e.stopPropagation()
         if (!importOpen) quickOpen = true
+      } else if (e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey && key === 'w') {
+        e.preventDefault()
+        e.stopPropagation()
+        closeTab(activeKey)
       } else if (e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey && key === 'h') {
         e.preventDefault()
         e.stopPropagation()
@@ -70,6 +74,20 @@
     delete panes[key]
     if (tabs.length === 0) tabs.push(makeTab({ kind: 'shell' }, 'Local shell'))
     if (activeKey === key) activeKey = tabs[Math.min(i, tabs.length - 1)].key
+  }
+
+  function closeTabs(keys: number[]) {
+    const drop = new Set(keys)
+    const before = [...tabs]
+    const activeIndex = before.findIndex((t) => t.key === activeKey)
+    for (const k of drop) delete panes[k]
+    tabs.splice(0, tabs.length, ...before.filter((t) => !drop.has(t.key)))
+    if (tabs.length === 0) tabs.push(makeTab({ kind: 'shell' }, 'Local shell'))
+    if (drop.has(activeKey)) {
+      // Prefer the nearest surviving tab to the left of the old active one, else the first.
+      const left = before.slice(0, activeIndex).reverse().find((t) => !drop.has(t.key))
+      activeKey = (left ?? tabs[0]).key
+    }
   }
 
   function update(key: number, patch: Partial<Tab>) {
@@ -119,6 +137,7 @@
     clipboardOpen={panel.kind === 'clipboard'}
     onSelect={(key) => (activeKey = key)}
     onClose={closeTab}
+    onCloseMany={closeTabs}
     onNew={() => openTab({ kind: 'shell' }, 'Local shell')}
     onSearch={() => (quickOpen = true)}
     onToggleClipboard={toggleClipboard}
