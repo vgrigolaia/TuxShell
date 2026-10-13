@@ -12,6 +12,7 @@ import type * as terminal$0 from "../../../../vgrigolaia/tuxshell/internal/termi
 declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
+            "clipboard:changed": void;
             "terminal:data": terminal$0.DataEvent;
             "terminal:exit": terminal$0.ExitEvent;
         }

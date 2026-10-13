@@ -3,9 +3,12 @@ package main
 import (
 	"embed"
 	"log"
+	"path/filepath"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 
+	"github.com/vgrigolaia/tuxshell/internal/cliphist"
 	"github.com/vgrigolaia/tuxshell/internal/hosts"
 	"github.com/vgrigolaia/tuxshell/internal/sshcmd"
 	"github.com/vgrigolaia/tuxshell/internal/sshconfig"
@@ -21,6 +24,7 @@ func init() {
 	// Registered events get typed bindings in the frontend.
 	application.RegisterEvent[terminal.DataEvent](terminal.EventData)
 	application.RegisterEvent[terminal.ExitEvent](terminal.EventExit)
+	application.RegisterEvent[application.Void](cliphist.EventChanged)
 }
 
 func main() {
@@ -39,6 +43,11 @@ func main() {
 	}
 
 	var app *application.App
+	clips := cliphist.NewService(
+		filepath.Join(filepath.Dir(dbPath), "clipboard.db"),
+		func() (string, bool) { return app.Clipboard.Text() },
+		func() { app.Event.Emit(cliphist.EventChanged) },
+	)
 	terminals := terminal.NewService(func(name string, data any) {
 		app.Event.Emit(name, data)
 	}, sshcmd.Resolver{Store: store})
@@ -50,6 +59,7 @@ func main() {
 			application.NewService(terminals),
 			application.NewService(hosts.NewService(store)),
 			application.NewService(sshconfig.NewService(store, sshConfigPath)),
+			application.NewService(clips),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -57,7 +67,7 @@ func main() {
 	})
 
 	// Frameless: the frontend draws its own title bar and window controls.
-	app.Window.NewWithOptions(application.WebviewWindowOptions{
+	window := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:            "TuxShell",
 		Width:            1280,
 		Height:           800,
@@ -66,6 +76,13 @@ func main() {
 		Frameless:        true,
 		BackgroundColour: application.NewRGB(0x08, 0x09, 0x0C),
 		URL:              "/",
+	})
+
+	// Wayland only lets the focused app read the clipboard, so capture what
+	// was copied elsewhere each time the window regains focus. Off the event
+	// goroutine, since the clipboard read hops to the main thread.
+	window.OnWindowEvent(events.Common.WindowFocus, func(*application.WindowEvent) {
+		go clips.CaptureSystem()
 	})
 
 	if err := app.Run(); err != nil {
