@@ -1,106 +1,84 @@
 <script lang="ts">
-  import {onMount} from 'svelte';
-  import {Events, WML} from "@wailsio/runtime";
-  import {GreetService} from "../bindings/github.com/vgrigolaia/tuxshell";
+  import TitleBar from './lib/components/TitleBar.svelte'
+  import Sidebar from './lib/components/Sidebar.svelte'
+  import TerminalPane from './lib/components/TerminalPane.svelte'
+  import { sampleGroups } from './lib/sample-hosts'
+  import type { Tab } from './lib/tabs'
 
-  const wailsVersion = "v3.0.0-beta.28";
+  let nextKey = 1
+  const newTab = (): Tab => ({ key: nextKey++, title: 'Local shell', exited: false })
 
-  let name: string = $state('');
-  let time: string = $state('Listening for Time event...');
+  let tabs = $state<Tab[]>([newTab()])
+  let activeKey = $state(1)
+  let clipboardOpen = $state(false)
+  let size = $state<Record<number, string>>({})
 
-  let titleNameEl: HTMLElement;
-  let toastEl: HTMLElement;
-  let resultEl: HTMLElement;
-  let toastTimer: ReturnType<typeof setTimeout>;
+  const active = $derived(tabs.find((t) => t.key === activeKey))
 
-  onMount(() => {
-    Events.On('time', (v: any) => {
-      // On a narrow screen the full RFC1123 stamp is too wide for the footer, so
-      // show just the clock time there (matching the CSS breakpoint).
-      const full = v.data;
-      const compact = (full.match(/\d{1,2}:\d{2}:\d{2}/) || [full])[0];
-      time = window.matchMedia('(max-width: 640px)').matches ? compact : full;
-    });
-    // Wire up data-wml-openURL links (logos + footer "Docs" link).
-    WML.Reload();
-  });
-
-  // Crossfade the framework word in the heading ("Wails + Svelte") to the name
-  // the user entered ("Wails + <name>"): the old word fades out while the new one
-  // fades in over the same spot.
-  function swapTitleName(name: string): void {
-    const current = titleNameEl.querySelector('.title-name-text:not(.is-outgoing)');
-    if (!current || current.textContent === name) {
-      return;
-    }
-    const incoming = document.createElement('span');
-    incoming.className = 'title-name-text is-entering';
-    incoming.textContent = name;
-    current.classList.add('is-outgoing');
-    titleNameEl.appendChild(incoming);
-    // Force a reflow so the transitions run from the starting state.
-    void incoming.offsetWidth;
-    incoming.classList.remove('is-entering');
-    current.classList.add('is-leaving');
-    current.addEventListener('transitionend', () => current.remove(), {once: true});
+  function openTab() {
+    const tab = newTab()
+    tabs.push(tab)
+    activeKey = tab.key
   }
 
-  // Pop the toast with the message Go returned, then auto-dismiss it.
-  function showToast(message: string): void {
-    resultEl.innerText = message;
-    toastEl.classList.add('is-visible');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toastEl.classList.remove('is-visible'), 4000);
+  function closeTab(key: number) {
+    const i = tabs.findIndex((t) => t.key === key)
+    if (i < 0) return
+    tabs.splice(i, 1)
+    if (tabs.length === 0) tabs.push(newTab())
+    if (activeKey === key) activeKey = tabs[Math.min(i, tabs.length - 1)].key
   }
 
-  const doGreet = (): void => {
-    let n = name || 'anonymous';
-    swapTitleName(n);
-    GreetService.Greet(n).then(showToast).catch(console.error);
+  function update(key: number, patch: Partial<Tab>) {
+    const tab = tabs.find((t) => t.key === key)
+    if (tab) Object.assign(tab, patch)
   }
 </script>
 
-<main class="container">
-  <header class="brand">
-    <span class="brand-mark" data-wml-openURL="https://v3.wails.io">
-      <img src="/wails.png" class="brand-logo" alt="Wails logo"/>
-    </span>
-    <span class="brand-badge" data-wml-openURL="https://svelte.dev">
-      <img src="/svelte.svg" alt="Svelte logo"/>
-    </span>
-  </header>
+<div class="flex h-full flex-col">
+  <TitleBar
+    {tabs}
+    {activeKey}
+    {clipboardOpen}
+    onSelect={(key) => (activeKey = key)}
+    onClose={closeTab}
+    onNew={openTab}
+    onToggleClipboard={() => (clipboardOpen = !clipboardOpen)}
+  />
 
-  <h1 class="title"><span class="title-accent">Wails +</span> <span class="title-name" bind:this={titleNameEl}><span class="title-name-text">Svelte</span></span></h1>
-  <p class="subtitle">Build beautiful cross-platform apps with Go and Svelte.</p>
+  <main class="flex min-h-0 flex-1 gap-3 px-3">
+    <Sidebar groups={sampleGroups} />
 
-  <div class="greet">
-    <div class="input-box">
-      <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      <input aria-label="input" class="input" bind:value={name} type="text" placeholder="Your name" autocomplete="off"/>
-      <button aria-label="greet-btn" class="btn" onclick={doGreet}>Greet
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-      </button>
-    </div>
-  </div>
-</main>
+    <section class="flex min-w-0 flex-1 flex-col overflow-hidden rounded-panel border border-line bg-panel">
+      <div class="flex h-11 shrink-0 items-center border-b border-line px-4">
+        <h1 class="truncate font-mono text-[13px] text-muted">{active?.title ?? ''}</h1>
+      </div>
+      <div class="min-h-0 flex-1 py-2 pl-3">
+        {#each tabs as tab (tab.key)}
+          <div id="panel-{tab.key}" role="tabpanel" aria-labelledby="tab-{tab.key}" class="h-full" class:hidden={tab.key !== activeKey}>
+            <TerminalPane
+              active={tab.key === activeKey}
+              onTitle={(title) => update(tab.key, { title })}
+              onSize={(cols, rows) => (size[tab.key] = `${cols}×${rows}`)}
+              onExit={() => update(tab.key, { exited: true })}
+            />
+          </div>
+        {/each}
+      </div>
+    </section>
 
-<hr class="footer-divider"/>
-<footer class="footer">
-  <span class="footer-version">{wailsVersion}</span>
-  <span class="footer-time">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-    <span>{time}</span>
-  </span>
-  <a class="footer-docs" data-wml-openURL="https://v3.wails.io" aria-label="Wails documentation">Docs
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
-  </a>
-</footer>
+    {#if clipboardOpen}
+      <aside aria-label="Clipboard history" class="flex w-72 shrink-0 flex-col rounded-panel border border-line bg-panel p-4">
+        <h2 class="font-display text-[15px] font-semibold">Clipboard</h2>
+        <p class="mt-2 text-[13px] text-subtle">Encrypted clipboard history is coming in a later step.</p>
+      </aside>
+    {/if}
+  </main>
 
-<div class="toast" bind:this={toastEl} role="status" aria-live="polite">
-  <span class="toast-label">From Go</span>
-  <span aria-label="result" class="toast-msg" bind:this={resultEl}></span>
+  <footer class="flex h-8 shrink-0 items-center gap-4 px-5 font-mono text-[11px] text-subtle">
+    <span>{tabs.length} {tabs.length === 1 ? 'tab' : 'tabs'}</span>
+    <span class="flex-1"></span>
+    <span>UTF-8</span>
+    <span>{size[activeKey] ?? ''}</span>
+  </footer>
 </div>
-
-<style>
-  /* Put your standard CSS here */
-</style>

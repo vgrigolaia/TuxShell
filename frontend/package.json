@@ -11,13 +11,24 @@
     "check": "svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
-    "@wailsio/runtime": "3.0.0-beta.28"
+    "@fontsource-variable/geist": "5.3.0",
+    "@fontsource-variable/jetbrains-mono": "5.3.0",
+    "@fontsource-variable/space-grotesk": "5.3.0",
+    "@wailsio/runtime": "3.0.0-beta.28",
+    "@xterm/addon-fit": "0.11.0",
+    "@xterm/addon-search": "0.16.0",
+    "@xterm/addon-unicode11": "0.9.0",
+    "@xterm/addon-web-links": "0.12.0",
+    "@xterm/addon-webgl": "0.19.0",
+    "@xterm/xterm": "6.0.0"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.0.0",
+    "@tailwindcss/vite": "4.3.3",
     "@tsconfig/svelte": "^5.0.8",
     "svelte": "^5.46.4",
     "svelte-check": "^4.4.8",
+    "tailwindcss": "4.3.3",
     "tslib": "^2.6.2",
     "typescript": "^5.2.2",
     "vite": "^8.0.5"

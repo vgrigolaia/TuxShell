@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+/* Design D tokens. Text colours are checked for 4.5:1 against ground and panel. */
+@theme {
+  --color-ground: #08090c;
+  --color-panel: #111318;
+  --color-raised: #181b22;
+  --color-line: #1e212a;
+  --color-fg: #e6e7eb;
+  --color-muted: #a3a8b6;
+  --color-subtle: #8a8fa0;
+  --color-accent: #8b7cff;
+  --color-success: #a3e635;
+  --color-warning: #fb923c;
+
+  --font-sans: "Geist Variable", system-ui, sans-serif;
+  --font-display: "Space Grotesk Variable", "Geist Variable", sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+
+  --radius-panel: 14px;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: var(--color-ground);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Wails reads this property to decide which regions drag the frameless window. */
+.drag {
+  --wails-draggable: drag;
+}
+.no-drag {
+  --wails-draggable: no-drag;
+}
+
+.xterm .xterm-viewport {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line) transparent;
+}
