@@ -6,6 +6,7 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
+	"github.com/vgrigolaia/tuxshell/internal/hosts"
 	"github.com/vgrigolaia/tuxshell/internal/terminal"
 )
 
@@ -21,6 +22,15 @@ func init() {
 }
 
 func main() {
+	dbPath, err := hosts.DefaultPath()
+	if err != nil {
+		log.Fatal(err)
+	}
+	store, err := hosts.Open(dbPath)
+	if err != nil {
+		log.Fatalf("open host store: %v", err)
+	}
+
 	var app *application.App
 	terminals := terminal.NewService(func(name string, data any) {
 		app.Event.Emit(name, data)
@@ -31,6 +41,7 @@ func main() {
 		Description: "SSH connection manager for Linux",
 		Services: []application.Service{
 			application.NewService(terminals),
+			application.NewService(hosts.NewService(store)),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
