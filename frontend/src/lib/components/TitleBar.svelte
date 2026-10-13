@@ -222,17 +222,6 @@
 
   <div class="min-w-4 flex-1 self-stretch"></div>
 
-  <button
-    class="{pill} {clipboardOpen ? 'border-accent-line text-accent-ink' : ''}"
-    aria-pressed={clipboardOpen}
-    aria-keyshortcuts="Control+Shift+H"
-    onclick={onToggleClipboard}
-  >
-    <Icon name="clipboard" size={14} />
-    <span class="hidden xl:inline">Clipboard</span>
-    <span class="kbd">Ctrl Shift H</span>
-  </button>
-
   <button class={pill} aria-keyshortcuts="Control+K" onclick={onSearch}>
     <Icon name="search" size={14} />
     <span class="whitespace-nowrap">Jump to anything</span>
@@ -240,6 +229,16 @@
   </button>
 
   <div class="flex items-center gap-1.5">
+    <button
+      class="{wc} {clipboardOpen ? 'bg-accent-chip text-accent-ink' : ''}"
+      aria-label="Clipboard history"
+      aria-pressed={clipboardOpen}
+      aria-keyshortcuts="Control+Shift+H"
+      title="Clipboard history (Ctrl+Shift+H)"
+      onclick={onToggleClipboard}
+    >
+      <Icon name="clipboard" size={14} />
+    </button>
     <button
       class="{wc} {filesOpen ? 'bg-accent-chip text-accent-ink' : ''}"
       aria-label="Files"

@@ -1,6 +1,7 @@
 <script lang="ts" module>
-  // ~/.ssh/config is scanned once per run (it starts an `ssh -G` per alias).
-  let newInConfig: Promise<number> | undefined
+  // Scanning ~/.ssh/config starts an `ssh -G` per alias, so the result is
+  // reused until the saved hosts change.
+  let scanned: { key: string; count: Promise<number> } | undefined
 </script>
 
 <script lang="ts">
@@ -14,9 +15,9 @@
   import StatusDot from './StatusDot.svelte'
   import Icon from './Icon.svelte'
   import SnippetsPage from './SnippetsPage.svelte'
+  import HomeTabs from './HomeTabs.svelte'
   import TunnelsPage from './TunnelsPage.svelte'
   import { snippets } from '../snippets.svelte'
-  import { tunnels } from '../tunnels.svelte'
 
   interface Props {
     selectedId: number | null
@@ -37,6 +38,22 @@
   let found = $state(0)
   let search = $state<HTMLInputElement>()
 
+  // Rescan when hosts are saved, imported or deleted, so the banner stays true.
+  $effect(() => {
+    if (!hostStore.loaded) return
+    const key = hostStore.list.map((h) => h.alias).join('\n')
+    if (scanned?.key !== key)
+      scanned = {
+        key,
+        count: SshConfig.Scan().then(
+          (list) => (list ?? []).filter((c) => !c.imported && !c.error).length,
+          () => 0,
+        ),
+      }
+    const current = scanned
+    void current.count.then((n) => scanned === current && (found = n))
+  })
+
   const hour = new Date().getHours()
   const greeting = hour < 5 ? 'Good evening' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
 
@@ -56,11 +73,6 @@
   const looksLikeTarget = (q: string) => /^[^\s-][^\s]*$/.test(q) && /[@.:]/.test(q)
 
   onMount(() => {
-    newInConfig ??= SshConfig.Scan().then(
-      (list) => (list ?? []).filter((c) => !c.imported && !c.error).length,
-      () => 0,
-    )
-    void newInConfig.then((n) => (found = n))
     search?.focus()
     void snippets.load()
   })
@@ -80,36 +92,18 @@
   const chip = 'flex h-[34px] items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold'
 </script>
 
-<div class="flex min-h-0 flex-1 gap-2.5">
-  <nav aria-label="Home" class="flex w-[232px] shrink-0 flex-col gap-1 rounded-panel border border-line bg-raised px-3.5 py-5">
-    {#each [['hosts', 'Hosts', 'server', hostStore.list.length], ['snippets', 'Snippets', 'code', snippets.list.length], ['tunnels', 'Tunnels', 'tunnel', tunnels.list.length]] as const as [id, name, icon, count] (id)}
-      <button
-        class="flex h-10 items-center gap-3 rounded-xl px-3 text-sm font-medium {page === id ? 'bg-panel text-fg shadow-sm' : 'text-text hover:bg-panel/60'}"
-        aria-current={page === id ? 'page' : undefined}
-        onclick={() => (page = id)}
-      >
-        <span class={page === id ? 'text-accent' : ''}><Icon name={icon} size={17} /></span>{name}
-        {#if count}<span class="ml-auto text-xs text-subtle">{id === 'tunnels' && tunnels.running ? `${tunnels.running} on` : count}</span>{/if}
-      </button>
-    {/each}
-    <span class="flex h-10 cursor-default items-center gap-3 px-3 text-sm font-medium text-subtle" title="1Password integration arrives in a later version">
-      <Icon name="shield" size={17} />Keychain<span class="ml-auto rounded-full bg-hop px-2 py-0.5 text-[10.5px]">soon</span>
-    </span>
+{#snippet tabsRow()}
+  <HomeTabs {page} onPage={(p) => (page = p)} />
+{/snippet}
 
-    <div class="mt-auto flex flex-col gap-2 rounded-2xl border border-line bg-panel p-3.5">
-      <div class="flex items-center gap-2 text-[13px] font-bold">
-        <span class="text-subtle"><Icon name="shield" size={14} /></span>1Password
-      </div>
-      <p class="text-xs leading-relaxed text-subtle">Vault references and the SSH agent arrive in a later version. Secrets are never written to disk.</p>
-    </div>
-  </nav>
-
+<div class="flex min-h-0 min-w-0 flex-1 gap-2.5">
   {#if page === 'snippets'}
-    <SnippetsPage />
+    <SnippetsPage>{@render tabsRow()}</SnippetsPage>
   {:else if page === 'tunnels'}
-    <TunnelsPage />
+    <TunnelsPage>{@render tabsRow()}</TunnelsPage>
   {:else}
   <main class="flex min-w-0 flex-1 flex-col gap-5 overflow-y-auto rounded-panel border border-line bg-ground px-7 py-6">
+    {@render tabsRow()}
     <header class="flex flex-wrap items-center gap-3.5">
       <h1 class="font-display text-3xl font-bold tracking-[-0.03em]">{greeting}</h1>
       <div class="ml-auto flex gap-2.5">

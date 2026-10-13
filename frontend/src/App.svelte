@@ -285,6 +285,20 @@
   }
 </script>
 
+{#snippet hostList()}
+  <Sidebar
+        selectedId={panel.kind === 'host' ? panel.host.id : activeHostId}
+        onConnect={connect}
+        onEdit={(host) => (panel = { kind: 'host', host })}
+        onConnectAs={connectAs}
+        onDuplicate={duplicate}
+        onDelete={(host) => (deleting = host)}
+        onNew={() => (panel = { kind: 'host', host: emptyHost() })}
+        onImport={() => (importOpen = true)}
+        onOpenTiles={openSplit}
+      />
+{/snippet}
+
 <div class="flex h-full flex-col gap-2.5 p-2.5">
   <TitleBar
     tabs={tabInfos}
@@ -313,6 +327,9 @@
   />
 
   <main class="relative flex min-h-0 flex-1 gap-2.5">
+    {#if hostsOpen && home}
+      {@render hostList()}
+    {/if}
     {#if home}
       <Launchpad
         selectedId={panel.kind === 'host' ? panel.host.id : null}
@@ -334,17 +351,7 @@
 
     <!-- Terminals stay mounted while Home shows, so sessions keep running. -->
     {#if hostsOpen && !home}
-      <Sidebar
-        selectedId={panel.kind === 'host' ? panel.host.id : activeHostId}
-        onConnect={connect}
-        onEdit={(host) => (panel = { kind: 'host', host })}
-        onConnectAs={connectAs}
-        onDuplicate={duplicate}
-        onDelete={(host) => (deleting = host)}
-        onNew={() => (panel = { kind: 'host', host: emptyHost() })}
-        onImport={() => (importOpen = true)}
-        onOpenTiles={openSplit}
-      />
+      {@render hostList()}
     {/if}
 
     <section aria-label="Terminals" class:hidden={home} class="relative flex min-w-0 flex-1 flex-col gap-2.5 rounded-panel border border-line bg-panel p-2.5">
