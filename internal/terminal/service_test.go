@@ -45,7 +45,7 @@ func (r *recorder) waitExit(t *testing.T) ExitEvent {
 
 func TestStartStreamsOutputAndExitCode(t *testing.T) {
 	rec := newRecorder()
-	svc := NewService(rec.emit, nil)
+	svc := NewService(rec.emit, nil, nil)
 
 	id, err := svc.start(exec.Command("sh", "-c", "printf 'héllo'; exit 3"), 80, 24)
 	if err != nil {
@@ -66,7 +66,7 @@ func TestStartStreamsOutputAndExitCode(t *testing.T) {
 
 func TestWriteResizeAndClose(t *testing.T) {
 	rec := newRecorder()
-	svc := NewService(rec.emit, nil)
+	svc := NewService(rec.emit, nil, nil)
 
 	// `read` blocks until we write a line; stty reports the PTY size.
 	id, err := svc.start(exec.Command("sh", "-c", "read line; stty size; echo \"got:$line\"; sleep 30"), 80, 24)
@@ -104,8 +104,28 @@ func TestWriteResizeAndClose(t *testing.T) {
 }
 
 func TestUnknownSession(t *testing.T) {
-	svc := NewService(func(string, any) {}, nil)
+	svc := NewService(func(string, any) {}, nil, nil)
 	if err := svc.Write("nope", "x"); err == nil {
 		t.Fatal("expected error for unknown session")
+	}
+}
+
+func TestConfiguredShellAndLiveCount(t *testing.T) {
+	rec := newRecorder()
+	svc := NewService(rec.emit, nil, func() string { return "/bin/sh" })
+	t.Setenv("SHELL", "/nonexistent")
+	id, err := svc.StartShell(80, 24)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := svc.LiveCount(); n != 1 {
+		t.Fatalf("LiveCount = %d, want 1", n)
+	}
+	svc.CloseAll()
+	if n := svc.LiveCount(); n != 0 {
+		t.Fatalf("LiveCount after CloseAll = %d, want 0", n)
+	}
+	if ev := rec.waitExit(t); ev.ID != id {
+		t.Fatalf("exit event = %+v, want id %s", ev, id)
 	}
 }

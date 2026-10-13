@@ -11,6 +11,7 @@ import (
 	"github.com/vgrigolaia/tuxshell/internal/cliphist"
 	"github.com/vgrigolaia/tuxshell/internal/files"
 	"github.com/vgrigolaia/tuxshell/internal/hosts"
+	"github.com/vgrigolaia/tuxshell/internal/settings"
 	"github.com/vgrigolaia/tuxshell/internal/sshcmd"
 	"github.com/vgrigolaia/tuxshell/internal/sshconfig"
 	"github.com/vgrigolaia/tuxshell/internal/terminal"
@@ -27,7 +28,12 @@ func init() {
 	application.RegisterEvent[terminal.ExitEvent](terminal.EventExit)
 	application.RegisterEvent[application.Void](cliphist.EventChanged)
 	application.RegisterEvent[files.DropEvent](files.EventDropped)
+	application.RegisterEvent[int](eventConfirmClose)
 }
+
+// eventConfirmClose asks the frontend to confirm closing the window while
+// sessions are live; it carries the number of live sessions.
+const eventConfirmClose = "app:confirm-close"
 
 func main() {
 	dbPath, err := hosts.DefaultPath()
@@ -38,6 +44,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("open host store: %v", err)
 	}
+
+	settingsPath, err := settings.DefaultPath()
+	if err != nil {
+		log.Fatal(err)
+	}
+	prefs := settings.NewService(settingsPath)
 
 	sshConfigPath, err := sshconfig.DefaultPath()
 	if err != nil {
@@ -68,7 +80,7 @@ func main() {
 	)
 	terminals := terminal.NewService(func(name string, data any) {
 		app.Event.Emit(name, data)
-	}, resolver)
+	}, resolver, prefs.Shell)
 
 	app = application.New(application.Options{
 		Name:        "TuxShell",
@@ -79,6 +91,7 @@ func main() {
 			application.NewService(sshconfig.NewService(store, sshConfigPath)),
 			application.NewService(clips),
 			application.NewService(fileBrowser),
+			application.NewService(prefs),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -96,6 +109,15 @@ func main() {
 		EnableFileDrop:   true,
 		BackgroundColour: application.NewRGB(0x08, 0x09, 0x0C),
 		URL:              "/",
+	})
+
+	// Closing with live sessions (title bar button or the window manager) asks
+	// first. The frontend hangs the sessions up and closes again once confirmed.
+	window.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
+		if n := terminals.LiveCount(); n > 0 && prefs.Get().Settings.Terminal.ConfirmClose {
+			e.Cancel()
+			app.Event.Emit(eventConfirmClose, n)
+		}
 	})
 
 	// Wayland only lets the focused app read the clipboard, so capture what

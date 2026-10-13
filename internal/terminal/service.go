@@ -50,26 +50,37 @@ type Resolver interface {
 type session struct {
 	cmd  *exec.Cmd
 	ptmx *os.File
+	// hungUp is set once the session was asked to close.
+	hungUp bool
 }
 
 // Service manages PTY sessions. Its exported methods are bound to the frontend.
 type Service struct {
 	emit     Emitter
 	resolver Resolver
+	// shell returns the configured local shell ("" means $SHELL).
+	shell    func() string
 	nextID   atomic.Uint64
 	mu       sync.Mutex
 	sessions map[string]*session
 }
 
-// NewService returns a Service that reports output and exits through emit
-// and builds ssh commands with resolver.
-func NewService(emit Emitter, resolver Resolver) *Service {
-	return &Service{emit: emit, resolver: resolver, sessions: map[string]*session{}}
+// NewService returns a Service that reports output and exits through emit,
+// builds ssh commands with resolver and runs shell() in local tabs (nil or
+// "" means $SHELL).
+func NewService(emit Emitter, resolver Resolver, shell func() string) *Service {
+	return &Service{emit: emit, resolver: resolver, shell: shell, sessions: map[string]*session{}}
 }
 
 // StartShell starts the user's login shell and returns the session ID.
 func (s *Service) StartShell(cols, rows int) (string, error) {
-	shell := os.Getenv("SHELL")
+	shell := ""
+	if s.shell != nil {
+		shell = s.shell()
+	}
+	if shell == "" {
+		shell = os.Getenv("SHELL")
+	}
 	if shell == "" {
 		shell = "/bin/sh"
 	}
@@ -176,10 +187,40 @@ func (s *Service) Resize(id string, cols, rows int) error {
 
 // Close hangs up a session. The exit event follows once the process is gone.
 func (s *Service) Close(id string) error {
-	sess, err := s.get(id)
-	if err != nil {
-		return err
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	sess, ok := s.sessions[id]
+	if !ok {
+		return fmt.Errorf("no terminal session %q", id)
 	}
+	return s.hangUp(sess)
+}
+
+// LiveCount is how many sessions are running and haven't been asked to close.
+func (s *Service) LiveCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	n := 0
+	for _, sess := range s.sessions {
+		if !sess.hungUp {
+			n++
+		}
+	}
+	return n
+}
+
+// CloseAll hangs up every session, e.g. before the window closes.
+func (s *Service) CloseAll() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, sess := range s.sessions {
+		_ = s.hangUp(sess)
+	}
+}
+
+// hangUp signals a session; callers hold s.mu.
+func (s *Service) hangUp(sess *session) error {
+	sess.hungUp = true
 	return sess.cmd.Process.Signal(syscall.SIGHUP)
 }
 
@@ -188,7 +229,7 @@ func (s *Service) ServiceShutdown() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, sess := range s.sessions {
-		_ = sess.cmd.Process.Signal(syscall.SIGHUP)
+		_ = s.hangUp(sess)
 	}
 	return nil
 }

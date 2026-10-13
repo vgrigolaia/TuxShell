@@ -18,6 +18,20 @@ export function Close(id: string): $CancellablePromise<void> {
 }
 
 /**
+ * CloseAll hangs up every session, e.g. before the window closes.
+ */
+export function CloseAll(): $CancellablePromise<void> {
+    return $Call.ByID(1209335034);
+}
+
+/**
+ * LiveCount is how many sessions are running and haven't been asked to close.
+ */
+export function LiveCount(): $CancellablePromise<number> {
+    return $Call.ByID(375156466);
+}
+
+/**
  * Resize updates a session's terminal size.
  */
 export function Resize(id: string, cols: number, rows: number): $CancellablePromise<void> {
