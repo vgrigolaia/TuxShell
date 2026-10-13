@@ -8,5 +8,6 @@ export {
 
 export type {
     Clip,
+    Settings,
     Status
 } from "./models.js";

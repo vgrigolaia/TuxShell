@@ -30,7 +30,7 @@ export function CaptureSystem(): $CancellablePromise<void> {
 }
 
 /**
- * Clear removes every entry.
+ * Clear removes all unpinned entries.
  */
 export function Clear(): $CancellablePromise<void> {
     return $Call.ByID(1086525076);
@@ -51,6 +51,20 @@ export function List(): $CancellablePromise<$models.Clip[] | null> {
 }
 
 /**
+ * SaveClip stores text as a pinned clip, e.g. one typed in by hand.
+ */
+export function SaveClip(text: string, label: string): $CancellablePromise<$models.Clip> {
+    return $Call.ByID(1748869744, text, label);
+}
+
+/**
+ * SaveSettings applies new settings, trimming history to match.
+ */
+export function SaveSettings($set: $models.Settings): $CancellablePromise<void> {
+    return $Call.ByID(857090835, $set);
+}
+
+/**
  * SetPaused stops or resumes recording.
  */
 export function SetPaused(paused: boolean): $CancellablePromise<void> {
@@ -58,8 +72,29 @@ export function SetPaused(paused: boolean): $CancellablePromise<void> {
 }
 
 /**
+ * SetPinned pins a clip so it's kept, or unpins it back into history.
+ */
+export function SetPinned(id: number, pinned: boolean): $CancellablePromise<void> {
+    return $Call.ByID(281713107, id, pinned);
+}
+
+/**
+ * Settings returns the current history settings.
+ */
+export function Settings(): $CancellablePromise<$models.Settings> {
+    return $Call.ByID(1001616854);
+}
+
+/**
  * Status reports whether history is on, paused, or unavailable.
  */
 export function Status(): $CancellablePromise<$models.Status> {
     return $Call.ByID(3909305437);
+}
+
+/**
+ * UpdateClip edits a clip's text and name.
+ */
+export function UpdateClip(id: number, text: string, label: string): $CancellablePromise<$models.Clip> {
+    return $Call.ByID(447187004, id, text, label);
 }

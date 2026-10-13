@@ -61,3 +61,24 @@ func TestServiceDisabledWithoutKeyring(t *testing.T) {
 		t.Fatal("recorded without a key")
 	}
 }
+
+func TestServiceRespectsCaptureSetting(t *testing.T) {
+	keyring.MockInit()
+	svc := NewService(filepath.Join(t.TempDir(), "clip.db"), func() (string, bool) { return "from browser", true }, func() {})
+	svc.ServiceStartup(context.Background(), application.ServiceOptions{})
+	defer svc.ServiceShutdown()
+
+	if err := svc.SaveSettings(Settings{RetentionDays: 7, MaxEntries: 100, CaptureSystem: false}); err != nil {
+		t.Fatal(err)
+	}
+	svc.CaptureSystem()
+	if list, _ := svc.List(); len(list) != 0 {
+		t.Fatalf("captured with capture off: %+v", list)
+	}
+	if got := svc.Settings(); got.RetentionDays != 7 || got.CaptureSystem {
+		t.Fatalf("settings = %+v", got)
+	}
+	if ok, _ := svc.Add("terminal copy"); !ok {
+		t.Fatal("terminal copies should still record")
+	}
+}

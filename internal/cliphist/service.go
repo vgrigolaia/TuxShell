@@ -34,10 +34,11 @@ type Service struct {
 	read   func() (string, bool)
 	notify func()
 
-	mu     sync.Mutex
-	store  *Store
-	err    error
-	paused bool
+	mu       sync.Mutex
+	store    *Store
+	err      error
+	paused   bool
+	settings Settings
 }
 
 // NewService keeps history at path. read returns the system clipboard text;
@@ -54,9 +55,12 @@ func (s *Service) ServiceStartup(context.Context, application.ServiceOptions) er
 		var st *Store
 		st, err = Open(s.path, key)
 		if err == nil {
-			err = st.Prune()
+			var set Settings
+			if set, err = st.Settings(); err == nil {
+				err = st.Prune(set)
+			}
 			s.mu.Lock()
-			s.store = st
+			s.store, s.settings = st, set
 			s.mu.Unlock()
 		}
 	}
@@ -130,12 +134,12 @@ func (s *Service) List() ([]Clip, error) {
 // Add records text copied inside TuxShell. It returns whether it was kept.
 func (s *Service) Add(text string) (bool, error) {
 	s.mu.Lock()
-	st, paused := s.store, s.paused
+	st, paused, set := s.store, s.paused, s.settings
 	s.mu.Unlock()
 	if st == nil || paused {
 		return false, nil
 	}
-	ok, err := st.Add(text)
+	ok, err := st.Add(text, set)
 	if ok {
 		s.notify()
 	}
@@ -145,9 +149,87 @@ func (s *Service) Add(text string) (bool, error) {
 // CaptureSystem records the current system clipboard. On Wayland apps can
 // only read the clipboard while focused, so this runs when the window gains focus.
 func (s *Service) CaptureSystem() {
+	s.mu.Lock()
+	capture := s.settings.CaptureSystem
+	s.mu.Unlock()
+	if !capture {
+		return
+	}
 	if text, ok := s.read(); ok {
 		_, _ = s.Add(text)
 	}
+}
+
+// SaveClip stores text as a pinned clip, e.g. one typed in by hand.
+func (s *Service) SaveClip(text, label string) (Clip, error) {
+	st, err := s.active()
+	if err != nil {
+		return Clip{}, err
+	}
+	c, err := st.SaveClip(text, label)
+	if err == nil {
+		s.notify()
+	}
+	return c, err
+}
+
+// UpdateClip edits a clip's text and name.
+func (s *Service) UpdateClip(id int64, text, label string) (Clip, error) {
+	st, err := s.active()
+	if err != nil {
+		return Clip{}, err
+	}
+	c, err := st.UpdateClip(id, text, label)
+	if err == nil {
+		s.notify()
+	}
+	return c, err
+}
+
+// SetPinned pins a clip so it's kept, or unpins it back into history.
+func (s *Service) SetPinned(id int64, pinned bool) error {
+	st, err := s.active()
+	if err != nil {
+		return err
+	}
+	if err := st.SetPinned(id, pinned); err != nil {
+		return err
+	}
+	// Unpinning may push history past the limits.
+	s.mu.Lock()
+	set := s.settings
+	s.mu.Unlock()
+	if err := st.Prune(set); err != nil {
+		return err
+	}
+	s.notify()
+	return nil
+}
+
+// Settings returns the current history settings.
+func (s *Service) Settings() Settings {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.store == nil {
+		return DefaultSettings
+	}
+	return s.settings
+}
+
+// SaveSettings applies new settings, trimming history to match.
+func (s *Service) SaveSettings(set Settings) error {
+	st, err := s.active()
+	if err != nil {
+		return err
+	}
+	if err := st.SaveSettings(set); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	s.settings = set
+	s.mu.Unlock()
+	s.notify()
+	return nil
 }
 
 // Delete removes one entry.
@@ -163,7 +245,7 @@ func (s *Service) Delete(id int64) error {
 	return nil
 }
 
-// Clear removes every entry.
+// Clear removes all unpinned entries.
 func (s *Service) Clear() error {
 	st, err := s.active()
 	if err != nil {
