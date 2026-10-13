@@ -9,6 +9,11 @@ vars:
   # by `wails3 build GOOS=...` (or the GOOS env var) for cross-compilation. The
   # tasks below dispatch to the matching platform Taskfile via this variable.
   GOOS: '{{.GOOS | default OS}}'
+  # App packages only; build/ holds generated platform helpers we don't vet or test.
+  GO_PKGS:
+    sh: go list -e ./... | grep -v /build/ | tr '\n' ' '
+  GO_FILES:
+    sh: find . -name '*.go' -not -path './build/*' -not -path './frontend/*' | tr '\n' ' '
 
 includes:
   common: ./build/Taskfile.yml
@@ -38,6 +43,23 @@ tasks:
     summary: Runs the application in development mode
     cmds:
       - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
+
+  lint:
+    summary: Runs Go vet, gofmt check and Svelte/TypeScript checks
+    # main.go embeds frontend/dist, so the frontend must be built before Go tooling runs.
+    deps:
+      - task: common:build:frontend
+    cmds:
+      - go vet {{.GO_PKGS}}
+      - 'test -z "$(gofmt -l {{.GO_FILES}})" || { gofmt -l {{.GO_FILES}}; echo "gofmt - files need formatting"; exit 1; }'
+      - npm --prefix frontend run check
+
+  test:
+    summary: Runs Go tests
+    deps:
+      - task: common:build:frontend
+    cmds:
+      - go test {{.GO_PKGS}}
 
   install:msix:tools:
     summary: Installs tools required for Windows MSIX packaging
