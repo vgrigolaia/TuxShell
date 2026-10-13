@@ -23,6 +23,26 @@
   // When set, the next connection from quick connect splits this tab instead of opening a new one.
   let splitInto = $state<{ key: number; orientation: Orientation } | null>(null)
   let deleting = $state<Host | null>(null)
+  let hostsOpen = $state(loadFlag('tuxshell.hostsOpen', true))
+
+  // Per-user layout preference; the app works the same without storage.
+  function loadFlag(key: string, fallback: boolean): boolean {
+    try {
+      const v = localStorage.getItem(key)
+      return v === null ? fallback : v === '1'
+    } catch {
+      return fallback
+    }
+  }
+
+  function toggleHosts() {
+    hostsOpen = !hostsOpen
+    try {
+      localStorage.setItem('tuxshell.hostsOpen', hostsOpen ? '1' : '0')
+    } catch {
+      // Not remembered this time.
+    }
+  }
   // Terminal panes by pane id, so clipboard history can paste into the focused one.
   let panes = $state<Record<number, TerminalPane>>({})
 
@@ -55,6 +75,8 @@
         if (active) workspace.closePane(active.id)
       } else if (e.shiftKey && key === 'b') {
         if (workspace.activeTab) workspace.toggleBroadcast(workspace.activeTab.key)
+      } else if (e.shiftKey && key === 'l') {
+        toggleHosts()
       } else if (e.shiftKey && key === 'h') {
         toggleClipboard()
       } else if (e.shiftKey && arrows[e.key]) {
@@ -131,6 +153,8 @@
     tabs={tabInfos}
     activeKey={workspace.activeKey}
     clipboardOpen={panel.kind === 'clipboard'}
+    {hostsOpen}
+    onToggleHosts={toggleHosts}
     onSelect={(key) => (workspace.activeKey = key)}
     onClose={(key) => workspace.closeTabs([key])}
     onCloseMany={(keys) => workspace.closeTabs(keys)}
@@ -143,6 +167,7 @@
   />
 
   <main class="flex min-h-0 flex-1 gap-3 px-3">
+    {#if hostsOpen}
     <Sidebar
       selectedId={panel.kind === 'host' ? panel.host.id : activeHostId}
       onConnect={connect}
@@ -153,6 +178,7 @@
       onNew={() => (panel = { kind: 'host', host: emptyHost() })}
       onImport={() => (importOpen = true)}
     />
+    {/if}
 
     <section class="flex min-w-0 flex-1 flex-col overflow-hidden rounded-panel border border-line bg-panel">
       <div class="flex h-11 shrink-0 items-center gap-3 border-b border-line pr-2 pl-4">

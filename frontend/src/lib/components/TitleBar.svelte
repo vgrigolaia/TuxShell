@@ -13,6 +13,8 @@
     tabs: TabInfo[]
     activeKey: number
     clipboardOpen: boolean
+    hostsOpen: boolean
+    onToggleHosts: () => void
     onSelect: (key: number) => void
     onClose: (key: number) => void
     onCloseMany: (keys: number[]) => void
@@ -24,7 +26,7 @@
     onToggleClipboard: () => void
   }
 
-  let { tabs, activeKey, clipboardOpen, onSelect, onClose, onCloseMany, onMerge, onSplit, onUnsplit, onNew, onSearch, onToggleClipboard }: Props = $props()
+  let { tabs, activeKey, clipboardOpen, hostsOpen, onToggleHosts, onSelect, onClose, onCloseMany, onMerge, onSplit, onUnsplit, onNew, onSearch, onToggleClipboard }: Props = $props()
 
   let maximised = $state(false)
   let strip: HTMLDivElement
@@ -127,7 +129,18 @@
   class="drag flex h-12 shrink-0 items-center gap-3 px-3"
   ondblclick={(e) => e.target === e.currentTarget && Window.ToggleMaximise()}
 >
-  <div class="flex items-center gap-2 pr-1 pl-1">
+  <button
+    class="{iconButton} {hostsOpen ? 'text-fg' : ''}"
+    aria-label={hostsOpen ? 'Hide hosts' : 'Show hosts'}
+    aria-pressed={hostsOpen}
+    aria-keyshortcuts="Control+Shift+L"
+    title="{hostsOpen ? 'Hide' : 'Show'} hosts (Ctrl+Shift+L)"
+    onclick={onToggleHosts}
+  >
+    <Icon name="sidebar" />
+  </button>
+
+  <div class="flex items-center gap-2 pr-1">
     <span class="grid size-7 place-items-center rounded-lg bg-accent text-ground">
       <Icon name="terminal" size={15} />
     </span>
