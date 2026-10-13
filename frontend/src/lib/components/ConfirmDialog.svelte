@@ -38,6 +38,6 @@
   <div class="mt-5 flex justify-end gap-2">
     <!-- Cancel is first in tab order and focused by default, so Enter doesn't delete by accident. -->
     <button class="rounded-lg px-3 py-1.5 text-[13px] text-muted hover:bg-raised hover:text-fg" onclick={() => dialog.close()}>Cancel</button>
-    <button class="rounded-lg bg-red-500/80 px-3 py-1.5 text-[13px] font-medium text-white hover:bg-red-500" onclick={confirm}>{confirmLabel}</button>
+    <button class="rounded-lg bg-danger px-3 py-1.5 text-[13px] font-medium text-white hover:bg-danger/90" onclick={confirm}>{confirmLabel}</button>
   </div>
 </dialog>

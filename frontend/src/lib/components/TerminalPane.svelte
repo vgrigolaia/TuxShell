@@ -13,6 +13,7 @@
   import { errorMessage, hostStore } from '../hosts.svelte'
   import LoginPrompt from './LoginPrompt.svelte'
   import { clipboardHistory } from '../clipboard.svelte'
+  import { terminalThemes, theme } from '../theme.svelte'
 
   interface Props {
     source: Source
@@ -94,23 +95,7 @@
         fontSize: 13,
         lineHeight: 1.25,
         scrollback: 10000,
-        theme: {
-          background: '#111318',
-          foreground: '#e6e7eb',
-          cursor: '#8b7cff',
-          cursorAccent: '#111318',
-          selectionBackground: '#8b7cff55',
-          black: '#1e212a',
-          brightBlack: '#5c6170',
-          green: '#a3e635',
-          brightGreen: '#bef264',
-          yellow: '#fb923c',
-          brightYellow: '#fdba74',
-          blue: '#7aa2ff',
-          brightBlue: '#a5c0ff',
-          magenta: '#8b7cff',
-          brightMagenta: '#b1a7ff',
-        },
+        theme: terminalThemes[theme.resolved],
       })
       fit = new FitAddon()
       term.loadAddon(fit)
@@ -244,6 +229,12 @@
       cleanups.forEach((fn) => fn())
       term?.dispose()
     }
+  })
+
+  // Recolour live terminals when the theme changes.
+  $effect(() => {
+    const palette = terminalThemes[theme.resolved]
+    if (term) term.options.theme = palette
   })
 
   $effect(() => {

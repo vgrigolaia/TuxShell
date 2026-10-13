@@ -177,7 +177,7 @@
         <span class="flex-1">Encrypted · {keepFor(clipboardHistory.settings.retentionDays)}</span>
         {#if clipboardHistory.history.length}
           {#if confirmClear}
-            <button class="rounded-md bg-red-500/80 px-2 py-1 text-white hover:bg-red-500" onclick={() => clipboardHistory.clear().then(() => (confirmClear = false))}>Clear history</button>
+            <button class="rounded-md bg-danger px-2 py-1 text-white hover:bg-danger/90" onclick={() => clipboardHistory.clear().then(() => (confirmClear = false))}>Clear history</button>
             <button class="rounded-md px-2 py-1 text-muted hover:bg-raised" onclick={() => (confirmClear = false)}>Keep</button>
           {:else}
             <button class="rounded-md px-2 py-1 text-muted hover:bg-raised hover:text-fg" title="Saved clips are kept" onclick={() => (confirmClear = true)}>Clear…</button>

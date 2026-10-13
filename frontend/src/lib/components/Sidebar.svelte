@@ -186,7 +186,7 @@
         {pickedVisible.length ? `${pickedVisible.length} selected` : `Select all${filter ? ' matching' : ''}`}
       </label>
       <button
-        class="rounded-md bg-red-500/80 px-2.5 py-1 text-xs font-medium text-white hover:bg-red-500 disabled:opacity-40"
+        class="rounded-md bg-danger px-2.5 py-1 text-xs font-medium text-white hover:bg-danger/90 disabled:opacity-40"
         disabled={picked.size === 0}
         onclick={() => (confirmBulk = true)}
       >

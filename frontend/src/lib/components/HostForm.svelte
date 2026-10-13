@@ -177,7 +177,7 @@
       {#if !isNew}
         {#if confirmDelete}
           <span class="text-xs text-muted">Delete?</span>
-          <button type="button" class="rounded-lg bg-red-500/80 px-2.5 py-1.5 text-xs text-white hover:bg-red-500" onclick={remove}>Delete</button>
+          <button type="button" class="rounded-lg bg-danger px-2.5 py-1.5 text-xs text-white hover:bg-danger/90" onclick={remove}>Delete</button>
           <button type="button" class="rounded-lg px-2.5 py-1.5 text-xs text-muted hover:bg-raised" onclick={() => (confirmDelete = false)}>Keep</button>
         {:else}
           <button type="button" class="rounded-lg px-2.5 py-1.5 text-xs text-muted hover:bg-raised hover:text-fg" onclick={() => (confirmDelete = true)}>Delete</button>

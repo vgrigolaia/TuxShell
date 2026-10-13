@@ -73,7 +73,7 @@
       <button
         role="menuitem"
         class="w-full rounded-lg px-3 py-1.5 text-left text-[13px] focus:outline-none {item.danger
-          ? 'text-red-300 hover:bg-red-500/20 focus:bg-red-500/20'
+          ? 'text-danger-text hover:bg-danger/15 focus:bg-danger/15'
           : 'hover:bg-line focus:bg-line'}"
         onclick={() => {
           onClose()

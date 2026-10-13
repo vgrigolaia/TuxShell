@@ -12,12 +12,36 @@
   --color-accent: #8b7cff;
   --color-success: #a3e635;
   --color-warning: #fb923c;
+  /* Destructive buttons (white text) and destructive menu text. */
+  --color-danger: #dc2626;
+  --color-danger-text: #fca5a5;
 
   --font-sans: "Geist Variable", system-ui, sans-serif;
   --font-display: "Space Grotesk Variable", "Geist Variable", sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
 
   --radius-panel: 14px;
+}
+
+/* Light theme: same tokens, light values (all text 4.5:1 or better). */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-ground: #f4f5f8;
+  --color-panel: #ffffff;
+  --color-raised: #eef0f4;
+  --color-line: #e2e4ea;
+  --color-fg: #16181d;
+  --color-muted: #4a5060;
+  --color-subtle: #5e6474;
+  --color-accent: #5b4be0;
+  --color-success: #3f6212;
+  --color-warning: #b4410c;
+  --color-danger: #c0262d;
+  --color-danger-text: #b91c1c;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 html,

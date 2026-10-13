@@ -5,6 +5,7 @@
   import Icon from './Icon.svelte'
   import ContextMenu, { type MenuItem } from './ContextMenu.svelte'
   import type { TabInfo } from '../tabs'
+  import { theme } from '../theme.svelte'
   import type { Orientation } from '../layout'
   import { MAX_PANES } from '../layout'
 
@@ -196,6 +197,15 @@
   </button>
 
   <button
+    class={iconButton}
+    aria-label="Theme: {theme.mode}. Switch theme"
+    title="Theme: {theme.mode === 'system' ? 'follow system' : theme.mode} (click to change)"
+    onclick={() => theme.cycle()}
+  >
+    <Icon name={theme.mode === 'dark' ? 'moon' : theme.mode === 'light' ? 'sun' : 'monitor'} />
+  </button>
+
+  <button
     class="{iconButton} {clipboardOpen ? 'bg-raised text-accent' : ''}"
     aria-label="Clipboard history"
     aria-pressed={clipboardOpen}
@@ -220,7 +230,7 @@
     >
       <Icon name={maximised ? 'restore' : 'maximize'} size={13} />
     </button>
-    <button class="{iconButton} hover:bg-red-500/80 hover:text-white" aria-label="Close window" onclick={() => Window.Close()}>
+    <button class="{iconButton} hover:bg-danger hover:text-white" aria-label="Close window" onclick={() => Window.Close()}>
       <Icon name="x" size={14} />
     </button>
   </div>
