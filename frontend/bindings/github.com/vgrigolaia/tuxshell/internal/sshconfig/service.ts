@@ -16,10 +16,11 @@ import * as $models from "./models.js";
 
 /**
  * Import saves the chosen aliases as hosts. Only aliases that are actually
- * in the config are accepted; already-imported ones are skipped.
+ * in the config are accepted; already-imported ones are skipped. Usernames
+ * are left empty unless withUsers is set, so ssh keeps choosing the login.
  */
-export function Import(aliases: string[] | null): $CancellablePromise<$models.ImportResult> {
-    return $Call.ByID(1625081876, aliases);
+export function Import(aliases: string[] | null, withUsers: boolean): $CancellablePromise<$models.ImportResult> {
+    return $Call.ByID(1625081876, aliases, withUsers);
 }
 
 /**

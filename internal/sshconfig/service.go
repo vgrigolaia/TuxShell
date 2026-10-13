@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os/user"
 
 	"github.com/vgrigolaia/tuxshell/internal/hosts"
 )
@@ -32,11 +33,18 @@ type Service struct {
 	store   *hosts.Store
 	path    string
 	resolve func(ctx context.Context, alias string) (Settings, error)
+	// localUser is ssh's fallback login name. `ssh -G` reports it for every
+	// host without a User line, so it doesn't mean the config chose it.
+	localUser string
 }
 
 // NewService imports from the config at path into store.
 func NewService(store *hosts.Store, path string) *Service {
-	return &Service{store: store, path: path, resolve: Resolve}
+	s := &Service{store: store, path: path, resolve: Resolve}
+	if u, err := user.Current(); err == nil {
+		s.localUser = u.Username
+	}
+	return s
 }
 
 // Scan lists the config's aliases with their effective settings.
@@ -62,6 +70,9 @@ func (s *Service) Scan(ctx context.Context) ([]Candidate, error) {
 		if set, err := s.resolve(ctx, e.Alias); err != nil {
 			c.Error = err.Error()
 		} else {
+			if set.User == s.localUser {
+				set.User = ""
+			}
 			c.Settings = set
 		}
 		out = append(out, c)
@@ -70,8 +81,9 @@ func (s *Service) Scan(ctx context.Context) ([]Candidate, error) {
 }
 
 // Import saves the chosen aliases as hosts. Only aliases that are actually
-// in the config are accepted; already-imported ones are skipped.
-func (s *Service) Import(ctx context.Context, aliases []string) (ImportResult, error) {
+// in the config are accepted; already-imported ones are skipped. Usernames
+// are left empty unless withUsers is set, so ssh keeps choosing the login.
+func (s *Service) Import(ctx context.Context, aliases []string, withUsers bool) (ImportResult, error) {
 	candidates, err := s.Scan(ctx)
 	if err != nil {
 		return ImportResult{}, err
@@ -94,15 +106,18 @@ func (s *Service) Import(ctx context.Context, aliases []string) (ImportResult, e
 			res.Skipped = append(res.Skipped, fmt.Sprintf("%s: %s", alias, c.Error))
 			continue
 		}
-		_, err := s.store.Save(hosts.Host{
+		h := hosts.Host{
 			Name:      c.Alias,
 			Group:     ImportGroup,
 			Alias:     c.Alias,
 			Hostname:  c.Hostname,
-			User:      c.User,
 			Port:      c.Port,
 			ProxyJump: c.ProxyJump,
-		})
+		}
+		if withUsers {
+			h.User = c.User
+		}
+		_, err := s.store.Save(h)
 		var ve *hosts.ValidationError
 		switch {
 		case errors.As(err, &ve):

@@ -15,6 +15,7 @@
   let chosen = $state<Record<string, boolean>>({})
   let error = $state<string | null>(null)
   let busy = $state(false)
+  let withUsers = $state(false)
   let result = $state<{ imported: number; skipped: string[] } | null>(null)
 
   const importable = $derived((candidates ?? []).filter((c) => !c.imported && !c.error))
@@ -39,7 +40,7 @@
     busy = true
     error = null
     try {
-      const res = await SSHConfig.Import(selected.map((c) => c.alias))
+      const res = await SSHConfig.Import(selected.map((c) => c.alias), withUsers)
       result = { imported: res.imported, skipped: res.skipped ?? [] }
       await hostStore.load()
     } catch (e) {
@@ -55,7 +56,7 @@
   }
 
   function describe(c: Candidate) {
-    const user = c.user ? `${c.user}@` : ''
+    const user = withUsers && c.user ? `${c.user}@` : ''
     const port = c.port && c.port !== 22 ? `:${c.port}` : ''
     const via = c.proxyJump ? ` · via ${c.proxyJump}` : ''
     return `${user}${c.hostname}${port}${via}`
@@ -120,6 +121,13 @@
   </div>
 
   <div class="flex items-center justify-end gap-2 border-t border-line px-5 py-3">
+    {#if !result}
+      <label class="mr-auto flex items-center gap-2 text-xs text-muted">
+        <input type="checkbox" class="size-4 accent-accent" bind:checked={withUsers} aria-describedby="import-users-hint" />
+        Import usernames from config
+        <span id="import-users-hint" class="sr-only">Off: ssh picks the login name when you connect.</span>
+      </label>
+    {/if}
     {#if result}
       <button class="rounded-lg bg-accent px-3 py-1.5 text-[13px] font-medium text-ground hover:bg-accent/90" onclick={() => dialog.close()}>Done</button>
     {:else}

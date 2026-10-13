@@ -96,15 +96,20 @@ func TestImport(t *testing.T) {
 	defer store.Close()
 
 	svc := NewService(store, cfg)
+	svc.localUser = "me"
 	svc.resolve = func(_ context.Context, alias string) (Settings, error) {
-		if alias == "broken" {
+		switch alias {
+		case "broken":
 			return Settings{}, errors.New("boom")
+		case "db":
+			return Settings{Hostname: "db.example", User: "postgres", Port: 5432}, nil
 		}
+		// No User line in the config: ssh -G reports the local login.
 		return Settings{Hostname: alias + ".example", User: "me", Port: 22}, nil
 	}
 	ctx := context.Background()
 
-	res, err := svc.Import(ctx, []string{"web", "broken", "-bad", "not-there"})
+	res, err := svc.Import(ctx, []string{"web", "broken", "-bad", "not-there"}, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,9 +121,13 @@ func TestImport(t *testing.T) {
 	if len(list) != 1 || list[0].Alias != "web" || list[0].Hostname != "web.example" || list[0].Group != ImportGroup {
 		t.Fatalf("hosts = %+v", list)
 	}
+	// The local-login fallback is never imported as if the config set it.
+	if list[0].User != "" {
+		t.Fatalf("web user = %q, want empty", list[0].User)
+	}
 
 	// Re-importing is a no-op; the scan marks it imported.
-	res, err = svc.Import(ctx, []string{"web"})
+	res, err = svc.Import(ctx, []string{"web"}, true)
 	if err != nil || res.Imported != 0 {
 		t.Fatalf("reimport = %+v, %v", res, err)
 	}
@@ -130,5 +139,37 @@ func TestImport(t *testing.T) {
 		if c.Imported != (c.Alias == "web") {
 			t.Errorf("%s imported = %v", c.Alias, c.Imported)
 		}
+	}
+}
+
+func TestImportUsersOptIn(t *testing.T) {
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "config")
+	write(t, cfg, "Host db cache\n")
+	store, err := hosts.Open(filepath.Join(dir, "hosts.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	svc := NewService(store, cfg)
+	svc.resolve = func(_ context.Context, alias string) (Settings, error) {
+		return Settings{Hostname: alias + ".example", User: "postgres", Port: 22}, nil
+	}
+	ctx := context.Background()
+
+	if _, err := svc.Import(ctx, []string{"db"}, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Import(ctx, []string{"cache"}, true); err != nil {
+		t.Fatal(err)
+	}
+	users := map[string]string{}
+	list, _ := store.List()
+	for _, h := range list {
+		users[h.Alias] = h.User
+	}
+	if users["db"] != "" || users["cache"] != "postgres" {
+		t.Fatalf("users = %v, want db empty and cache postgres", users)
 	}
 }
