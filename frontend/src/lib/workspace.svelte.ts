@@ -18,6 +18,8 @@ export interface Pane {
   /** Typing and pasting are blocked. */
   readOnly: boolean
   showScrollbar: boolean
+  /** When the current session started (ms), or 0 before it connects. */
+  startedAt: number
 }
 
 /** A workspace tab showing 1–4 panes. */
@@ -33,12 +35,18 @@ export interface Tab {
   excluded: number[]
   /** A pane temporarily filling the whole tab, or null. */
   maximized: number | null
+  /** Name set by the user (or the host group it was opened from); '' means automatic. */
+  name: string
 }
+
+/** activeKey of the Home screen (the hosts launchpad); real tabs start at 1. */
+export const HOME = 0
 
 class Workspace {
   panes = $state<Pane[]>([])
   tabs = $state<Tab[]>([])
-  activeKey = $state(0)
+  /** The shown tab, or HOME. */
+  activeKey = $state(HOME)
 
   private nextPane = 1
   private nextTab = 1
@@ -46,9 +54,6 @@ class Workspace {
   activeTab = $derived(this.tabs.find((t) => t.key === this.activeKey))
   activePane = $derived(this.activeTab ? this.pane(this.activeTab.activePane) : undefined)
 
-  constructor() {
-    this.openTab({ kind: 'shell' }, 'Local shell')
-  }
 
   pane(id: number) {
     return this.panes.find((p) => p.id === id)
@@ -60,12 +65,13 @@ class Workspace {
 
   /** Tab label: the pane title, or "a + b" for splits. */
   tabTitle(tab: Tab): string {
+    if (tab.name) return tab.name
     const titles = tab.paneIds.map((id) => this.pane(id)?.title ?? '')
     return titles.length <= 2 ? titles.join(' + ') : `${titles[0]} +${titles.length - 1}`
   }
 
   private makePane(source: Source, title: string): Pane {
-    const pane: Pane = { id: this.nextPane++, title, termTitle: '', source, exited: false, size: '', loginUser: '', customTitle: false, readOnly: false, showScrollbar: true }
+    const pane: Pane = { id: this.nextPane++, title, termTitle: '', source, exited: false, size: '', loginUser: '', customTitle: false, readOnly: false, showScrollbar: true, startedAt: 0 }
     this.panes.push(pane)
     return pane
   }
@@ -75,11 +81,12 @@ class Workspace {
       key: this.nextTab++,
       paneIds,
       orientation,
-      sizes: defaultSizes(paneIds.length),
+      sizes: defaultSizes(paneIds.length, orientation),
       activePane: paneIds[0],
       broadcast: false,
       excluded: [],
       maximized: null,
+      name: '',
     }
   }
 
@@ -99,7 +106,7 @@ class Workspace {
     const pane = this.makePane(source, title)
     if (tab.paneIds.length === 1) tab.orientation = orientation
     tab.paneIds.push(pane.id)
-    tab.sizes = defaultSizes(tab.paneIds.length)
+    tab.sizes = defaultSizes(tab.paneIds.length, tab.orientation)
     tab.activePane = pane.id
     tab.maximized = null
     // A pane added mid-broadcast starts excluded, so it never gets keystrokes by surprise.
@@ -116,7 +123,7 @@ class Workspace {
     const [target, ...rest] = chosen
     target.paneIds = ids
     target.orientation = orientation
-    target.sizes = defaultSizes(ids.length)
+    target.sizes = defaultSizes(ids.length, orientation)
     target.broadcast = false
     target.excluded = []
     target.maximized = null
@@ -160,7 +167,7 @@ class Workspace {
   private removeFromTab(tab: Tab, paneId: number) {
     const i = tab.paneIds.indexOf(paneId)
     tab.paneIds.splice(i, 1)
-    tab.sizes = defaultSizes(tab.paneIds.length)
+    tab.sizes = defaultSizes(tab.paneIds.length, tab.orientation)
     tab.excluded = tab.excluded.filter((id) => id !== paneId)
     // Broadcasting to a single pane is just typing.
     if (tab.paneIds.length < 2) tab.broadcast = false
@@ -176,7 +183,8 @@ class Workspace {
     const goneIds = new Set(before.filter((t) => drop.has(t.key)).flatMap((t) => t.paneIds))
     this.tabs = before.filter((t) => !drop.has(t.key))
     this.panes = this.panes.filter((p) => !goneIds.has(p.id))
-    if (this.tabs.length === 0) return this.openTab({ kind: 'shell' }, 'Local shell')
+    // Closing the last tab goes back to Home.
+    if (this.tabs.length === 0) return void (this.activeKey = HOME)
     if (drop.has(this.activeKey)) {
       // Prefer the nearest surviving tab to the left of the old active one.
       const left = before.slice(0, activeIndex).reverse().find((t) => !drop.has(t.key))
@@ -234,6 +242,12 @@ class Workspace {
     if (!tab || tab.paneIds.length < 2) return
     tab.maximized = tab.maximized === paneId ? null : paneId
     tab.activePane = paneId
+  }
+
+  /** Names a tab; an empty name goes back to the automatic one. */
+  renameTab(key: number, name: string) {
+    const tab = this.tabs.find((t) => t.key === key)
+    if (tab) tab.name = name.trim()
   }
 
   /** Sets a pane's title; an empty title goes back to the automatic one. */

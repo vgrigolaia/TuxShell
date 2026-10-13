@@ -7,10 +7,19 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
 
 ## Features
 
+- **Home**: a start page with your hosts, snippets and tunnels. Double-click Hosts to
+  open the host list next to your sessions.
 - **Hosts**: saved hosts with groups, tags, jump hosts (ProxyJump) and identity files.
   Filter, bulk select and delete. Import from `~/.ssh/config` (usernames optional).
   Hosts without a saved user ask for one when you connect, with an option to save it.
-- **Quick connect** (Ctrl+K): fuzzy search your hosts, or type `user@host:port`.
+- **Host status**: a dot shows which hosts answer ping (up, slow or down). Checked with
+  ICMP, never by opening SSH connections; can be turned off. Test a host's login from its form.
+- **Quick connect** (Ctrl+K): fuzzy search your hosts, snippets, tunnels and actions, or
+  type `user@host:port`. Open a result in a split.
+- **Snippets**: saved commands, pasted into the terminal from Ctrl+K. They never run until
+  you press Enter.
+- **Tunnels**: local port forwards and SOCKS proxies through a saved host, listening on
+  127.0.0.1 only. Password-only hosts can share an open terminal's connection.
 - **Tabs and split view**: up to four panes per tab. Merge tabs into a split, move a pane
   out to its own tab, maximize a pane, drag dividers to resize.
 - **Broadcast typing** (Ctrl+Shift+B): type into all panes of a tab at once, leaving
@@ -21,6 +30,7 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
   file picker or drag-and-drop. Never overwrites files on either side.
 - **Clipboard history** (Ctrl+Shift+H): encrypted at rest with a key in your keyring.
   Skips password- and token-looking text. Pin and edit clips, choose how long they're kept.
+  Each clip shows which host it was copied from.
 - **Preferences** (Ctrl+,): font (bundled or any installed monospace font), size, spacing,
   weights, cursor, colour schemes (Solarized, Dracula, Nord, Gruvbox, One Dark, Tango…),
   scrollback, copy on select, right-click paste, bell, local shell. Saved to
@@ -38,17 +48,17 @@ Download the package for your distribution from the
 
 ```sh
 # Fedora, RHEL, AlmaLinux, Rocky Linux
-sudo dnf install ./tuxshell-1.0.0-1.x86_64.rpm
+sudo dnf install ./tuxshell-1.1.0-1.x86_64.rpm
 
 # Debian, Ubuntu
-sudo apt install ./tuxshell_1.0.0-1_amd64.deb
+sudo apt install ./tuxshell_1.1.0-1_amd64.deb
 ```
 
 Or run the AppImage on any distribution:
 
 ```sh
-chmod +x TuxShell-1.0.0-x86_64.AppImage
-./TuxShell-1.0.0-x86_64.AppImage
+chmod +x TuxShell-1.1.0-x86_64.AppImage
+./TuxShell-1.1.0-x86_64.AppImage
 ```
 
 Supported: Fedora 39+, RHEL/Alma/Rocky 10, Debian 13+ and Ubuntu 24.04+. TuxShell needs

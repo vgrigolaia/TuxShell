@@ -98,7 +98,7 @@
       >
         {#if item.checked !== undefined}
           <!-- Checkbox items show their state where icons go. -->
-          <span class="-mr-3 grid size-4 place-items-center rounded border {item.checked ? 'border-accent bg-accent text-ground' : 'border-subtle'}" aria-hidden="true">
+          <span class="-mr-3 grid size-4 place-items-center rounded border {item.checked ? 'border-accent bg-accent text-on-accent' : 'border-subtle'}" aria-hidden="true">
             {#if item.checked}<Icon name="check" size={11} />{/if}
           </span>
         {:else if items.some((i) => i.icon || i.checked !== undefined)}

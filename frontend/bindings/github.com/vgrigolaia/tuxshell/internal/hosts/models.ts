@@ -23,3 +23,31 @@ export interface Host {
     "passwordRef": string;
     "tags": string[] | null;
 }
+
+/**
+ * Snippet is a saved command that can be pasted into a terminal.
+ */
+export interface Snippet {
+    "id": number;
+    "name": string;
+    "command": string;
+    "group": string;
+}
+
+/**
+ * Tunnel is a saved port forward through a host.
+ */
+export interface Tunnel {
+    "id": number;
+    "name": string;
+    "hostId": number;
+
+    /**
+     * Kind is "local" (-L: a local port reaches TargetHost:TargetPort from
+     * the host) or "dynamic" (-D: a SOCKS proxy on the local port).
+     */
+    "kind": string;
+    "bindPort": number;
+    "targetHost": string;
+    "targetPort": number;
+}

@@ -1,6 +1,7 @@
 /** Split layouts: geometry in percentages of the terminal area. */
 
-export type Orientation = 'row' | 'column'
+/** row/column line panes up; grid puts 3 as one wide pane over two, and 4 as 2×2. */
+export type Orientation = 'row' | 'column' | 'grid'
 
 export interface Rect {
   left: number
@@ -17,12 +18,24 @@ export const MIN_SHARE = 0.15
 /** Even shares for n panes along one axis. */
 export const evenSizes = (n: number): number[] => Array.from({ length: n }, () => 1 / n)
 
+/** Layouts sized by [column split, row split] rather than one share per pane. */
+const isGrid = (n: number, orientation: Orientation) => n === 4 || (n === 3 && orientation === 'grid')
+
 /**
  * Pane rectangles for n panes. 1 fills the area; 2–3 line up along the
- * orientation using sizes; 4 form a grid where sizes = [column split, row split].
+ * orientation using sizes; grids use sizes = [column split, row split].
  */
 export function rects(n: number, orientation: Orientation, sizes: number[]): Rect[] {
   if (n <= 1) return [{ left: 0, top: 0, width: 100, height: 100 }]
+  if (n === 3 && orientation === 'grid') {
+    const c = (sizes[0] ?? 0.5) * 100
+    const r = (sizes[1] ?? 0.5) * 100
+    return [
+      { left: 0, top: 0, width: 100, height: r },
+      { left: 0, top: r, width: c, height: 100 - r },
+      { left: c, top: r, width: 100 - c, height: 100 - r },
+    ]
+  }
   if (n === 4) {
     const c = (sizes[0] ?? 0.5) * 100
     const r = (sizes[1] ?? 0.5) * 100
@@ -37,15 +50,15 @@ export function rects(n: number, orientation: Orientation, sizes: number[]): Rec
   let at = 0
   for (let i = 0; i < n; i++) {
     const share = (sizes[i] ?? 1 / n) * 100
-    out.push(orientation === 'row' ? { left: at, top: 0, width: share, height: 100 } : { left: 0, top: at, width: 100, height: share })
+    out.push(orientation !== 'column' ? { left: at, top: 0, width: share, height: 100 } : { left: 0, top: at, width: 100, height: share })
     at += share
   }
   return out
 }
 
 /** Default sizes for n panes. */
-export function defaultSizes(n: number): number[] {
-  return n === 4 ? [0.5, 0.5] : evenSizes(n)
+export function defaultSizes(n: number, orientation: Orientation = 'row'): number[] {
+  return isGrid(n, orientation) ? [0.5, 0.5] : evenSizes(n)
 }
 
 export interface Divider {
@@ -55,11 +68,18 @@ export interface Divider {
   at: number
   /** Index into sizes that dragging this divider changes. */
   index: number
+  /** Where the bar starts along the other axis, in percent (default 0). */
+  from?: number
 }
 
 /** Draggable dividers for a layout. */
 export function dividers(n: number, orientation: Orientation, sizes: number[]): Divider[] {
   if (n <= 1) return []
+  if (n === 3 && orientation === 'grid') return [
+    { axis: 'y', at: (sizes[1] ?? 0.5) * 100, index: 1 },
+    // The column split only runs through the bottom row.
+    { axis: 'x', at: (sizes[0] ?? 0.5) * 100, index: 0, from: (sizes[1] ?? 0.5) * 100 },
+  ]
   if (n === 4) return [
     { axis: 'x', at: (sizes[0] ?? 0.5) * 100, index: 0 },
     { axis: 'y', at: (sizes[1] ?? 0.5) * 100, index: 1 },
@@ -68,7 +88,7 @@ export function dividers(n: number, orientation: Orientation, sizes: number[]): 
   let at = 0
   for (let i = 0; i < n - 1; i++) {
     at += (sizes[i] ?? 1 / n) * 100
-    out.push({ axis: orientation === 'row' ? 'x' : 'y', at, index: i })
+    out.push({ axis: orientation !== 'column' ? 'x' : 'y', at, index: i })
   }
   return out
 }
@@ -77,9 +97,9 @@ export function dividers(n: number, orientation: Orientation, sizes: number[]): 
  * New sizes after dragging divider d to position pos (0–1 along its axis),
  * keeping every pane at least MIN_SHARE.
  */
-export function drag(n: number, sizes: number[], d: Divider, pos: number): number[] {
+export function drag(n: number, sizes: number[], d: Divider, pos: number, orientation: Orientation = 'row'): number[] {
   const next = [...sizes]
-  if (n === 4) {
+  if (isGrid(n, orientation)) {
     next[d.index] = clamp(pos, MIN_SHARE, 1 - MIN_SHARE)
     return next
   }

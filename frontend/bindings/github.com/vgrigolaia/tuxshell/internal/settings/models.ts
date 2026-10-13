@@ -23,6 +23,11 @@ export interface Settings {
      * HostsSidebar shows the hosts sidebar.
      */
     "hostsSidebar": boolean;
+
+    /**
+     * HostStatus pings saved hosts in the background to show which are up.
+     */
+    "hostStatus": boolean;
     "terminal": Terminal;
 }
 

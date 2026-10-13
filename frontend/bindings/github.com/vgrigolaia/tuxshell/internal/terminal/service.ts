@@ -25,6 +25,13 @@ export function CloseAll(): $CancellablePromise<void> {
 }
 
 /**
+ * DisplayServer names the desktop session type ("Wayland" or "X11"), for the status bar.
+ */
+export function DisplayServer(): $CancellablePromise<string> {
+    return $Call.ByID(365608862);
+}
+
+/**
  * LiveCount is how many sessions are running and haven't been asked to close.
  */
 export function LiveCount(): $CancellablePromise<number> {

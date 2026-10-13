@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Relay — Launchpad</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&amp;family=Manrope:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#EEF0F5}
+a{color:#2347E0}a:hover{color:#1633AE}
+.nav{display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:12px;font-size:14px;font-weight:500;color:#3D4454}
+.card{display:flex;flex-direction:column;gap:14px;padding:18px;background:#FFFFFF;border-radius:20px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 8px 24px rgba(16,24,40,.06)}
+.os{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font-family:'Sora',sans-serif;font-weight:700;font-size:14px}
+.tag{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:999px;font-size:11.5px;font-weight:600}
+.meta{font-family:'JetBrains Mono',monospace;font-size:12px;color:#5A6273}
+.lbl{font-size:12px;font-weight:600;color:#3D4454}
+.inp{height:40px;box-sizing:border-box;width:100%;padding:0 12px;border-radius:11px;border:1px solid #D6DAE3;background:#FFFFFF;font:inherit;font-size:13.5px;color:#141824}
+.chipf{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 14px;border-radius:999px;font-size:13px;font-weight:600}
+</style>
+</head>
+<body>
+
+
+<div style="min-height: 900px; box-sizing: border-box; display: flex; flex-wrap: wrap; background: #EEF0F5; color: #141824; font-family: 'Manrope', system-ui, sans-serif">
+
+  <nav aria-label="Main" style="flex: 0 0 232px; display: flex; flex-direction: column; gap: 4px; padding: 22px 14px; background: #F8F9FB; border-right: 1px solid #E2E5EC">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 8px 22px">
+      <div style="width: 34px; height: 34px; border-radius: 11px; background: #141824; display: grid; place-items: center">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2F5BFF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17l6-5-6-5"></path><path d="M13 19h6"></path></svg>
+      </div>
+      <span style="font-family: 'Sora', sans-serif; font-weight: 700; font-size: 19px; letter-spacing: -0.03em">relay</span>
+    </div>
+    <a href="#" class="nav" style="background: #FFFFFF; color: #141824; box-shadow: 0 1px 3px rgba(16,24,40,.08); text-decoration: none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2F5BFF" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="2"></rect><rect x="3" y="13" width="18" height="7" rx="2"></rect></svg>Hosts<span style="margin-left: auto; font-size: 12px; color: #5A6273">24</span></a>
+    <a href="#" class="nav" style="text-decoration: none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3"></path></svg>Keychain</a>
+    <a href="#" class="nav" style="text-decoration: none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 6l-6 6 6 6M16 6l6 6-6 6"></path></svg>Snippets</a>
+    <a href="#" class="nav" style="text-decoration: none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 20V10a8 8 0 0 1 16 0v10"></path><path d="M9 20v-6a3 3 0 0 1 6 0v6"></path></svg>Tunnels</a>
+    <a href="#" class="nav" style="text-decoration: none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>History</a>
+    <div style="margin-top: auto; padding: 14px; border-radius: 16px; background: #FFFFFF; border: 1px solid #E2E5EC; display: flex; flex-direction: column; gap: 8px">
+      <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700"><span style="width: 8px; height: 8px; border-radius: 50%; background: #16A34A"></span>1Password connected</div>
+      <div style="font-size: 12px; color: #5A6273; line-height: 1.45">Vault “Infra” · SSH agent active. Secrets are never written to disk.</div>
+    </div>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 20px; padding: 26px 30px">
+    <header style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap">
+      <h1 style="margin: 0; font-family: 'Sora', sans-serif; font-weight: 700; font-size: 30px; letter-spacing: -0.03em">Good afternoon</h1>
+      <div style="margin-left: auto; display: flex; gap: 10px">
+        <button style="height: 42px; padding: 0 16px; border-radius: 13px; border: 1px solid #D6DAE3; background: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600; color: #141824">Import</button>
+        <button style="height: 42px; padding: 0 18px; border-radius: 13px; border: 0; background: #2F5BFF; font: inherit; font-size: 14px; font-weight: 700; color: #FFFFFF; box-shadow: 0 6px 18px #2F5BFF33">+ New host</button>
+      </div>
+    </header>
+
+    <label for="qc" style="position: absolute; left: -9999px">Quick connect</label>
+    <div style="display: flex; align-items: center; gap: 12px; height: 58px; padding: 0 18px; border-radius: 18px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,24,40,.05), 0 10px 30px rgba(16,24,40,.07)">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5A6273" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+      <input id="qc" placeholder="user@host, a name, or a tag — Enter connects" style="flex: 1; border: 0; outline: none; font: inherit; font-size: 16px; color: #141824; background: transparent">
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: #3D4454; background: #EEF0F5; border-radius: 7px; padding: 4px 8px">Ctrl K</span>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-radius: 16px; background: #E8EDFF; color: #1A2C80; font-size: 13.5px; flex-wrap: wrap">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2347E0" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"></path></svg>
+      <span><strong>Found 18 hosts</strong> in ~/.ssh/config and <strong>3 nodes</strong> from the Proxmox API.</span>
+      <button style="margin-left: auto; height: 32px; padding: 0 14px; border-radius: 10px; border: 0; background: #2347E0; color: #FFFFFF; font: inherit; font-size: 13px; font-weight: 700">Review &amp; import</button>
+    </div>
+
+    <div style="display: flex; gap: 8px; flex-wrap: wrap">
+      <span class="chipf" style="background: #141824; color: #FFFFFF">All 24</span>
+      <span class="chipf" style="background: #FFFFFF; color: #3D4454; box-shadow: inset 0 0 0 1px #E2E5EC">PostgreSQL 6</span>
+      <span class="chipf" style="background: #FFFFFF; color: #3D4454; box-shadow: inset 0 0 0 1px #E2E5EC">Proxmox 4</span>
+      <span class="chipf" style="background: #FFFFFF; color: #3D4454; box-shadow: inset 0 0 0 1px #E2E5EC">Observability 5</span>
+      <span class="chipf" style="background: #FFFFFF; color: #3D4454; box-shadow: inset 0 0 0 1px #E2E5EC">Kubernetes 3</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px">
+      <div class="card" style="box-shadow: 0 0 0 2px #2F5BFF, 0 10px 30px #2F5BFF33">
+        <div style="display: flex; align-items: center; gap: 12px"><span class="os" style="background: #EAE6FF; color: #4B32C3">Al</span><div style="display: flex; flex-direction: column"><span style="font-weight: 700; font-size: 15px">pg-primary</span><span class="meta">postgres@10.0.0.11</span></div></div>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap"><span class="tag" style="background: #EEF0F5; color: #3D4454">patroni</span><span class="tag" style="background: #EEF0F5; color: #3D4454">leader</span></div>
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #3D4454"><span style="width: 8px; height: 8px; border-radius: 50%; background: #16A34A"></span>Online · 3 ms<span style="margin-left: auto; display: flex; align-items: center; gap: 5px; color: #5A6273"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"></path></svg>1P key</span></div>
+      </div>
+      <div class="card">
+        <div style="display: flex; align-items: center; gap: 12px"><span class="os" style="background: #EAE6FF; color: #4B32C3">Al</span><div style="display: flex; flex-direction: column"><span style="font-weight: 700; font-size: 15px">pg-replica-1</span><span class="meta">postgres@10.0.0.12</span></div></div>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap"><span class="tag" style="background: #EEF0F5; color: #3D4454">patroni</span><span class="tag" style="background: #EEF0F5; color: #3D4454">replica</span></div>
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #3D4454"><span style="width: 8px; height: 8px; border-radius: 50%; background: #16A34A"></span>Online · 3 ms<span style="margin-left: auto; display: flex; align-items: center; gap: 5px; color: #5A6273"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"></path></svg>1P key</span></div>
+      </div>
+      <div class="card">
+        <div style="display: flex; align-items: center; gap: 12px"><span class="os" style="background: #DDF5EF; color: #0B6E5C">Dv</span><div style="display: flex; flex-direction: column"><span style="font-weight: 700; font-size: 15px">pve-node-01</span><span class="meta">root@10.0.1.21</span></div></div>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap"><span class="tag" style="background: #EEF0F5; color: #3D4454">proxmox</span><span class="tag" style="background: #EEF0F5; color: #3D4454">ceph</span></div>
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #3D4454"><span style="width: 8px; height: 8px; border-radius: 50%; background: #16A34A"></span>Online · 5 ms<span style="margin-left: auto; display: flex; align-items: center; gap: 5px; color: #5A6273"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"></path></svg>1P key</span></div>
+      </div>
+      <div class="card">
+        <div style="display: flex; align-items: center; gap: 12px"><span class="os" style="background: #FFE9D6; color: #A3480B">Ub</span><div style="display: flex; flex-direction: column"><span style="font-weight: 700; font-size: 15px">haproxy-01</span><span class="meta">admin@10.0.0.5</span></div></div>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap"><span class="tag" style="background: #EEF0F5; color: #3D4454">lb</span><span class="tag" style="background: #FFF1E0; color: #8A3D06">slow</span></div>
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #3D4454"><span style="width: 8px; height: 8px; border-radius: 50%; border: 2px solid #D97706; box-sizing: border-box"></span>Degraded · 88 ms<span style="margin-left: auto; display: flex; align-items: center; gap: 5px; color: #5A6273">password</span></div>
+      </div>
+      <div class="card">
+        <div style="display: flex; align-items: center; gap: 12px"><span class="os" style="background: #FCE4F2; color: #9D1D6B">Al</span><div style="display: flex; flex-direction: column"><span style="font-weight: 700; font-size: 15px">loki-01</span><span class="meta">ops@10.0.2.7</span></div></div>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap"><span class="tag" style="background: #EEF0F5; color: #3D4454">docker</span><span class="tag" style="background: #EEF0F5; color: #3D4454">logs</span></div>
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #3D4454"><span style="width: 8px; height: 8px; border-radius: 50%; background: #16A34A"></span>Online · 4 ms<span style="margin-left: auto; display: flex; align-items: center; gap: 5px; color: #5A6273"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"></path></svg>1P key</span></div>
+      </div>
+      <div class="card" style="background: #F8F9FB; box-shadow: inset 0 0 0 1px #E2E5EC">
+        <div style="display: flex; align-items: center; gap: 12px"><span class="os" style="background: #E6E8EE; color: #5A6273">Dv</span><div style="display: flex; flex-direction: column"><span style="font-weight: 700; font-size: 15px; color: #5A6273">pve-old-01</span><span class="meta">root@10.0.1.9</span></div></div>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap"><span class="tag" style="background: #E6E8EE; color: #5A6273">retiring</span></div>
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #5A6273"><span style="width: 8px; height: 8px; border-radius: 50%; background: #9AA1AE"></span>Offline · last seen 3d</div>
+      </div>
+    </div>
+  </main>
+
+  <aside aria-label="Edit host" style="flex: 0 0 360px; display: flex; flex-direction: column; gap: 18px; padding: 26px 24px; background: #FFFFFF; border-left: 1px solid #E2E5EC">
+    <div style="display: flex; align-items: center; gap: 12px">
+      <span class="os" style="background: #EAE6FF; color: #4B32C3">Al</span>
+      <div style="display: flex; flex-direction: column"><span style="font-family: 'Sora', sans-serif; font-weight: 700; font-size: 18px">pg-primary</span><span style="font-size: 12px; color: #5A6273">AlmaLinux 10 · edited 2d ago</span></div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">
+      <div style="grid-column: span 2; display: flex; flex-direction: column; gap: 6px"><label class="lbl" for="h">Host</label><input id="h" class="inp" value="10.0.0.11"></div>
+      <div style="display: flex; flex-direction: column; gap: 6px"><label class="lbl" for="p">Port</label><input id="p" class="inp" value="22"></div>
+      <div style="grid-column: span 3; display: flex; flex-direction: column; gap: 6px"><label class="lbl" for="u">User</label><input id="u" class="inp" value="postgres"></div>
+      <div style="grid-column: span 3; display: flex; flex-direction: column; gap: 6px"><label class="lbl" for="j">Jump host</label><input id="j" class="inp" value="bastion-01"></div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 16px; background: #F4F6FF; border: 1px solid #DCE2FF">
+      <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: #1A2C80"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2347E0" stroke-width="2.2" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"></path></svg>Credentials from 1Password</div>
+      <div style="display: flex; flex-direction: column; gap: 6px"><label class="lbl" for="k">SSH key</label><input id="k" class="inp" value="op://Infra/pg-primary/private key" style="font-family: 'JetBrains Mono', monospace; font-size: 12px; background: #FFFFFF"></div>
+      <div style="display: flex; flex-direction: column; gap: 6px"><label class="lbl" for="s">sudo password</label><input id="s" class="inp" value="op://Infra/pg-primary/password" style="font-family: 'JetBrains Mono', monospace; font-size: 12px; background: #FFFFFF"></div>
+      <div style="font-size: 11.5px; color: #3D4A80; line-height: 1.45">Only the reference is stored. Values are fetched on connect and kept in memory.</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <label style="display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: #141824"><input type="checkbox" checked="" style="width: 18px; height: 18px; accent-color: #2347E0">Forward 1Password agent</label>
+      <label style="display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: #141824"><input type="checkbox" style="width: 18px; height: 18px; accent-color: #2347E0">Record session</label>
+    </div>
+
+    <div style="margin-top: auto; display: flex; gap: 10px">
+      <button style="flex: 1; height: 44px; border-radius: 13px; border: 1px solid #D6DAE3; background: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600; color: #141824">Test</button>
+      <button style="flex: 2; height: 44px; border-radius: 13px; border: 0; background: #141824; font: inherit; font-size: 14px; font-weight: 700; color: #FFFFFF">Save &amp; connect</button>
+    </div>
+  </aside>
+</div>
+
+</body>
+</html>

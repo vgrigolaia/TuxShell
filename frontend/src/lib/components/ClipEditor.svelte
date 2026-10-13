@@ -74,6 +74,6 @@
   </div>
   <div class="flex justify-end gap-2">
     <button type="button" class="rounded-lg px-3 py-1.5 text-[13px] text-muted hover:bg-raised hover:text-fg" onclick={onDone}>Cancel</button>
-    <button type="submit" disabled={saving || !text.trim()} class="rounded-lg bg-accent px-3 py-1.5 text-[13px] font-medium text-ground hover:bg-accent/90 disabled:opacity-50">Save</button>
+    <button type="submit" disabled={saving || !text.trim()} class="rounded-lg bg-accent px-3 py-1.5 text-[13px] font-medium text-on-accent hover:bg-accent/90 disabled:opacity-50">Save</button>
   </div>
 </form>

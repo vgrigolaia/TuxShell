@@ -22,6 +22,13 @@ export function Add(text: string): $CancellablePromise<boolean> {
 }
 
 /**
+ * AddFrom records text copied in a terminal, with the host it came from.
+ */
+export function AddFrom(text: string, source: string): $CancellablePromise<boolean> {
+    return $Call.ByID(2644317210, text, source);
+}
+
+/**
  * CaptureSystem records the current system clipboard. On Wayland apps can
  * only read the clipboard while focused, so this runs when the window gains focus.
  */

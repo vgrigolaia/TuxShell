@@ -83,6 +83,21 @@ func batchOptions(controlDir string) []string {
 	)
 }
 
+// tunnelOptions run a forward-only connection of its own (-N): it never
+// prompts, fails if the port can't be forwarded, and notices dead links.
+func tunnelOptions() []string {
+	return []string{
+		"-N", "-T",
+		"-o", "BatchMode=yes",
+		"-o", "ConnectTimeout=10",
+		"-o", "ExitOnForwardFailure=yes",
+		"-o", "ServerAliveInterval=30",
+		"-o", "ServerAliveCountMax=3",
+		"-o", "ControlMaster=no",
+		"-o", "ControlPath=none",
+	}
+}
+
 // Remote runs shell scripts on a host over ssh in batch mode.
 type Remote struct {
 	ssh  string

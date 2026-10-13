@@ -45,10 +45,10 @@ export const theme = new Theme()
 /** xterm.js palettes per theme. */
 export const terminalThemes = {
   dark: {
-    background: '#111318',
-    foreground: '#e6e7eb',
+    background: '#0c0d12',
+    foreground: '#c7cbd4',
     cursor: '#8b7cff',
-    cursorAccent: '#111318',
+    cursorAccent: '#0c0d12',
     selectionBackground: '#8b7cff55',
     black: '#1e212a',
     brightBlack: '#5c6170',
@@ -64,9 +64,9 @@ export const terminalThemes = {
   light: {
     background: '#ffffff',
     foreground: '#16181d',
-    cursor: '#5b4be0',
+    cursor: '#2f5bff',
     cursorAccent: '#ffffff',
-    selectionBackground: '#5b4be033',
+    selectionBackground: '#2f5bff33',
     black: '#16181d',
     brightBlack: '#5e6474',
     white: '#c9ccd4',

@@ -133,13 +133,18 @@ func (s *Service) List() ([]Clip, error) {
 
 // Add records text copied inside TuxShell. It returns whether it was kept.
 func (s *Service) Add(text string) (bool, error) {
+	return s.AddFrom(text, "")
+}
+
+// AddFrom records text copied in a terminal, with the host it came from.
+func (s *Service) AddFrom(text, source string) (bool, error) {
 	s.mu.Lock()
 	st, paused, set := s.store, s.paused, s.settings
 	s.mu.Unlock()
 	if st == nil || paused {
 		return false, nil
 	}
-	ok, err := st.Add(text, set)
+	ok, err := st.AddFrom(text, source, set)
 	if ok {
 		s.notify()
 	}

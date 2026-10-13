@@ -11,6 +11,11 @@ export interface Clip {
     "label": string;
     "pinned": boolean;
     "createdAt": string;
+
+    /**
+     * Source names the host the text was copied from; empty for other apps.
+     */
+    "source": string;
 }
 
 /**

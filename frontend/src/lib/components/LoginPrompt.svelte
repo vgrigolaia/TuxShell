@@ -63,7 +63,7 @@
 
     <button
       type="submit"
-      class="mt-4 w-full rounded-lg bg-accent px-3 py-2 text-[13px] font-medium text-ground hover:bg-accent/90 disabled:opacity-50"
+      class="mt-4 w-full rounded-lg bg-accent px-3 py-2 text-[13px] font-medium text-on-accent hover:bg-accent/90 disabled:opacity-50"
       disabled={!user.trim()}
     >
       Connect

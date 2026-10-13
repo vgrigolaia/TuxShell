@@ -14,7 +14,9 @@ import (
 	"github.com/vgrigolaia/tuxshell/internal/settings"
 	"github.com/vgrigolaia/tuxshell/internal/sshcmd"
 	"github.com/vgrigolaia/tuxshell/internal/sshconfig"
+	"github.com/vgrigolaia/tuxshell/internal/status"
 	"github.com/vgrigolaia/tuxshell/internal/terminal"
+	"github.com/vgrigolaia/tuxshell/internal/tunnels"
 )
 
 // The built frontend is embedded into the binary.
@@ -29,6 +31,8 @@ func init() {
 	application.RegisterEvent[application.Void](cliphist.EventChanged)
 	application.RegisterEvent[files.DropEvent](files.EventDropped)
 	application.RegisterEvent[int](eventConfirmClose)
+	application.RegisterEvent[[]status.Result](status.EventChanged)
+	application.RegisterEvent[application.Void](tunnels.EventChanged)
 }
 
 // eventConfirmClose asks the frontend to confirm closing the window while
@@ -78,6 +82,11 @@ func main() {
 		func() (string, bool) { return app.Clipboard.Text() },
 		func() { app.Event.Emit(cliphist.EventChanged) },
 	)
+	hostStatus := status.NewService(store, resolver,
+		func() bool { return prefs.Get().Settings.HostStatus },
+		func(r []status.Result) { app.Event.Emit(status.EventChanged, r) },
+	)
+	forwards := tunnels.NewService(store, resolver, func() { app.Event.Emit(tunnels.EventChanged) })
 	terminals := terminal.NewService(func(name string, data any) {
 		app.Event.Emit(name, data)
 	}, resolver, prefs.Shell)
@@ -92,6 +101,9 @@ func main() {
 			application.NewService(clips),
 			application.NewService(fileBrowser),
 			application.NewService(prefs),
+			application.NewService(hostStatus),
+			application.NewService(hosts.NewSnippetService(store)),
+			application.NewService(forwards),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

@@ -3,6 +3,26 @@
 All notable changes to TuxShell are listed here. Versions follow
 [Semantic Versioning](https://semver.org).
 
+## [1.1.0] - 2026-10-13
+
+### Added
+
+- New look for the main window, after the design concepts in `docs/design/`.
+- Home page with hosts, snippets and tunnels. Double-click Hosts to open the host list
+  beside your sessions.
+- Host status: ping shows which hosts are up, slow or down (ICMP only, can be turned off).
+- Test button in the host form that tries a login and explains what went wrong.
+- Snippets: saved commands you paste into a terminal from Ctrl+K.
+- Tunnels: local port forwards and SOCKS proxies, bound to 127.0.0.1. Password-only hosts
+  can reuse an open terminal's connection.
+- Quick connect filters (hosts, snippets, tunnels, actions) and open in a split.
+- Clipboard history shows which host each clip came from.
+
+### Changed
+
+- TuxShell opens on Home instead of a local shell, and closing the last tab returns there.
+- Clipboard history opens as a floating panel from a small icon in the title bar.
+
 ## [1.0.0] - 2026-10-13
 
 First release.
@@ -27,4 +47,5 @@ First release.
 - Dark and light themes, or follow the system.
 - Packages for Fedora/RHEL (.rpm), Debian/Ubuntu (.deb) and an AppImage.
 
+[1.1.0]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.0
 [1.0.0]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.0.0

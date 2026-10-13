@@ -72,6 +72,27 @@ func TestSessionAndBatchArgs(t *testing.T) {
 			t.Errorf("batch args %q missing %q", joined, part)
 		}
 	}
+	tun, err := r.TunnelCommand(h.ID, LocalForward(15432, "db.internal", 5432))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tj := strings.Join(tun.Args, " ")
+	for _, part := range []string{"-N -T", "BatchMode=yes", "ExitOnForwardFailure=yes", "ControlPath=none", "-L 127.0.0.1:15432:db.internal:5432 -p 22 -- web.internal"} {
+		if !strings.Contains(tj, part) {
+			t.Errorf("tunnel args %q missing %q", tj, part)
+		}
+	}
+	ctl, err := r.ControlCommand(h.ID, "forward", DynamicForward(1080))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cj := strings.Join(ctl.Args[1:], " "); cj != "-o ControlPath=/run/user/1000/tuxshell/cm-%C -O forward -D 127.0.0.1:1080 -p 22 -- web.internal" {
+		t.Errorf("control args = %q", cj)
+	}
+	if _, err := r.ControlCommand(h.ID, "exit", DynamicForward(1080)); err == nil {
+		t.Error("ControlCommand accepted -O exit")
+	}
+
 	// The script is a single trailing argument, never split.
 	if got[len(got)-1] != "echo hi" {
 		t.Errorf("script arg = %q", got[len(got)-1])

@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Relay — RDP session</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&amp;family=Geist:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#08090C}
+a{color:#B3A8FF}a:hover{color:#D4CDFF}
+.kbd{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#A5ACB9;background:#1A1D24;border:1px solid #2A2E38;border-bottom-width:2px;border-radius:6px;padding:2px 7px}
+.wc{width:30px;height:30px;border-radius:10px;border:0;background:#14161C;color:#9BA2B0;display:grid;place-items:center}
+.hop{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:7px;background:#17191F;color:#9BA2B0;font-family:'JetBrains Mono',monospace;font-size:11px}
+.tb{height:34px;display:flex;align-items:center;gap:7px;padding:0 11px;border-radius:10px;border:0;background:transparent;color:#C7CBD4;font:inherit;font-size:12.5px}
+.rail{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700}
+.win{position:absolute;background:#F3F5F8;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,.35);overflow:hidden}
+.wbar{height:30px;background:#E4E8EE;display:flex;align-items:center;padding:0 12px;font-size:12px;color:#334155}
+</style>
+</head>
+<body>
+
+
+<div style="min-height: 900px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; padding: 10px; background: #08090C; color: #ECEEF2; font-family: 'Geist', system-ui, sans-serif; border-radius: 14px; box-shadow: inset 0 0 0 1px #1E212A">
+
+  <header aria-label="Window title bar — drag to move" style="display: flex; align-items: center; gap: 14px; padding: 2px 4px 0 6px; flex-wrap: wrap">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <div style="width: 30px; height: 30px; border-radius: 10px; background: #8B7CFF; display: grid; place-items: center">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0B0C10" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17l6-5-6-5"></path><path d="M13 19h6"></path></svg>
+      </div>
+      <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 17px; letter-spacing: -0.02em">relay</span>
+    </div>
+    <div role="tablist" aria-label="Workspaces" style="display: flex; gap: 4px; padding: 4px; background: #111318; border: 1px solid #1E212A; border-radius: 12px; margin-left: 8px">
+      <button role="tab" aria-selected="false" style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: #9BA2B0; font: inherit; font-size: 13px"><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px">1</span>pg-prod cluster</button>
+      <button role="tab" aria-selected="false" style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: #9BA2B0; font: inherit; font-size: 13px"><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px">2</span>proxmox</button>
+      <button role="tab" aria-selected="true" style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border: 0; border-radius: 9px; background: #1F2230; color: #F4F5F8; font: inherit; font-size: 13px; box-shadow: inset 0 0 0 1px #2E3244"><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B7CFF">3</span>win-ad01<span style="height: 18px; padding: 0 6px; border-radius: 5px; background: #102A43; color: #7CC4FA; font-size: 10px; font-weight: 600; display: flex; align-items: center">RDP</span></button>
+    </div>
+    <div style="flex: 1 1 40px; align-self: stretch"></div>
+    <button style="display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px 0 10px; border-radius: 11px; border: 1px solid #23262F; background: #111318; color: #9BA2B0; font: inherit; font-size: 13px">Clipboard <span class="kbd">Ctrl Shift V</span></button>
+    <button style="display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px 0 10px; border-radius: 11px; border: 1px solid #23262F; background: #111318; color: #9BA2B0; font: inherit; font-size: 13px">Jump to anything <span class="kbd">Ctrl K</span></button>
+    <div style="display: flex; gap: 6px; padding-left: 10px; border-left: 1px solid #1E212A">
+      <button class="wc" aria-label="Minimize"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path></svg></button>
+      <button class="wc" aria-label="Maximize"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="2" y="2" width="6" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"></rect></svg></button>
+      <button class="wc" aria-label="Close" style="background: #2A1418; color: #FCA5B4"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 2.5l5 5M7.5 2.5l-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path></svg></button>
+    </div>
+  </header>
+
+  <div style="flex: 1; display: flex; gap: 10px; min-height: 0; flex-wrap: wrap">
+    <nav aria-label="Hosts, collapsed" style="flex: 0 0 56px; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 0; background: #111318; border: 1px solid #1E212A; border-radius: 16px">
+      <button aria-label="Expand host list" style="width: 40px; height: 40px; border-radius: 12px; border: 0; background: #17191F; color: #9BA2B0; display: grid; place-items: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+      <span class="rail" style="background: #1F2A16; color: #BEF264">BH</span>
+      <span class="rail" style="background: #2B2550; color: #C9BFFF">PG</span>
+      <span class="rail" style="background: #123234; color: #7EE7D8">PV</span>
+      <span class="rail" style="background: #102A43; color: #7CC4FA; box-shadow: 0 0 0 2px #7CC4FA">RD</span>
+    </nav>
+
+    <main style="flex: 999 1 600px; min-width: 0; position: relative; border-radius: 16px; overflow: hidden; border: 1px solid #1E212A; background: #1B3A4B; min-height: 760px">
+      <div role="img" aria-label="Remote desktop of win-ad01" style="position: absolute; inset: 0">
+        <div class="win" style="left: 7%; top: 16%; width: 52%; height: 56%">
+          <div class="wbar">Users and groups</div>
+          <div style="padding: 16px; display: flex; flex-direction: column; gap: 10px">
+            <div style="height: 12px; width: 70%; background: #CBD3DE; border-radius: 4px"></div>
+            <div style="height: 12px; width: 55%; background: #D7DEE7; border-radius: 4px"></div>
+            <div style="height: 12px; width: 62%; background: #D7DEE7; border-radius: 4px"></div>
+            <div style="height: 12px; width: 48%; background: #D7DEE7; border-radius: 4px"></div>
+            <div style="height: 12px; width: 66%; background: #D7DEE7; border-radius: 4px"></div>
+          </div>
+        </div>
+        <div class="win" style="left: 45%; top: 34%; width: 44%; height: 46%; background: #101418">
+          <div class="wbar" style="background: #1C232B; color: #C7CBD4">PowerShell</div>
+          <div style="padding: 14px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 20px; color: #C7CBD4">
+            <div>PS C:\&gt; Get-ADUser -Filter * | Measure-Object</div>
+            <div style="color: #7E8696">Count    : 412</div>
+            <div>PS C:\&gt; <span style="display: inline-block; width: 8px; height: 14px; background: #C7CBD4; vertical-align: -2px"></span></div>
+          </div>
+        </div>
+        <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 40px; background: #0F2633CC"></div>
+      </div>
+
+      <div role="toolbar" aria-label="Remote desktop controls" style="position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 2px; padding: 5px; background: #111318EE; border: 1px solid #2B2F3B; border-radius: 14px; box-shadow: 0 16px 40px rgba(0,0,0,0.5); flex-wrap: wrap; justify-content: center; max-width: 94%">
+        <span style="display: flex; align-items: center; gap: 4px; padding: 0 8px"><span class="hop">you</span><span style="color: #5D6474">→</span><span class="hop" style="background: #1F2A16; color: #BEF264">bastion-01</span><span style="color: #5D6474">→</span><span class="hop" style="background: #102A43; color: #7CC4FA">win-ad01:3389</span></span>
+        <span style="width: 1px; height: 22px; background: #2A2E38"></span>
+        <button class="tb"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"></rect><path d="M8 21h8"></path></svg>Fit window · 2560×1440</button>
+        <button class="tb" style="color: #D9F99D"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="7" y="4" width="10" height="4" rx="1.5"></rect><path d="M7 6H5v15h14V6h-2"></path></svg>Clipboard sync</button>
+        <button class="tb"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>Share folder</button>
+        <button class="tb">Ctrl Alt Del</button>
+        <button class="tb" aria-label="Full screen"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg></button>
+        <button class="tb" style="background: #2A1418; color: #FCA5B4">Disconnect</button>
+      </div>
+
+      <div style="position: absolute; left: 16px; bottom: 54px; display: flex; flex-direction: column; gap: 4px; padding: 10px 14px; background: #111318E6; border: 1px solid #2B2F3B; border-radius: 12px; font-size: 11.5px; color: #9BA2B0">
+        <span style="color: #ECEEF2; font-weight: 600">win-ad01 · CORP\vgadmin</span>
+        <span>password via op://Infra/win-ad01 · NLA</span>
+        <span style="font-family: 'JetBrains Mono', monospace">18 ms · 34 fps · AVC444</span>
+      </div>
+    </main>
+  </div>
+
+  <footer style="display: flex; align-items: center; gap: 18px; padding: 0 8px; height: 22px; font-size: 11.5px; color: #7E8696; flex-wrap: wrap">
+    <span>RDP over SSH tunnel · local :33891 → win-ad01:3389</span>
+    <span>Toolbar hides after 2 s · move mouse to top to show</span>
+    <span style="margin-left: auto; font-family: 'JetBrains Mono', monospace">Ctrl Alt Enter · full screen</span>
+  </footer>
+</div>
+
+</body>
+</html>

@@ -1,43 +1,79 @@
 @import "tailwindcss";
 
-/* Design D tokens. Text colours are checked for 4.5:1 against ground and panel. */
+/* Design tokens, taken from docs/design/01-main-window.html ("Combined").
+   Text colours are checked for 4.5:1 against ground, panel and raised. */
 @theme {
   --color-ground: #08090c;
   --color-panel: #111318;
-  --color-raised: #181b22;
+  /* Cards and clips inside panels. */
+  --color-raised: #15171e;
+  /* Selected rows and the active tab. */
+  --color-select: #1a1c26;
+  --color-tab: #1f2230;
+  --color-tab-ring: #2e3244;
+  /* Terminal tiles and inputs. */
+  --color-field: #0c0d12;
+  /* Route chips ("you → bastion-01 → host"). */
+  --color-hop: #17191f;
   --color-line: #1e212a;
-  --color-fg: #e6e7eb;
-  --color-muted: #a3a8b6;
-  --color-subtle: #8a8fa0;
+  --color-strong: #23262f;
+  --color-fg: #eceef2;
+  --color-text: #c7cbd4;
+  --color-muted: #9ba2b0;
+  --color-subtle: #7e8696;
   --color-accent: #8b7cff;
+  --color-accent-text: #b3a8ff;
+  --color-on-accent: #0b0c10;
+  /* Multi-exec banner. */
+  --color-accent-soft: #1e1a3a;
+  --color-accent-line: #3b3470;
+  --color-accent-chip: #2b2550;
+  --color-accent-ink: #d4cdff;
   --color-success: #a3e635;
   --color-warning: #fb923c;
   /* Destructive buttons (white text) and destructive menu text. */
   --color-danger: #dc2626;
   --color-danger-text: #fca5a5;
+  --color-close: #2a1418;
+  --color-close-ink: #fca5b4;
 
   --font-sans: "Geist Variable", system-ui, sans-serif;
   --font-display: "Space Grotesk Variable", "Geist Variable", sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
 
-  --radius-panel: 14px;
+  --radius-panel: 16px;
 }
 
-/* Light theme: same tokens, light values (all text 4.5:1 or better). */
+/* Light theme, after docs/design/06-alt-launchpad-host-editor.html. */
 :root[data-theme="light"] {
   color-scheme: light;
-  --color-ground: #f4f5f8;
+  --color-ground: #eef0f5;
   --color-panel: #ffffff;
-  --color-raised: #eef0f4;
-  --color-line: #e2e4ea;
-  --color-fg: #16181d;
-  --color-muted: #4a5060;
-  --color-subtle: #5e6474;
-  --color-accent: #5b4be0;
-  --color-success: #3f6212;
-  --color-warning: #b4410c;
+  --color-raised: #f8f9fb;
+  --color-select: #eef1ff;
+  --color-tab: #ffffff;
+  --color-tab-ring: #d6dae3;
+  --color-field: #ffffff;
+  --color-hop: #eef0f5;
+  --color-line: #e2e5ec;
+  --color-strong: #d6dae3;
+  --color-fg: #141824;
+  --color-text: #3d4454;
+  --color-muted: #3d4454;
+  --color-subtle: #5a6273;
+  --color-accent: #2f5bff;
+  --color-accent-text: #2347e0;
+  --color-on-accent: #ffffff;
+  --color-accent-soft: #e8edff;
+  --color-accent-line: #dce2ff;
+  --color-accent-chip: #dce2ff;
+  --color-accent-ink: #1a2c80;
+  --color-success: #16a34a;
+  --color-warning: #b45309;
   --color-danger: #c0262d;
   --color-danger-text: #b91c1c;
+  --color-close: #fde8ea;
+  --color-close-ink: #b4232f;
 }
 
 :root[data-theme="dark"] {
@@ -61,9 +97,13 @@ body {
   user-select: none;
 }
 
-:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
+/* In the base layer so utilities like focus-visible:outline-none can opt out
+   (fields that show focus with their border instead). */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
 }
 
 /* Wails reads this property to decide which regions drag the frameless window. */
@@ -77,6 +117,65 @@ body {
 .xterm .xterm-viewport {
   scrollbar-width: thin;
   scrollbar-color: var(--color-line) transparent;
+}
+
+/* Host badge tints (01 dark, 06 light); text is 4.5:1 or better on its background. */
+.tint-violet { background: #2b2550; color: #c9bfff; }
+.tint-amber { background: #3a2716; color: #fdba74; }
+.tint-teal { background: #123234; color: #7ee7d8; }
+.tint-lime { background: #1f2a16; color: #bef264; }
+.tint-blue { background: #102a43; color: #7cc4fa; }
+.tint-rose { background: #3a1630; color: #f9a8d4; }
+:root[data-theme="light"] .tint-violet { background: #eae6ff; color: #4b32c3; }
+:root[data-theme="light"] .tint-amber { background: #ffe9d6; color: #a3480b; }
+:root[data-theme="light"] .tint-teal { background: #ddf5ef; color: #0b6e5c; }
+:root[data-theme="light"] .tint-lime { background: #e8f5d6; color: #3f6212; }
+:root[data-theme="light"] .tint-blue { background: #e0f2fe; color: #075985; }
+:root[data-theme="light"] .tint-rose { background: #fce4f2; color: #9d1d6b; }
+
+/* Keyboard hint chips, e.g. "Ctrl K". */
+.kbd {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--color-muted);
+  background: var(--color-hop);
+  border: 1px solid var(--color-strong);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  padding: 1px 7px;
+}
+
+/* Route chips in tile headers. */
+.hop {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 6px;
+  background: var(--color-hop);
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+.hop-active {
+  background: var(--color-accent-chip);
+  color: var(--color-accent-ink);
+}
+
+/* The focused tile of a split glows in the accent colour. */
+.tile-focused {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 15%, transparent);
+}
+
+/* Section captions ("POSTGRESQL · PROD"). */
+.cap {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-subtle);
 }
 
 /* Per-pane "Show scrollbar" off. */

@@ -17,8 +17,12 @@
   import PromptDialog from './lib/components/PromptDialog.svelte'
   import { prefs } from './lib/settings.svelte'
   import { closer } from './lib/close.svelte'
+  import { hostStatus } from './lib/status.svelte'
+  import { tunnels } from './lib/tunnels.svelte'
+  import { snippets } from './lib/snippets.svelte'
   import { emptyHost, hostStore, type Host } from './lib/hosts.svelte'
-  import { workspace } from './lib/workspace.svelte'
+  import { HOME, workspace } from './lib/workspace.svelte'
+  import Launchpad from './lib/components/Launchpad.svelte'
   import { MAX_PANES, type Orientation, type Direction } from './lib/layout'
   import type { PaneActions, Source, TabInfo } from './lib/tabs'
 
@@ -31,7 +35,16 @@
   let splitInto = $state<{ key: number; orientation: Orientation } | null>(null)
   let deleting = $state<Host | null>(null)
   let prefsOpen = $state(false)
+  // Clock for "Connected 12m" in the status bar.
+  let now = $state(Date.now())
+  let displayServer = $state('')
+
+  function since(start: number, at: number) {
+    const m = Math.max(0, Math.floor((at - start) / 60000))
+    return m < 1 ? 'just now' : m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${m % 60}m`
+  }
   let renaming = $state<{ paneId: number; title: string } | null>(null)
+  let renamingTab = $state<{ key: number; name: string } | null>(null)
   const hostsOpen = $derived(prefs.value.hostsSidebar)
 
   // Splits a pane's tab with the same connection (no new login thanks to
@@ -86,6 +99,7 @@
   let panes = $state<Record<number, TerminalPane>>({})
 
   const active = $derived(workspace.activePane)
+  const activeHost = $derived(active?.source.kind === 'host' ? hostStore.get(active.source.hostId) : undefined)
   const activeHostId = $derived(active?.source.kind === 'host' ? active.source.hostId : null)
   const tabInfos = $derived<TabInfo[]>(
     workspace.tabs.map((t) => ({
@@ -97,13 +111,18 @@
   )
 
   const tab = $derived(workspace.activeTab)
-  const receiving = $derived(tab?.broadcast ? tab.paneIds.filter((id) => !tab.excluded.includes(id)).length : 0)
+  const home = $derived(workspace.activeKey === HOME)
 
   const arrows: Record<string, Direction> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' }
 
   onMount(() => {
     void hostStore.load()
     void prefs.load()
+    const offStatus = hostStatus.start()
+    const offTunnels = tunnels.start()
+    void snippets.load()
+    void Terminals.DisplayServer().then((d) => (displayServer = d), () => {})
+    const clock = setInterval(() => (now = Date.now()), 30000)
     // The window manager's close (or ours) was held back because sessions are live.
     const offClose = Events.On('app:confirm-close', (ev) =>
       closer.ask(ev.data, 'TuxShell', async () => {
@@ -162,6 +181,9 @@
     }
     window.addEventListener('keydown', onKey, { capture: true })
     return () => {
+      offStatus()
+      offTunnels()
+      clearInterval(clock)
       offClose()
       window.removeEventListener('keydown', onKey, { capture: true })
     }
@@ -186,6 +208,32 @@
   const connect = (host: Host) => open({ kind: 'host', hostId: host.id, askUser: !host.user }, host.name)
   const connectAs = (host: Host) => open({ kind: 'host', hostId: host.id, askUser: true }, host.name)
 
+  // Opens hosts as the panes of one new tab (quick connect's "Open all in split").
+  function openSplit(hosts: Host[]) {
+    const [first, ...rest] = hosts
+    workspace.openTab({ kind: 'host', hostId: first.id, askUser: !first.user }, first.name)
+    const key = workspace.activeKey
+    // Hosts from one group make a tab named after it, e.g. "PostgreSQL · prod".
+    const groups = new Set(hosts.map((h) => h.group))
+    if (groups.size === 1 && first.group) workspace.renameTab(key, first.group)
+    // Three or four tiles go in a grid: one wide on top over two, or 2×2.
+    for (const h of rest) workspace.splitTab(key, { kind: 'host', hostId: h.id, askUser: !h.user }, h.name, hosts.length > 2 ? 'grid' : 'row')
+  }
+
+  // The last tab shown, so leaving Home goes back to it.
+  let lastTab = $state<number | null>(null)
+  $effect(() => {
+    if (workspace.activeKey !== HOME) lastTab = workspace.activeKey
+  })
+
+  // Terminal view with the hosts sidebar (from Home's "Hosts", double-clicked).
+  function openHostList() {
+    if (!hostsOpen) prefs.setHostsSidebar(true)
+    const back = workspace.tabs.find((t) => t.key === lastTab) ?? workspace.tabs[0]
+    if (back) workspace.activeKey = back.key
+    else workspace.openTab({ kind: 'shell' }, 'Local shell')
+  }
+
   function toggleClipboard() {
     panel = panel.kind === 'clipboard' ? { kind: 'none' } : { kind: 'clipboard' }
   }
@@ -198,6 +246,15 @@
   function runInPane(paneId: number, line: string) {
     panes[paneId]?.send(`\x15${line}\r`)
     workspace.focusPane(paneId)
+  }
+
+  // Pastes into the focused pane, or every receiving tile while multi-exec is on.
+  // Never adds Enter: the user reviews the command first.
+  function pasteSnippet(command: string) {
+    if (!active) return
+    const targets = workspace.broadcastTargets(active.id) ?? [active.id]
+    for (const id of targets) if (!workspace.pane(id)?.exited) panes[id]?.paste(command)
+    workspace.focusPane(active.id)
   }
 
   function pasteToActive(text: string) {
@@ -220,6 +277,16 @@
     }
   })
 
+  // Check new or edited hosts right away rather than at the next round.
+  let knownHosts = ''
+  $effect(() => {
+    const key = hostStore.list.map((h) => `${h.id}:${h.hostname}:${h.proxyJump}`).join(',')
+    if (hostStore.loaded && key !== knownHosts) {
+      if (knownHosts) hostStatus.refresh()
+      knownHosts = key
+    }
+  })
+
   // Forget refs of closed panes.
   $effect(() => {
     const ids = new Set(workspace.panes.map((p) => p.id))
@@ -232,7 +299,21 @@
   }
 </script>
 
-<div class="flex h-full flex-col">
+{#snippet hostList()}
+  <Sidebar
+        selectedId={panel.kind === 'host' ? panel.host.id : activeHostId}
+        onConnect={connect}
+        onEdit={(host) => (panel = { kind: 'host', host })}
+        onConnectAs={connectAs}
+        onDuplicate={duplicate}
+        onDelete={(host) => (deleting = host)}
+        onNew={() => (panel = { kind: 'host', host: emptyHost() })}
+        onImport={() => (importOpen = true)}
+        onOpenTiles={openSplit}
+      />
+{/snippet}
+
+<div class="flex h-full flex-col gap-2.5 p-2.5">
   <TitleBar
     tabs={tabInfos}
     activeKey={workspace.activeKey}
@@ -247,93 +328,98 @@
     onMerge={(keys, orientation) => workspace.mergeTabs(keys, orientation)}
     onSplit={(key, orientation) => openQuick({ key, orientation })}
     onUnsplit={(key) => workspace.unsplit(key)}
+    onRename={(key) => {
+      const t = workspace.tabs.find((x) => x.key === key)
+      if (t) renamingTab = { key, name: workspace.tabTitle(t) }
+    }}
     onNew={() => workspace.openTab({ kind: 'shell' }, 'Local shell')}
     onSearch={() => openQuick(null)}
     onToggleClipboard={toggleClipboard}
     onPreferences={() => (prefsOpen = true)}
+    homeActive={home}
+    onHome={() => (workspace.activeKey = HOME)}
   />
 
-  <main class="flex min-h-0 flex-1 gap-3 px-3">
-    {#if hostsOpen}
-    <Sidebar
-      selectedId={panel.kind === 'host' ? panel.host.id : activeHostId}
-      onConnect={connect}
-      onEdit={(host) => (panel = { kind: 'host', host })}
-      onConnectAs={connectAs}
-      onDuplicate={duplicate}
-      onDelete={(host) => (deleting = host)}
-      onNew={() => (panel = { kind: 'host', host: emptyHost() })}
-      onImport={() => (importOpen = true)}
-    />
+  <main class="relative flex min-h-0 flex-1 gap-2.5">
+    {#if home}
+      <Launchpad
+        selectedId={panel.kind === 'host' ? panel.host.id : null}
+        onSelect={(host) => (panel = { kind: 'host', host })}
+        onConnect={connect}
+        onConnectTarget={(target) => open({ kind: 'target', target }, target)}
+        onNew={() => (panel = { kind: 'host', host: emptyHost() })}
+        onImport={() => (importOpen = true)}
+        onOpenHostList={openHostList}
+      >
+        {#snippet editor()}
+          {#if panel.kind === 'host'}
+            {#key panel.host}
+              <HostForm host={panel.host} onClose={() => (panel = { kind: 'none' })} {onSaved} onConnect={connect} />
+            {/key}
+          {/if}
+        {/snippet}
+      </Launchpad>
     {/if}
 
-    <section class="flex min-w-0 flex-1 flex-col overflow-hidden rounded-panel border border-line bg-panel">
-      <div class="flex h-11 shrink-0 items-center gap-3 border-b border-line pr-2 pl-4">
-        <h1 class="truncate font-mono text-[13px]">{active?.title ?? ''}</h1>
-        {#if active?.termTitle && active.termTitle !== active.title}
-          <span class="truncate font-mono text-xs text-subtle">{active.termTitle}</span>
-        {/if}
-        <span class="flex-1"></span>
-        {#if tab && tab.paneIds.length > 1}
-          <button
-            class="flex h-7 items-center gap-1.5 rounded-lg px-2 text-xs transition-colors {tab.broadcast
-              ? 'bg-warning/15 text-warning'
-              : 'text-muted hover:bg-raised hover:text-fg'}"
-            aria-pressed={tab.broadcast}
-            aria-keyshortcuts="Control+Shift+B"
-            title="Broadcast typing to all panes (Ctrl+Shift+B)"
-            onclick={() => workspace.toggleBroadcast(tab.key)}
-          >
-            <Icon name="broadcast" size={14} /> Broadcast
-          </button>
-        {/if}
-        {#if workspace.activeTab && workspace.activeTab.paneIds.length < 4}
-          {@const key = workspace.activeTab.key}
-          <button class="grid size-7 place-items-center rounded-lg text-muted hover:bg-raised hover:text-fg" aria-label="Split right" title="Split right" onclick={() => openQuick({ key, orientation: 'row' })}>
-            <Icon name="splitRight" size={15} />
-          </button>
-          <button class="grid size-7 place-items-center rounded-lg text-muted hover:bg-raised hover:text-fg" aria-label="Split down" title="Split down" onclick={() => openQuick({ key, orientation: 'column' })}>
-            <Icon name="splitDown" size={15} />
-          </button>
-        {/if}
-      </div>
+    <!-- Terminals stay mounted while Home shows, so sessions keep running. -->
+    {#if hostsOpen && !home}
+      {@render hostList()}
+    {/if}
+
+    <section aria-label="Terminals" class:hidden={home} class="relative flex min-w-0 flex-1 flex-col gap-2.5 rounded-panel border border-line bg-panel p-2.5">
       {#if tab?.broadcast}
-        <div role="status" class="mx-2 mt-2 flex shrink-0 items-center gap-3 rounded-xl border border-warning/50 bg-warning/10 px-3 py-2 text-[13px]">
-          <span class="text-warning"><Icon name="broadcast" size={15} /></span>
-          <span class="flex-1">
-            <strong class="font-semibold">Broadcast on</strong> — keystrokes go to {receiving} of {tab.paneIds.length} panes
-            {#if tab.excluded.length}
-              <span class="text-subtle">· {tab.excluded.map((id) => workspace.pane(id)?.title).join(', ')} excluded</span>
-            {/if}
+        {@const receivers = tab.paneIds.filter((id) => !tab.excluded.includes(id))}
+        <div role="status" class="flex shrink-0 flex-wrap items-center gap-3 rounded-xl border border-accent-line bg-accent-soft px-3 py-2 text-[12.5px] text-accent-ink">
+          <span class="text-accent"><Icon name="broadcast" size={16} /></span>
+          <span><strong class="font-semibold text-fg">Multi-exec</strong> — typing goes to {receivers.length} tiles at once</span>
+          <span class="flex flex-wrap gap-1">
+            {#each receivers as id (id)}<span class="hop hop-active">{workspace.pane(id)?.title}</span>{/each}
           </span>
-          <button class="rounded-lg bg-warning px-2.5 py-1 text-xs font-semibold text-ground hover:bg-warning/90" onclick={() => workspace.toggleBroadcast(tab.key)}>
-            Stop · Ctrl+Shift+B
-          </button>
+          {#if tab.excluded.length}
+            <span class="text-xs text-subtle">{tab.excluded.map((id) => workspace.pane(id)?.title).join(', ')} excluded</span>
+          {/if}
+          <button
+            class="ml-auto h-7 rounded-lg bg-accent px-3 text-xs font-semibold text-on-accent hover:bg-accent/90"
+            aria-keyshortcuts="Control+Shift+B"
+            title="Stop multi-exec (Ctrl+Shift+B)"
+            onclick={() => workspace.toggleBroadcast(tab.key)}>Stop</button
+          >
         </div>
       {/if}
       <TerminalArea bind:refs={panes} actions={paneActions} />
+
     </section>
 
-    {#if panel.kind === 'host'}
+    {#if panel.kind === 'clipboard'}
+      <!-- Floats over the tiles (or Home), as in the design. -->
+      <ClipboardPanel activeHost={activeHost?.name} onPaste={pasteToActive} onClose={() => (panel = { kind: 'none' })} />
+    {/if}
+
+    {#if home}
+      <!-- Home shows the editor inside the launchpad. -->
+    {:else if panel.kind === 'host'}
       {#key panel.host}
         <HostForm host={panel.host} onClose={() => (panel = { kind: 'none' })} {onSaved} onConnect={connect} />
       {/key}
     {:else if panel.kind === 'files'}
       <FilePanel pane={active} onRunInPane={runInPane} onClose={() => (panel = { kind: 'none' })} />
-    {:else if panel.kind === 'clipboard'}
-      <ClipboardPanel onPaste={pasteToActive} onClose={() => (panel = { kind: 'none' })} />
     {/if}
   </main>
 
-  <footer class="flex h-8 shrink-0 items-center gap-4 px-5 font-mono text-[11px] text-subtle">
-    <span>{workspace.tabs.length} {workspace.tabs.length === 1 ? 'tab' : 'tabs'}</span>
-    <span>{hostStore.list.length} hosts</span>
-    {#if workspace.activeTab && workspace.activeTab.paneIds.length > 1}
-      <span>Ctrl+Shift+arrows: move between panes</span>
+  <footer class="flex h-[22px] shrink-0 flex-wrap items-center gap-[18px] px-2 text-[11.5px] text-subtle">
+    {#if active}
+      <span class="flex items-center gap-1.5">
+        <span class="size-2 rounded-full {active.exited ? 'border-2 border-warning' : active.startedAt ? 'bg-success' : 'bg-subtle'}" aria-hidden="true"></span>
+        {active.exited ? 'Disconnected' : active.startedAt ? `Connected ${since(active.startedAt, now)}` : 'Connecting…'}
+      </span>
     {/if}
-    <span class="flex-1"></span>
-    <span>UTF-8</span>
-    <span>{active?.size ?? ''}</span>
+    {#if activeHost?.proxyJump}<span>via {activeHost.proxyJump} · ProxyJump</span>{/if}
+    {#if tunnels.running}<span>{tunnels.running} {tunnels.running === 1 ? 'tunnel' : 'tunnels'}</span>{/if}
+    <span>{workspace.tabs.length} {workspace.tabs.length === 1 ? 'tab' : 'tabs'} · {workspace.panes.filter((p) => !p.exited).length} live</span>
+    {#if workspace.activeTab && workspace.activeTab.paneIds.length > 1}
+      <span>Ctrl+Shift+arrows: move between tiles</span>
+    {/if}
+    <span class="ml-auto font-mono">{['UTF-8', active?.size, displayServer].filter(Boolean).join(' · ')}</span>
   </footer>
 </div>
 
@@ -354,6 +440,8 @@
     onNewShell={() => open({ kind: 'shell' }, 'Local shell')}
     onNewHost={() => (panel = { kind: 'host', host: emptyHost() })}
     onImport={() => (importOpen = true)}
+    onOpenSplit={splitInto ? undefined : openSplit}
+    onSnippet={!home && active ? pasteSnippet : undefined}
   />
 {/if}
 
@@ -371,6 +459,19 @@
     submitLabel="Save"
     onSubmit={(title) => workspace.renamePane(r.paneId, title)}
     onClose={() => (renaming = null)}
+  />
+{/if}
+
+{#if renamingTab}
+  {@const r = renamingTab}
+  <PromptDialog
+    title="Rename tab"
+    label="Name"
+    initial={r.name}
+    hint="Leave empty to name it after its panes again."
+    submitLabel="Save"
+    onSubmit={(name) => workspace.renameTab(r.key, name)}
+    onClose={() => (renamingTab = null)}
   />
 {/if}
 
