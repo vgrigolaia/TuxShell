@@ -34,6 +34,23 @@ var migrations = []string{
 		created_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 	)`,
+	`CREATE TABLE snippets (
+		id         INTEGER PRIMARY KEY,
+		name       TEXT NOT NULL UNIQUE COLLATE NOCASE,
+		command    TEXT NOT NULL,
+		grp        TEXT NOT NULL DEFAULT '',
+		created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)`,
+	`CREATE TABLE tunnels (
+		id          INTEGER PRIMARY KEY,
+		name        TEXT NOT NULL DEFAULT '',
+		host_id     INTEGER NOT NULL REFERENCES hosts(id) ON DELETE CASCADE,
+		kind        TEXT NOT NULL,
+		bind_port   INTEGER NOT NULL,
+		target_host TEXT NOT NULL DEFAULT '',
+		target_port INTEGER NOT NULL DEFAULT 0,
+		created_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)`,
 }
 
 // DefaultPath returns $XDG_DATA_HOME/tuxshell/hosts.db.

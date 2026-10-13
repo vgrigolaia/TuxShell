@@ -189,3 +189,36 @@ func TestDeleteMany(t *testing.T) {
 		t.Fatalf("empty DeleteMany = %d, %v", n, err)
 	}
 }
+
+func TestSnippetsAndTunnels(t *testing.T) {
+	s := openTemp(t)
+	sn, err := s.SaveSnippet(Snippet{Name: " lag ", Command: "select * from pg_stat_replication;\n"})
+	if err != nil || sn.Name != "lag" || sn.Command != "select * from pg_stat_replication;" {
+		t.Fatalf("SaveSnippet = %+v, %v", sn, err)
+	}
+	if _, err := s.SaveSnippet(Snippet{Name: "LAG", Command: "x"}); err == nil {
+		t.Fatal("duplicate snippet name accepted")
+	}
+	h, _ := s.Save(Host{Name: "pg", Hostname: "10.0.0.11"})
+	for _, bad := range []Tunnel{
+		{HostID: h.ID, Kind: "local", BindPort: 5432, TargetHost: "-oProxyCommand=x", TargetPort: 5432},
+		{HostID: h.ID, Kind: "local", BindPort: 70000, TargetHost: "db", TargetPort: 5432},
+		{HostID: h.ID, Kind: "remote", BindPort: 5432},
+		{HostID: 999, Kind: "dynamic", BindPort: 1080},
+	} {
+		if _, err := s.SaveTunnel(bad); err == nil {
+			t.Errorf("SaveTunnel(%+v) accepted", bad)
+		}
+	}
+	tn, err := s.SaveTunnel(Tunnel{HostID: h.ID, Kind: "dynamic", BindPort: 1080, TargetHost: "ignored", TargetPort: 9})
+	if err != nil || tn.TargetHost != "" || tn.TargetPort != 0 {
+		t.Fatalf("SaveTunnel dynamic = %+v, %v", tn, err)
+	}
+	// Deleting the host removes its tunnels.
+	if err := s.Delete(h.ID); err != nil {
+		t.Fatal(err)
+	}
+	if list, _ := s.ListTunnels(); len(list) != 0 {
+		t.Fatalf("tunnels after host delete = %+v", list)
+	}
+}

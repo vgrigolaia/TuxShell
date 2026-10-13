@@ -160,6 +160,65 @@ func (r Resolver) DraftRemote(h hosts.Host) (Remote, error) {
 	return r.remote(h)
 }
 
+// Forward is a -L or -D argument pair, e.g. {"-L", "127.0.0.1:5432:db:5432"}.
+// Build it with LocalForward or DynamicForward so values are always checked.
+type Forward [2]string
+
+// LocalForward forwards 127.0.0.1:bind to target:port as seen from the host.
+// Only loopback is bound, so other machines can't use the tunnel.
+func LocalForward(bind int, target string, port int) Forward {
+	if strings.Contains(target, ":") && !strings.HasPrefix(target, "[") {
+		target = "[" + target + "]" // IPv6 literal
+	}
+	return Forward{"-L", fmt.Sprintf("127.0.0.1:%d:%s:%d", bind, target, port)}
+}
+
+// DynamicForward opens a SOCKS proxy on 127.0.0.1:bind.
+func DynamicForward(bind int) Forward {
+	return Forward{"-D", fmt.Sprintf("127.0.0.1:%d", bind)}
+}
+
+// TunnelCommand returns a forward-only ssh process with its own connection
+// for a saved host. It needs key or agent auth (it never prompts).
+func (r Resolver) TunnelCommand(id int64, f Forward) (*exec.Cmd, error) {
+	h, err := r.host(id, nil)
+	if err != nil {
+		return nil, err
+	}
+	ssh, err := sshPath()
+	if err != nil {
+		return nil, err
+	}
+	args := append(tunnelOptions(), f[0], f[1])
+	return exec.Command(ssh, append(args, Args(h)...)...), nil
+}
+
+// ControlCommand asks the host's shared connection (an open terminal) to
+// "check", "forward" or "cancel" f, so password-only hosts can tunnel too.
+func (r Resolver) ControlCommand(id int64, op string, f Forward) (*exec.Cmd, error) {
+	if r.ControlDir == "" {
+		return nil, errors.New("ssh connection sharing is off")
+	}
+	switch op {
+	case "check", "forward", "cancel":
+	default:
+		return nil, fmt.Errorf("unknown control operation %q", op)
+	}
+	h, err := r.host(id, nil)
+	if err != nil {
+		return nil, err
+	}
+	ssh, err := sshPath()
+	if err != nil {
+		return nil, err
+	}
+	args := []string{"-o", "ControlPath=" + filepath.Join(r.ControlDir, "cm-%C"), "-O", op}
+	if op != "check" {
+		args = append(args, f[0], f[1])
+	}
+	return exec.Command(ssh, append(args, Args(h)...)...), nil
+}
+
 // TargetRemote returns a batch runner for an ad-hoc target.
 func (r Resolver) TargetRemote(target string) (Remote, error) {
 	h, err := ParseTarget(target)

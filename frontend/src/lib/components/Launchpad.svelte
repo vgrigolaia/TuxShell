@@ -13,6 +13,10 @@
   import HostBadge from './HostBadge.svelte'
   import StatusDot from './StatusDot.svelte'
   import Icon from './Icon.svelte'
+  import SnippetsPage from './SnippetsPage.svelte'
+  import TunnelsPage from './TunnelsPage.svelte'
+  import { snippets } from '../snippets.svelte'
+  import { tunnels } from '../tunnels.svelte'
 
   interface Props {
     selectedId: number | null
@@ -23,13 +27,15 @@
     onImport: () => void
     /** The host editor, shown on the right when a host is selected. */
     editor?: Snippet
+    /** Which Home section shows. */
+    page?: 'hosts' | 'snippets' | 'tunnels'
   }
-  let { selectedId, onSelect, onConnect, onConnectTarget, onNew, onImport, editor }: Props = $props()
+  let { selectedId, onSelect, onConnect, onConnectTarget, onNew, onImport, editor, page = $bindable('hosts') }: Props = $props()
 
   let query = $state('')
   let group = $state<string | null>(null)
   let found = $state(0)
-  let search: HTMLInputElement
+  let search = $state<HTMLInputElement>()
 
   const hour = new Date().getHours()
   const greeting = hour < 5 ? 'Good evening' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
@@ -55,7 +61,8 @@
       () => 0,
     )
     void newInConfig.then((n) => (found = n))
-    search.focus()
+    search?.focus()
+    void snippets.load()
   })
 
   function submit() {
@@ -75,10 +82,19 @@
 
 <div class="flex min-h-0 flex-1 gap-2.5">
   <nav aria-label="Home" class="flex w-[232px] shrink-0 flex-col gap-1 rounded-panel border border-line bg-raised px-3.5 py-5">
-    <button class="flex h-10 items-center gap-3 rounded-xl bg-panel px-3 text-sm font-medium text-fg shadow-sm" aria-current="page" onclick={() => search.focus()}>
-      <span class="text-accent"><Icon name="server" size={17} /></span>Hosts
-      <span class="ml-auto text-xs text-subtle">{hostStore.list.length}</span>
-    </button>
+    {#each [['hosts', 'Hosts', 'server', hostStore.list.length], ['snippets', 'Snippets', 'code', snippets.list.length], ['tunnels', 'Tunnels', 'tunnel', tunnels.list.length]] as const as [id, name, icon, count] (id)}
+      <button
+        class="flex h-10 items-center gap-3 rounded-xl px-3 text-sm font-medium {page === id ? 'bg-panel text-fg shadow-sm' : 'text-text hover:bg-panel/60'}"
+        aria-current={page === id ? 'page' : undefined}
+        onclick={() => (page = id)}
+      >
+        <span class={page === id ? 'text-accent' : ''}><Icon name={icon} size={17} /></span>{name}
+        {#if count}<span class="ml-auto text-xs text-subtle">{id === 'tunnels' && tunnels.running ? `${tunnels.running} on` : count}</span>{/if}
+      </button>
+    {/each}
+    <span class="flex h-10 cursor-default items-center gap-3 px-3 text-sm font-medium text-subtle" title="1Password integration arrives in a later version">
+      <Icon name="shield" size={17} />Keychain<span class="ml-auto rounded-full bg-hop px-2 py-0.5 text-[10.5px]">soon</span>
+    </span>
 
     <div class="mt-auto flex flex-col gap-2 rounded-2xl border border-line bg-panel p-3.5">
       <div class="flex items-center gap-2 text-[13px] font-bold">
@@ -88,6 +104,11 @@
     </div>
   </nav>
 
+  {#if page === 'snippets'}
+    <SnippetsPage />
+  {:else if page === 'tunnels'}
+    <TunnelsPage />
+  {:else}
   <main class="flex min-w-0 flex-1 flex-col gap-5 overflow-y-auto rounded-panel border border-line bg-ground px-7 py-6">
     <header class="flex flex-wrap items-center gap-3.5">
       <h1 class="font-display text-3xl font-bold tracking-[-0.03em]">{greeting}</h1>
@@ -189,6 +210,7 @@
   </main>
 
   {@render editor?.()}
+  {/if}
 </div>
 
 <style>

@@ -18,6 +18,8 @@
   import { prefs } from './lib/settings.svelte'
   import { closer } from './lib/close.svelte'
   import { hostStatus } from './lib/status.svelte'
+  import { tunnels } from './lib/tunnels.svelte'
+  import { snippets } from './lib/snippets.svelte'
   import { emptyHost, hostStore, type Host } from './lib/hosts.svelte'
   import { HOME, workspace } from './lib/workspace.svelte'
   import Launchpad from './lib/components/Launchpad.svelte'
@@ -117,6 +119,8 @@
     void hostStore.load()
     void prefs.load()
     const offStatus = hostStatus.start()
+    const offTunnels = tunnels.start()
+    void snippets.load()
     void Terminals.DisplayServer().then((d) => (displayServer = d), () => {})
     const clock = setInterval(() => (now = Date.now()), 30000)
     // The window manager's close (or ours) was held back because sessions are live.
@@ -178,6 +182,7 @@
     window.addEventListener('keydown', onKey, { capture: true })
     return () => {
       offStatus()
+      offTunnels()
       clearInterval(clock)
       offClose()
       window.removeEventListener('keydown', onKey, { capture: true })
@@ -227,6 +232,15 @@
   function runInPane(paneId: number, line: string) {
     panes[paneId]?.send(`\x15${line}\r`)
     workspace.focusPane(paneId)
+  }
+
+  // Pastes into the focused pane, or every receiving tile while multi-exec is on.
+  // Never adds Enter: the user reviews the command first.
+  function pasteSnippet(command: string) {
+    if (!active) return
+    const targets = workspace.broadcastTargets(active.id) ?? [active.id]
+    for (const id of targets) if (!workspace.pane(id)?.exited) panes[id]?.paste(command)
+    workspace.focusPane(active.id)
   }
 
   function pasteToActive(text: string) {
@@ -381,6 +395,7 @@
       </span>
     {/if}
     {#if activeHost?.proxyJump}<span>via {activeHost.proxyJump} · ProxyJump</span>{/if}
+    {#if tunnels.running}<span>{tunnels.running} {tunnels.running === 1 ? 'tunnel' : 'tunnels'}</span>{/if}
     <span>{workspace.tabs.length} {workspace.tabs.length === 1 ? 'tab' : 'tabs'} · {workspace.panes.filter((p) => !p.exited).length} live</span>
     {#if workspace.activeTab && workspace.activeTab.paneIds.length > 1}
       <span>Ctrl+Shift+arrows: move between tiles</span>
@@ -407,6 +422,7 @@
     onNewHost={() => (panel = { kind: 'host', host: emptyHost() })}
     onImport={() => (importOpen = true)}
     onOpenSplit={splitInto ? undefined : openSplit}
+    onSnippet={!home && active ? pasteSnippet : undefined}
   />
 {/if}
 

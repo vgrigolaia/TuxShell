@@ -2,6 +2,8 @@
   import { onMount } from 'svelte'
   import { describe, hostStore, type Host } from '../hosts.svelte'
   import HostBadge from './HostBadge.svelte'
+  import { snippets, type Snippet } from '../snippets.svelte'
+  import { describeTunnel, tunnels, type TunnelState } from '../tunnels.svelte'
   import { best } from '../fuzzy'
   import Icon from './Icon.svelte'
 
@@ -15,15 +17,19 @@
     onImport: () => void
     /** Opens several hosts as panes of one new tab; missing while splitting a tab. */
     onOpenSplit?: (hosts: Host[]) => void
+    /** Pastes a snippet into the focused terminal; missing when none is open. */
+    onSnippet?: (command: string) => void
   }
-  let { placeholder = 'Search hosts, or type user@host to connect', onClose, onConnectHost, onConnectTarget, onNewShell, onNewHost, onImport, onOpenSplit }: Props = $props()
+  let { placeholder = 'Search hosts, or type user@host to connect', onClose, onConnectHost, onConnectTarget, onNewShell, onNewHost, onImport, onOpenSplit, onSnippet }: Props = $props()
 
-  type Filter = 'all' | 'hosts' | 'actions'
+  type Filter = 'all' | 'hosts' | 'snippets' | 'tunnels' | 'actions'
   let filter = $state<Filter>('all')
 
   type Item =
     | { kind: 'host'; id: string; host: Host }
     | { kind: 'target'; id: string; target: string }
+    | { kind: 'snippet'; id: string; snippet: Snippet }
+    | { kind: 'tunnel'; id: string; tunnel: TunnelState }
     | { kind: 'action'; id: string; label: string; hint?: string; icon: 'terminal' | 'plus' | 'import' | 'splitRight'; run: () => void }
 
   let dialog: HTMLDialogElement
@@ -46,9 +52,16 @@
       .slice(0, 8)
       .map(({ host }): Item => ({ kind: 'host', id: `h${host.id}`, host }))
 
-    const out: Item[] = filter === 'actions' ? [] : [...hosts]
-    if (filter !== 'actions' && q && looksLikeTarget(q)) out.push({ kind: 'target', id: 'target', target: q })
-    if (filter === 'hosts') return out
+    const show = (f: Filter) => filter === 'all' || filter === f
+    const out: Item[] = show('hosts') ? [...hosts] : []
+    if (show('hosts') && q && looksLikeTarget(q)) out.push({ kind: 'target', id: 'target', target: q })
+    if (show('snippets') && onSnippet)
+      for (const sn of snippets.list.filter((s) => !q || best(q, [s.name, s.group, s.command]) > 0).slice(0, filter === 'snippets' ? 20 : 4))
+        out.push({ kind: 'snippet', id: `s${sn.id}`, snippet: sn })
+    if (show('tunnels'))
+      for (const t of tunnels.list.filter((t) => !q || best(q, [t.name, describeTunnel(t), hostStore.get(t.hostId)?.name ?? '']) > 0).slice(0, filter === 'tunnels' ? 20 : 3))
+        out.push({ kind: 'tunnel', id: `t${t.id}`, tunnel: t })
+    if (filter === 'hosts' || filter === 'snippets' || filter === 'tunnels') return out
 
     // A search that narrows to 2–4 hosts can open them side by side, ready to broadcast.
     const matched = hosts.map((i) => (i.kind === 'host' ? i.host : null)).filter((h): h is Host => !!h)
@@ -82,6 +95,8 @@
     dialog.close()
     if (item.kind === 'host') onConnectHost(item.host)
     else if (item.kind === 'target') onConnectTarget(item.target)
+    else if (item.kind === 'snippet') onSnippet?.(item.snippet.command)
+    else if (item.kind === 'tunnel') void tunnels.toggle(item.tunnel)
     else item.run()
   }
 
@@ -134,7 +149,7 @@
   </div>
 
   <div role="radiogroup" aria-label="Show" class="flex gap-1 border-b border-line px-3 py-2">
-    {#each [['all', 'All'], ['hosts', 'Hosts'], ['actions', 'Actions']] as const as [value, label] (value)}
+    {#each [['all', 'All'], ['hosts', 'Hosts'], ['snippets', 'Snippets'], ['tunnels', 'Tunnels'], ['actions', 'Actions']] as const as [value, label] (value)}
       <button
         role="radio"
         aria-checked={filter === value}
@@ -169,6 +184,19 @@
               {describe(item.host)}{item.host.proxyJump ? ` · via ${item.host.proxyJump}` : ''}
             </span>
           </span>
+        {:else if item.kind === 'snippet'}
+          <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-hop text-muted"><Icon name="code" size={15} /></span>
+          <span class="min-w-0 flex-1">
+            <span class="block truncate text-[14px]">Snippet · {item.snippet.name}</span>
+            <span class="block truncate font-mono text-xs text-subtle">{item.snippet.command}</span>
+          </span>
+        {:else if item.kind === 'tunnel'}
+          {@const on = item.tunnel.status === 'running'}
+          <span class="tint-lime grid size-8 shrink-0 place-items-center rounded-lg"><Icon name="tunnel" size={15} /></span>
+          <span class="min-w-0 flex-1">
+            <span class="block truncate font-mono text-[13px]">{describeTunnel(item.tunnel)}</span>
+            <span class="block truncate text-xs text-subtle">via {hostStore.get(item.tunnel.hostId)?.name ?? '?'} · {on ? 'running' : 'stopped'}</span>
+          </span>
         {:else if item.kind === 'target'}
           <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-success/15 text-success"><Icon name="terminal" size={15} /></span>
           <span class="min-w-0 flex-1">
@@ -185,7 +213,9 @@
         {#if item.id === 'split'}
           <kbd class="shrink-0 rounded-md border border-line px-1.5 py-0.5 font-mono text-[11px] text-subtle">Ctrl ↵</kbd>
         {:else if i === index}
-          <kbd class="shrink-0 rounded-md border border-line px-1.5 py-0.5 font-mono text-[11px] text-subtle">↵ {item.kind === 'action' ? 'run' : 'connect'}</kbd>
+          <kbd class="shrink-0 rounded-md border border-line px-1.5 py-0.5 font-mono text-[11px] text-subtle"
+            >↵ {item.kind === 'action' ? 'run' : item.kind === 'snippet' ? 'paste' : item.kind === 'tunnel' ? (item.tunnel.status === 'running' ? 'stop' : 'start') : 'connect'}</kbd
+          >
         {/if}
       </li>
     {:else}

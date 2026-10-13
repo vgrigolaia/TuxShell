@@ -24,6 +24,7 @@ declare module "@wailsio/runtime" {
             "hosts:status": status$0.Result[] | null;
             "terminal:data": terminal$0.DataEvent;
             "terminal:exit": terminal$0.ExitEvent;
+            "tunnels:changed": void;
         }
     }
 }
