@@ -16,6 +16,7 @@
   import Icon from './Icon.svelte'
   import SnippetsPage from './SnippetsPage.svelte'
   import TunnelsPage from './TunnelsPage.svelte'
+  import HistoryPage from './HistoryPage.svelte'
   import { snippets } from '../snippets.svelte'
   import { tunnels } from '../tunnels.svelte'
 
@@ -31,10 +32,12 @@
     editor?: Snippet
     /** Double-clicking Hosts opens the terminal view with the host list. */
     onOpenHostList: () => void
+    /** Opens Preferences. */
+    onPreferences: () => void
     /** Which Home section shows. */
-    page?: 'hosts' | 'snippets' | 'tunnels'
+    page?: 'hosts' | 'snippets' | 'tunnels' | 'history'
   }
-  let { selectedId, onSelect, onConnect, onConnectTarget, onNew, onImport, onOpenHostList, editor, page = $bindable('hosts') }: Props = $props()
+  let { selectedId, onSelect, onConnect, onConnectTarget, onNew, onImport, onOpenHostList, onPreferences, editor, page = $bindable('hosts') }: Props = $props()
 
   let query = $state('')
   let group = $state<string | null>(null)
@@ -97,7 +100,7 @@
 
 <div class="flex min-h-0 min-w-0 flex-1 gap-2.5">
   <nav aria-label="Home" class="flex w-[232px] shrink-0 flex-col gap-1 rounded-panel border border-line bg-raised px-3.5 py-5">
-    {#each [['hosts', 'Hosts', 'server', hostStore.list.length], ['snippets', 'Snippets', 'code', snippets.list.length], ['tunnels', 'Tunnels', 'tunnel', tunnels.list.length]] as const as [id, name, icon, count] (id)}
+    {#each [['hosts', 'Hosts', 'server', hostStore.list.length], ['snippets', 'Snippets', 'code', snippets.list.length], ['tunnels', 'Tunnels', 'tunnel', tunnels.list.length], ['history', 'History', 'clock', 0]] as const as [id, name, icon, count] (id)}
       <button
         class="flex h-10 items-center gap-3 rounded-xl px-3 text-sm font-medium {page === id ? 'bg-panel text-fg shadow-sm' : 'text-text hover:bg-panel/60'}"
         aria-current={page === id ? 'page' : undefined}
@@ -125,6 +128,8 @@
     <SnippetsPage />
   {:else if page === 'tunnels'}
     <TunnelsPage />
+  {:else if page === 'history'}
+    <HistoryPage {onConnect} {onConnectTarget} {onPreferences} />
   {:else}
   <main class="flex min-w-0 flex-1 flex-col gap-5 overflow-y-auto rounded-panel border border-line bg-ground px-7 py-6">
     <header class="flex flex-wrap items-center gap-3.5">

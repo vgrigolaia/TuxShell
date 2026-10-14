@@ -31,6 +31,17 @@ type Settings struct {
 	Terminal      Terminal `json:"terminal"`
 	// Profiles are the user's named terminal profiles.
 	Profiles []NamedProfile `json:"profiles"`
+	// History keeps a list of connections: host, time and duration only.
+	History History `json:"history"`
+}
+
+// History says whether and how long connections are remembered.
+type History struct {
+	Enabled bool `json:"enabled"`
+	// Days is how long entries are kept.
+	Days int `json:"days"`
+	// Max is how many entries are kept.
+	Max int `json:"max"`
 }
 
 // Terminal holds the default profile plus the settings that apply to every
@@ -164,6 +175,7 @@ func Defaults() Settings {
 			CtrlWheelZoom: true,
 		},
 		Profiles: []NamedProfile{},
+		History:  History{Enabled: true, Days: 90, Max: 1000},
 	}
 }
 
@@ -235,6 +247,14 @@ func (s *Settings) normalize() {
 	d := Defaults()
 	oneOf(&s.Theme, d.Theme, "dark", "light", "system")
 	s.Terminal.Profile.normalize()
+	if s.History.Days == 0 {
+		s.History.Days = d.History.Days
+	}
+	if s.History.Max == 0 {
+		s.History.Max = d.History.Max
+	}
+	s.History.Days = clamp(s.History.Days, 1, 3650)
+	s.History.Max = clamp(s.History.Max, 50, 100000)
 	seen := map[string]bool{DefaultProfileID: true}
 	list := []NamedProfile{}
 	for _, p := range s.Profiles {

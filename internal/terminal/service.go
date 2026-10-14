@@ -54,12 +54,30 @@ type Auth interface {
 	Begin(sessionID string, hostID int64) (env []string, started func(pid int), end func())
 }
 
+// History records sessions (see hosts.Recorder). Begin returns the function
+// to call with the exit code, or nil when nothing is recorded.
+type History interface {
+	Begin(hostID int64, user, target string) func(code int)
+}
+
+// SetHistory records s's ssh sessions in h. A function, so it isn't bound.
+func SetHistory(s *Service, h History) { s.history = h }
+
+// visit says what a session connects to, for the history.
+type visit struct {
+	hostID int64
+	user   string
+	target string
+}
+
 type session struct {
 	cmd  *exec.Cmd
 	ptmx *os.File
 	// hungUp is set once the session was asked to close.
 	hungUp bool
 	end    func()
+	// visited records the session's end in the history (nil if not recorded).
+	visited func(code int)
 }
 
 // Service manages PTY sessions. Its exported methods are bound to the frontend.
@@ -72,6 +90,7 @@ type Service struct {
 	mu       sync.Mutex
 	sessions map[string]*session
 	auth     Auth
+	history  History
 }
 
 // SetAuth answers s's saved hosts' password prompts through a. It's a
@@ -101,7 +120,7 @@ func (s *Service) StartShell(cols, rows int) (string, error) {
 	if home, err := os.UserHomeDir(); err == nil {
 		cmd.Dir = home
 	}
-	return s.start(cmd, cols, rows, 0)
+	return s.start(cmd, cols, rows, visit{})
 }
 
 // StartHost connects to a saved host and returns the session ID.
@@ -110,7 +129,7 @@ func (s *Service) StartHost(hostID int64, cols, rows int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return s.start(cmd, cols, rows, hostID)
+	return s.start(cmd, cols, rows, visit{hostID: hostID})
 }
 
 // StartHostAs connects to a saved host as user, overriding its saved user.
@@ -119,7 +138,7 @@ func (s *Service) StartHostAs(hostID int64, user string, cols, rows int) (string
 	if err != nil {
 		return "", err
 	}
-	return s.start(cmd, cols, rows, hostID)
+	return s.start(cmd, cols, rows, visit{hostID: hostID, user: user})
 }
 
 // StartTarget connects to an ad-hoc "[user@]host[:port]" and returns the session ID.
@@ -128,12 +147,13 @@ func (s *Service) StartTarget(target string, cols, rows int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return s.start(cmd, cols, rows, 0)
+	return s.start(cmd, cols, rows, visit{target: target})
 }
 
 // start runs cmd in a new PTY of the given size and begins streaming its
-// output. hostID is the saved host it connects to, or 0.
-func (s *Service) start(cmd *exec.Cmd, cols, rows int, hostID int64) (string, error) {
+// output. v says what it connects to (empty for a local shell).
+func (s *Service) start(cmd *exec.Cmd, cols, rows int, v visit) (string, error) {
+	hostID := v.hostID
 	id := strconv.FormatUint(s.nextID.Add(1), 10)
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor")
 	started, end := func(int) {}, func() {}
@@ -148,9 +168,13 @@ func (s *Service) start(cmd *exec.Cmd, cols, rows int, hostID int64) (string, er
 		return "", fmt.Errorf("start %s: %w", cmd.Path, err)
 	}
 	started(cmd.Process.Pid)
+	var visited func(code int)
+	if s.history != nil && (v.hostID != 0 || v.target != "") {
+		visited = s.history.Begin(v.hostID, v.user, v.target)
+	}
 
 	s.mu.Lock()
-	s.sessions[id] = &session{cmd: cmd, ptmx: ptmx, end: end}
+	s.sessions[id] = &session{cmd: cmd, ptmx: ptmx, end: end, visited: visited}
 	s.mu.Unlock()
 
 	go s.pump(id, cmd, ptmx)
@@ -182,11 +206,15 @@ func (s *Service) pump(id string, cmd *exec.Cmd, ptmx *os.File) {
 	}
 
 	s.mu.Lock()
-	if sess := s.sessions[id]; sess != nil && sess.end != nil {
+	sess := s.sessions[id]
+	if sess != nil && sess.end != nil {
 		sess.end()
 	}
 	delete(s.sessions, id)
 	s.mu.Unlock()
+	if sess != nil && sess.visited != nil {
+		sess.visited(code)
+	}
 	_ = ptmx.Close()
 	s.emit(EventExit, ExitEvent{ID: id, Code: code})
 }

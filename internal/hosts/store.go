@@ -57,6 +57,16 @@ var migrations = []string{
 	`ALTER TABLE hosts ADD COLUMN os TEXT NOT NULL DEFAULT ''`,
 	`ALTER TABLE hosts ADD COLUMN password_saved INTEGER NOT NULL DEFAULT 0`,
 	`ALTER TABLE hosts ADD COLUMN profile TEXT NOT NULL DEFAULT ''`,
+	`CREATE TABLE history (
+		id      INTEGER PRIMARY KEY,
+		host_id INTEGER NOT NULL DEFAULT 0,
+		name    TEXT NOT NULL DEFAULT '',
+		target  TEXT NOT NULL DEFAULT '',
+		started INTEGER NOT NULL,
+		ended   INTEGER NOT NULL DEFAULT 0,
+		result  TEXT NOT NULL DEFAULT 'open'
+	)`,
+	`CREATE INDEX history_started ON history (started)`,
 }
 
 // DefaultPath returns $XDG_DATA_HOME/tuxshell/hosts.db.

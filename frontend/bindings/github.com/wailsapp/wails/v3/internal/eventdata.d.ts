@@ -25,6 +25,7 @@ declare module "@wailsio/runtime" {
             "clipboard:changed": void;
             "files:dropped": files$0.DropEvent;
             "files:edited": files$0.EditEvent;
+            "history:changed": void;
             "hosts:status": status$0.Result[] | null;
             "login:done": string;
             "login:password": login$0.PasswordRequest;
