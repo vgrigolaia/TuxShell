@@ -57,17 +57,17 @@ Download the package for your distribution from the
 
 ```sh
 # Fedora, RHEL, AlmaLinux, Rocky Linux
-sudo dnf install ./tuxshell-1.1.4-1.x86_64.rpm
+sudo dnf install ./tuxshell-1.1.5-1.x86_64.rpm
 
 # Debian, Ubuntu
-sudo apt install ./tuxshell_1.1.4-1_amd64.deb
+sudo apt install ./tuxshell_1.1.5-1_amd64.deb
 ```
 
 Or run the AppImage on any distribution:
 
 ```sh
-chmod +x TuxShell-1.1.4-x86_64.AppImage
-./TuxShell-1.1.4-x86_64.AppImage
+chmod +x TuxShell-1.1.5-x86_64.AppImage
+./TuxShell-1.1.5-x86_64.AppImage
 ```
 
 Supported: Fedora 39+, RHEL/Alma/Rocky 10, Debian 13+ and Ubuntu 24.04+. TuxShell needs
