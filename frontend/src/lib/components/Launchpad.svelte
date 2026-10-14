@@ -204,7 +204,7 @@
             onkeydown={(e) => e.key === 'Enter' && (e.preventDefault(), onConnect(h))}
           >
             <span class="flex items-center gap-3">
-              <HostBadge name={h.name} size={44} dim={off} />
+              <HostBadge name={h.name} os={h.os} size={44} dim={off} />
               <span class="flex min-w-0 flex-col">
                 <span class="truncate text-[15px] font-bold {off ? 'text-subtle' : ''}">{h.name}</span>
                 <span class="truncate font-mono text-xs text-subtle">{describe(h)}</span>

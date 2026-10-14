@@ -132,6 +132,33 @@ body {
 :root[data-theme="light"] .tint-lime { background: #e8f5d6; color: #3f6212; }
 :root[data-theme="light"] .tint-blue { background: #e0f2fe; color: #075985; }
 :root[data-theme="light"] .tint-rose { background: #fce4f2; color: #9d1d6b; }
+/* Operating system badges (lib/os.ts), in the brand colour of each system. */
+.os-ubuntu { background: rgb(233 84 32 / .16); color: #f2774a; }
+.os-debian { background: rgb(215 10 83 / .16); color: #f0517f; }
+.os-rhel { background: rgb(238 0 0 / .15); color: #ff5c5c; }
+.os-almalinux { background: rgb(8 145 178 / .16); color: #86d4f7; }
+.os-rocky { background: rgb(16 185 129 / .15); color: #34d399; }
+.os-fedora { background: rgb(81 162 218 / .16); color: #6fb4e8; }
+.os-centos { background: rgb(147 34 121 / .22); color: #e08ad0; }
+.os-opensuse { background: rgb(115 186 37 / .16); color: #8fd14f; }
+.os-arch { background: rgb(23 147 209 / .16); color: #4fb3e8; }
+.os-alpine { background: rgb(13 89 127 / .3); color: #6cbce6; }
+.os-freebsd { background: rgb(171 43 40 / .22); color: #ec6a66; }
+.os-windows { background: rgb(0 120 212 / .18); color: #4cc2ff; }
+.os-linux { background: rgb(252 198 36 / .14); color: #fcc624; }
+:root[data-theme="light"] .os-ubuntu { background: #fde7dc; color: #c2410c; }
+:root[data-theme="light"] .os-debian { background: #fbe0ea; color: #a80845; }
+:root[data-theme="light"] .os-rhel { background: #fde2e2; color: #c00000; }
+:root[data-theme="light"] .os-almalinux { background: #dff3fa; color: #0e6b8c; }
+:root[data-theme="light"] .os-rocky { background: #d9f5ea; color: #047857; }
+:root[data-theme="light"] .os-fedora { background: #e1effa; color: #1f6fae; }
+:root[data-theme="light"] .os-centos { background: #f5e1f0; color: #7a1c66; }
+:root[data-theme="light"] .os-opensuse { background: #e6f4d8; color: #3f7a10; }
+:root[data-theme="light"] .os-arch { background: #ddeffa; color: #0f6fa3; }
+:root[data-theme="light"] .os-alpine { background: #dcecf5; color: #0d597f; }
+:root[data-theme="light"] .os-freebsd { background: #f8e0df; color: #9a1f1c; }
+:root[data-theme="light"] .os-windows { background: #ddeefb; color: #005a9e; }
+:root[data-theme="light"] .os-linux { background: #fdf3d1; color: #7a5c00; }
 
 /* Keyboard hint chips, e.g. "Ctrl K". */
 .kbd {

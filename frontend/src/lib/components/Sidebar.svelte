@@ -272,7 +272,7 @@
                       pick(host, e)
                     }}
                   />
-                  <HostBadge name={host.name} size={22} />
+                  <HostBadge name={host.name} os={host.os} size={22} />
                   <span class="min-w-0 flex-1 truncate">{host.name}</span>
                 </label>
               {:else}
@@ -285,7 +285,7 @@
                   oncontextmenu={(e) => openMenu(e, host)}
                   onkeydown={(e) => onRowKey(e, host)}
                 >
-                  <HostBadge name={host.name} />
+                  <HostBadge name={host.name} os={host.os} />
                   <span class="min-w-0 flex-1 truncate">{host.name}</span>
                   {#if group.name === JUMP_GROUP}
                     <span class="text-[10.5px] text-subtle group-focus-within:opacity-0 group-hover:opacity-0">gateway</span>

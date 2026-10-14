@@ -222,3 +222,27 @@ func TestSnippetsAndTunnels(t *testing.T) {
 		t.Fatalf("tunnels after host delete = %+v", list)
 	}
 }
+
+func TestOS(t *testing.T) {
+	for in, want := range map[string]string{
+		"Ubuntu 24.04": "ubuntu", "RHEL 9": "rhel", "Red Hat Enterprise Linux": "rhel", "AlmaLinux 10": "almalinux",
+		"Rocky Linux": "rocky", "CentOS Stream 9": "centos", "SLES 15": "opensuse", "Windows Server 2022": "windows",
+		"Linux": "linux", "debian": "debian", "": "", "Solaris": "",
+	} {
+		if got := ParseOS(in); got != want {
+			t.Errorf("ParseOS(%q) = %q, want %q", in, got, want)
+		}
+	}
+	s := openTemp(t)
+	h, err := s.Save(Host{Name: "u", Hostname: "u.example", OS: "Ubuntu", Tags: []string{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, _ := s.Get(h.ID)
+	if got.OS != "ubuntu" {
+		t.Errorf("OS = %q", got.OS)
+	}
+	if _, err := s.Save(Host{Name: "x", Hostname: "x.example", OS: "solaris"}); err == nil {
+		t.Error("unknown OS accepted")
+	}
+}

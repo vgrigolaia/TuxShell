@@ -26,6 +26,7 @@ export const emptyHost = (): Host => ({
   identityFile: '',
   passwordRef: '',
   tags: [],
+  os: '',
 })
 
 /** Name of the automatic group holding jump hosts. */
