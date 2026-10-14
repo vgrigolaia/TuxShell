@@ -27,6 +27,12 @@ export interface Host {
      * OS is one of OSes, or "" when not set. It only picks the logo shown.
      */
     "os": string;
+
+    /**
+     * PasswordSaved is true when a password for this host is in the system
+     * keyring. Only Store.SetPasswordSaved changes it; Save leaves it alone.
+     */
+    "passwordSaved": boolean;
 }
 
 /**

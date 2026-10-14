@@ -15,6 +15,9 @@ import (
 // Store persists hosts in a SQLite database.
 type Store struct {
 	db *sql.DB
+	// OnDelete, when set, is called with the IDs of hosts that were deleted
+	// (to remove their saved passwords).
+	OnDelete func(ids []int64)
 }
 
 // migrations run in order; PRAGMA user_version records how many have been applied.
@@ -52,6 +55,7 @@ var migrations = []string{
 		created_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 	)`,
 	`ALTER TABLE hosts ADD COLUMN os TEXT NOT NULL DEFAULT ''`,
+	`ALTER TABLE hosts ADD COLUMN password_saved INTEGER NOT NULL DEFAULT 0`,
 }
 
 // DefaultPath returns $XDG_DATA_HOME/tuxshell/hosts.db.
@@ -130,7 +134,7 @@ func migrate(db *sql.DB) error {
 // Close closes the database.
 func (s *Store) Close() error { return s.db.Close() }
 
-const columns = `id, name, grp, alias, hostname, user, port, proxy_jump, identity_file, password_ref, tags, os`
+const columns = `id, name, grp, alias, hostname, user, port, proxy_jump, identity_file, password_ref, tags, os, password_saved`
 
 type scanner interface{ Scan(...any) error }
 
@@ -138,7 +142,7 @@ func scanHost(row scanner) (Host, error) {
 	var h Host
 	var tags string
 	err := row.Scan(&h.ID, &h.Name, &h.Group, &h.Alias, &h.Hostname, &h.User, &h.Port,
-		&h.ProxyJump, &h.IdentityFile, &h.PasswordRef, &tags, &h.OS)
+		&h.ProxyJump, &h.IdentityFile, &h.PasswordRef, &tags, &h.OS, &h.PasswordSaved)
 	if err != nil {
 		return h, err
 	}
@@ -217,6 +221,21 @@ func (s *Store) Delete(id int64) error {
 	if n, _ := res.RowsAffected(); n == 0 {
 		return ErrNotFound
 	}
+	if s.OnDelete != nil {
+		s.OnDelete([]int64{id})
+	}
+	return nil
+}
+
+// SetPasswordSaved records whether the host has a password in the keyring.
+func (s *Store) SetPasswordSaved(id int64, saved bool) error {
+	res, err := s.db.Exec(`UPDATE hosts SET password_saved = ? WHERE id = ?`, saved, id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
 	return nil
 }
 
@@ -242,5 +261,11 @@ func (s *Store) DeleteMany(ids []int64) (int, error) {
 		n, _ := res.RowsAffected()
 		deleted += int(n)
 	}
-	return deleted, tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	if s.OnDelete != nil && deleted > 0 {
+		s.OnDelete(ids)
+	}
+	return deleted, nil
 }

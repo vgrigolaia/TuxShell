@@ -34,6 +34,12 @@ export interface Settings {
      * the app makes no requests of its own unless the user turns this on.
      */
     "updateCheck": boolean;
+
+    /**
+     * SavePasswords allows saving host passwords in the system keyring. Off by
+     * default: keys, the ssh agent or 1Password are safer.
+     */
+    "savePasswords": boolean;
     "terminal": Terminal;
 }
 

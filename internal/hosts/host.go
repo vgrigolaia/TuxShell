@@ -26,6 +26,9 @@ type Host struct {
 	Tags         []string `json:"tags"`
 	// OS is one of OSes, or "" when not set. It only picks the logo shown.
 	OS string `json:"os"`
+	// PasswordSaved is true when a password for this host is in the system
+	// keyring. Only Store.SetPasswordSaved changes it; Save leaves it alone.
+	PasswordSaved bool `json:"passwordSaved"`
 }
 
 // ValidationError reports a problem with one field, so the form can show it inline.
