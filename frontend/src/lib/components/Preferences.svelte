@@ -306,7 +306,7 @@
         <h3 class="sr-only">Hosts</h3>
         <section aria-labelledby="{id}-import">
           <h4 id="{id}-import" class="text-[13px] font-medium">Import hosts</h4>
-          <p class={hint}>From ~/.ssh/config, a CSV/TSV file or a TuxShell export. You see every host before it's saved. Passwords are never imported.</p>
+          <p class={hint}>From ~/.ssh/config, CSV/TSV, Excel (.xlsx) or a TuxShell export. You see every host before it's saved. Passwords are never imported.</p>
           <button class="mt-3 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-on-accent hover:bg-accent/90" onclick={onImport}>Import hosts…</button>
         </section>
         <ExportHosts />

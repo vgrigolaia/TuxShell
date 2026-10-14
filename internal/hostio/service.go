@@ -22,6 +22,7 @@ import (
 const (
 	SourceCSV  = "csv"
 	SourceJSON = "json"
+	SourceXLSX = "xlsx"
 )
 
 // Duplicate modes for hosts that are already saved.
@@ -53,6 +54,11 @@ var sources = map[string]source{
 		title:   "Import hosts from a CSV or TSV file",
 		filters: []Filter{{"CSV or TSV", "*.csv;*.CSV;*.tsv;*.TSV;*.txt;*.TXT"}},
 		read:    readDelimited,
+	},
+	SourceXLSX: {
+		title:   "Import hosts from an Excel file",
+		filters: []Filter{{"Excel workbook (.xlsx)", "*.xlsx;*.XLSX"}},
+		read:    readXLSX,
 	},
 	SourceJSON: {
 		title:   "Import a TuxShell hosts file",
