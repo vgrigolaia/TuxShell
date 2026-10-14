@@ -366,6 +366,7 @@
         onNew={() => (panel = { kind: 'host', host: emptyHost() })}
         onImport={openImport}
         onOpenHostList={openHostList}
+        onPreferences={() => (prefsOpen = true)}
       >
         {#snippet editor()}
           {#if panel.kind === 'host'}

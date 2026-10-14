@@ -603,6 +603,47 @@
             <span>Ask before closing running sessions<span class={hint}>When closing a pane, tabs or the window.</span></span>
           </label>
 
+          <fieldset class="flex flex-col gap-3 border-t border-line pt-4">
+            <legend class="{label} pt-4">Connection history</legend>
+            <label class={check}>
+              <input type="checkbox" class="mt-0.5 accent-accent" checked={prefs.value.history?.enabled ?? true} onchange={(e) => prefs.setHistory({ enabled: e.currentTarget.checked })} />
+              <span
+                >Keep a history of connections<span class={hint}>Host, time, how long and whether it worked, shown under Home → History. Never what you typed or what was on screen.</span></span
+              >
+            </label>
+            <div class="flex items-center gap-2 text-[13px]">
+              <label for="{id}-hdays">Keep for</label>
+              <input
+                id="{id}-hdays"
+                type="number"
+                class="{field} w-20 text-center"
+                min="1"
+                max="3650"
+                value={prefs.value.history?.days ?? 90}
+                oninput={(e) => {
+                  const v = Number(e.currentTarget.value)
+                  if (v >= 1 && v <= 3650) prefs.setHistory({ days: Math.round(v) })
+                }}
+              />
+              <span class="text-subtle">days, at most</span>
+              <label class="sr-only" for="{id}-hmax">Most entries kept</label>
+              <input
+                id="{id}-hmax"
+                type="number"
+                class="{field} w-24 text-center"
+                min="50"
+                max="100000"
+                step="50"
+                value={prefs.value.history?.max ?? 1000}
+                oninput={(e) => {
+                  const v = Number(e.currentTarget.value)
+                  if (v >= 50 && v <= 100000) prefs.setHistory({ max: Math.round(v) })
+                }}
+              />
+              <span class="text-subtle">entries</span>
+            </div>
+          </fieldset>
+
           <div>
             <label class={label} for="{id}-shell">Shell for local tabs</label>
             <select
