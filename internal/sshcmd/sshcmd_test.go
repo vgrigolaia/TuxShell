@@ -103,6 +103,20 @@ func TestResolverUsesStoreAndPath(t *testing.T) {
 		t.Fatalf("args = %q, want %q", cmd.Args, want)
 	}
 
+	// A profile's command goes after the destination, with a terminal.
+	r.RemoteCommand = func(got hosts.Host) string {
+		if got.ID == h.ID {
+			return "tmux attach; exec $SHELL -l"
+		}
+		return ""
+	}
+	cmd, _ = r.HostCommand(h.ID)
+	want = []string{fake, "-t", "-p", "2222", "-l", "deploy", "--", "web.internal", "tmux attach; exec $SHELL -l"}
+	if !slices.Equal(cmd.Args, want) {
+		t.Fatalf("args = %q, want %q", cmd.Args, want)
+	}
+	r.RemoteCommand = nil
+
 	if _, err := r.HostCommand(h.ID + 100); !errors.Is(err, hosts.ErrNotFound) {
 		t.Fatalf("missing host: err = %v", err)
 	}

@@ -29,6 +29,9 @@ type Host struct {
 	// PasswordSaved is true when a password for this host is in the system
 	// keyring. Only Store.SetPasswordSaved changes it; Save leaves it alone.
 	PasswordSaved bool `json:"passwordSaved"`
+	// Profile is the terminal profile's ID, or "" for the default profile. A
+	// profile that no longer exists also means the default.
+	Profile string `json:"profile"`
 }
 
 // ValidationError reports a problem with one field, so the form can show it inline.
@@ -47,6 +50,8 @@ var (
 	// ProxyJump: comma-separated [user@]host[:port] hops.
 	jumpRe = regexp.MustCompile(`^[A-Za-z0-9_.@:\[\]%][A-Za-z0-9_.@:\[\]%,-]*$`)
 	tagRe  = regexp.MustCompile(`^[\p{L}\p{N}_.-]+$`)
+	// Matches settings' profile IDs.
+	profileRe = regexp.MustCompile(`^[a-z0-9]{1,32}$`)
 )
 
 // Normalize trims fields and applies defaults.
@@ -60,6 +65,9 @@ func (h *Host) Normalize() {
 	h.IdentityFile = strings.TrimSpace(h.IdentityFile)
 	h.PasswordRef = strings.TrimSpace(h.PasswordRef)
 	h.OS = strings.ToLower(strings.TrimSpace(h.OS))
+	if h.Profile = strings.TrimSpace(h.Profile); h.Profile == "default" {
+		h.Profile = ""
+	}
 	if h.Port == 0 {
 		h.Port = 22
 	}
@@ -103,6 +111,8 @@ func (h *Host) Validate() error {
 		return invalid("passwordRef", "Use a 1Password reference like op://Vault/Item/field")
 	case h.OS != "" && !knownOS(h.OS):
 		return invalid("os", "Unknown operating system")
+	case h.Profile != "" && !profileRe.MatchString(h.Profile):
+		return invalid("profile", "Unknown profile")
 	}
 	for _, t := range h.Tags {
 		if !tagRe.MatchString(t) {

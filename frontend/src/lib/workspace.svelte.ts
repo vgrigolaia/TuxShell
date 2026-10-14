@@ -1,5 +1,6 @@
 import { MAX_PANES, defaultSizes, neighbour, rects, type Direction, type Orientation } from './layout'
 import type { Source } from './tabs'
+import { paneProfile } from './profiles.svelte'
 
 /** One terminal session. Panes outlive tab changes: moving one never remounts it. */
 export interface Pane {
@@ -18,6 +19,8 @@ export interface Pane {
   /** Typing and pasting are blocked. */
   readOnly: boolean
   showScrollbar: boolean
+  /** The terminal rang its bell while the pane wasn't being looked at. */
+  bell: boolean
   /** When the current session started (ms), or 0 before it connects. */
   startedAt: number
 }
@@ -71,7 +74,7 @@ class Workspace {
   }
 
   private makePane(source: Source, title: string): Pane {
-    const pane: Pane = { id: this.nextPane++, title, termTitle: '', source, exited: false, size: '', loginUser: '', customTitle: false, readOnly: false, showScrollbar: true, startedAt: 0 }
+    const pane: Pane = { id: this.nextPane++, title, termTitle: '', source, exited: false, size: '', loginUser: '', customTitle: false, readOnly: false, showScrollbar: paneProfile(source).scrollbar, bell: false, startedAt: 0 }
     this.panes.push(pane)
     return pane
   }

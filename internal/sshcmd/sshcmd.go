@@ -85,6 +85,9 @@ type Resolver struct {
 	Store *hosts.Store
 	// ControlDir holds ControlMaster sockets; empty disables connection sharing.
 	ControlDir string
+	// RemoteCommand, when set, returns a command for interactive sessions to
+	// run on the server (from the host's terminal profile), or "".
+	RemoteCommand func(h hosts.Host) string
 }
 
 // host loads and re-validates a saved host (the database may have been edited
@@ -233,7 +236,18 @@ func (r Resolver) session(h hosts.Host) (*exec.Cmd, error) {
 	if err != nil {
 		return nil, err
 	}
-	return exec.Command(ssh, append(sessionOptions(r.ControlDir), Args(h)...)...), nil
+	args := sessionOptions(r.ControlDir)
+	command := ""
+	if r.RemoteCommand != nil {
+		command = r.RemoteCommand(h)
+	}
+	if command == "" {
+		return exec.Command(ssh, append(args, Args(h)...)...), nil
+	}
+	// A remote command gets no terminal unless asked for. It goes after the
+	// destination as one argument; the server's shell runs it.
+	args = append(append(args, "-t"), Args(h)...)
+	return exec.Command(ssh, append(args, command)...), nil
 }
 
 func (r Resolver) remote(h hosts.Host) (Remote, error) {

@@ -29,10 +29,28 @@ type Settings struct {
 	// default: keys, the ssh agent or 1Password are safer.
 	SavePasswords bool     `json:"savePasswords"`
 	Terminal      Terminal `json:"terminal"`
+	// Profiles are the user's named terminal profiles.
+	Profiles []NamedProfile `json:"profiles"`
 }
 
-// Terminal holds the look and behaviour of terminal panes.
+// Terminal holds the default profile plus the settings that apply to every
+// terminal. The default profile's fields sit at the top level (embedded), so
+// settings files from before profiles still load.
 type Terminal struct {
+	Profile
+	CopyOnSelect    bool `json:"copyOnSelect"`
+	RightClickPaste bool `json:"rightClickPaste"`
+	// CtrlWheelZoom zooms terminal text with Ctrl+mouse wheel.
+	CtrlWheelZoom bool `json:"ctrlWheelZoom"`
+	// ConfirmClose asks before closing tabs or the window with live sessions.
+	ConfirmClose bool `json:"confirmClose"`
+	// Shell runs in local tabs; empty means $SHELL. Must be listed in /etc/shells.
+	Shell string `json:"shell"`
+}
+
+// Profile is the look and behaviour of a terminal pane. The default profile
+// is Terminal.Profile; hosts can pick a NamedProfile instead.
+type Profile struct {
 	// FontFamily is a font family name; empty means the bundled JetBrains Mono.
 	FontFamily     string  `json:"fontFamily"`
 	FontSize       int     `json:"fontSize"`
@@ -43,20 +61,87 @@ type Terminal struct {
 	// CursorStyle is "block", "bar" or "underline".
 	CursorStyle string `json:"cursorStyle"`
 	CursorBlink bool   `json:"cursorBlink"`
-	// ColorScheme is a scheme id; "auto" follows the app theme.
-	ColorScheme     string `json:"colorScheme"`
-	Scrollback      int    `json:"scrollback"`
-	CopyOnSelect    bool   `json:"copyOnSelect"`
-	RightClickPaste bool   `json:"rightClickPaste"`
-	// CtrlWheelZoom zooms terminal text with Ctrl+mouse wheel.
-	CtrlWheelZoom bool `json:"ctrlWheelZoom"`
-	// Bell is "off" or "visual".
+	// ColorScheme is a scheme id; "auto" follows the app theme, "custom" uses Palette.
+	ColorScheme string  `json:"colorScheme"`
+	Palette     Palette `json:"palette"`
+	// Background is an image in the backgrounds folder (see Backgrounds), or "".
+	Background string `json:"background"`
+	// BackgroundShade is how much of the colour scheme's background covers
+	// the image, 0–100.
+	BackgroundShade int `json:"backgroundShade"`
+	// HeaderColor tints the pane header: "" (none) or "#rrggbb".
+	HeaderColor string `json:"headerColor"`
+	Scrollback  int    `json:"scrollback"`
+	// Scrollbar is whether new panes show a scrollbar.
+	Scrollbar bool `json:"scrollbar"`
+	// ScrollOnOutput jumps to the bottom when new output arrives.
+	ScrollOnOutput bool `json:"scrollOnOutput"`
+	// ScrollOnKeypress jumps to the bottom when typing.
+	ScrollOnKeypress bool `json:"scrollOnKeypress"`
+	// ScrollSpeed multiplies mouse wheel scrolling, 1–10.
+	ScrollSpeed int `json:"scrollSpeed"`
+	// Bell is "off" or "visual" (flash the pane).
 	Bell string `json:"bell"`
-	// ConfirmClose asks before closing tabs or the window with live sessions.
-	ConfirmClose bool `json:"confirmClose"`
-	// Shell runs in local tabs; empty means $SHELL. Must be listed in /etc/shells.
-	Shell string `json:"shell"`
+	// BellIcon marks the pane and tab with a bell until it's looked at.
+	BellIcon bool `json:"bellIcon"`
+	// BellSound plays a short beep.
+	BellSound bool `json:"bellSound"`
+	// Command runs on SSH hosts after login instead of only a shell.
+	Command string `json:"command"`
+	// KeepShell starts the login shell after Command ends.
+	KeepShell bool `json:"keepShell"`
+	// Backspace sends "del" (^?) or "ctrl-h" (^H).
+	Backspace string `json:"backspace"`
+	// Delete sends "escape" (ESC [3~), "del" or "ctrl-h".
+	Delete string `json:"delete"`
 }
+
+// Palette is a custom colour scheme: 16 ANSI colours (normal then bright)
+// plus the special colours. All are "#rrggbb".
+type Palette struct {
+	Background string   `json:"background"`
+	Foreground string   `json:"foreground"`
+	Cursor     string   `json:"cursor"`
+	Selection  string   `json:"selection"`
+	Colors     []string `json:"colors"`
+}
+
+// NamedProfile is a profile the user created, chosen per host.
+type NamedProfile struct {
+	// ID is what hosts refer to; it never changes when the profile is renamed.
+	ID      string  `json:"id"`
+	Name    string  `json:"name"`
+	Profile Profile `json:"profile"`
+}
+
+// UnmarshalJSON fills settings missing from the file with the defaults.
+func (p *NamedProfile) UnmarshalJSON(b []byte) error {
+	type plain NamedProfile
+	v := plain{Profile: DefaultProfile()}
+	if err := json.Unmarshal(b, &v); err != nil {
+		return err
+	}
+	*p = NamedProfile(v)
+	return nil
+}
+
+// RemoteCommand is what ssh runs on the server for this profile, or "" for
+// just the login shell.
+func (p Profile) RemoteCommand() string {
+	if p.Command == "" {
+		return ""
+	}
+	if p.KeepShell {
+		return p.Command + "; exec $SHELL -l"
+	}
+	return p.Command
+}
+
+// DefaultProfileID stands for Terminal.Profile.
+const DefaultProfileID = "default"
+
+// MaxProfiles limits how many named profiles there can be.
+const MaxProfiles = 50
 
 // Limits for numeric settings.
 const (
@@ -64,6 +149,7 @@ const (
 	MinLineHeight, MaxLineHeight       = 1.0, 2.0
 	MinLetterSpacing, MaxLetterSpacing = -2, 10
 	MaxScrollback                      = 200000
+	MaxCommand                         = 1000
 )
 
 // Defaults returns the out-of-the-box settings.
@@ -73,19 +159,56 @@ func Defaults() Settings {
 		HostsSidebar: true,
 		HostStatus:   true,
 		Terminal: Terminal{
-			FontSize:       13,
-			LineHeight:     1.25,
-			FontWeight:     400,
-			FontWeightBold: 700,
-			CursorStyle:    "block",
-			CursorBlink:    true,
-			ColorScheme:    "auto",
-			Scrollback:     10000,
-			Bell:           "off",
-			ConfirmClose:   true,
-			CtrlWheelZoom:  true,
+			Profile:       DefaultProfile(),
+			ConfirmClose:  true,
+			CtrlWheelZoom: true,
+		},
+		Profiles: []NamedProfile{},
+	}
+}
+
+// DefaultProfile returns the out-of-the-box profile.
+func DefaultProfile() Profile {
+	return Profile{
+		FontSize:         13,
+		LineHeight:       1.25,
+		FontWeight:       400,
+		FontWeightBold:   700,
+		CursorStyle:      "block",
+		CursorBlink:      true,
+		ColorScheme:      "auto",
+		Palette:          DefaultPalette(),
+		BackgroundShade:  70,
+		Scrollback:       10000,
+		Scrollbar:        true,
+		ScrollOnKeypress: true,
+		ScrollSpeed:      1,
+		Bell:             "off",
+		KeepShell:        true,
+		Backspace:        "del",
+		Delete:           "escape",
+	}
+}
+
+// DefaultPalette is the starting point for a custom scheme (Tango).
+func DefaultPalette() Palette {
+	return Palette{
+		Background: "#111318", Foreground: "#d3d7cf", Cursor: "#8b7cff", Selection: "#3b3f4c",
+		Colors: []string{
+			"#2e3436", "#cc0000", "#4e9a06", "#c4a000", "#3465a4", "#75507b", "#06989a", "#d3d7cf",
+			"#555753", "#ef2929", "#8ae234", "#fce94f", "#729fcf", "#ad7fa8", "#34e2e2", "#eeeeec",
 		},
 	}
+}
+
+// ProfileFor returns the profile with id, or the default profile.
+func (s Settings) ProfileFor(id string) Profile {
+	for _, p := range s.Profiles {
+		if p.ID == id {
+			return p.Profile
+		}
+	}
+	return s.Terminal.Profile
 }
 
 // ValidationError names the setting that was rejected.
@@ -99,14 +222,41 @@ func (e *ValidationError) Error() string { return e.Field + ": " + e.Message }
 // A font family ends up inside a CSS font-family list, so keep it to plain names.
 var fontFamilyRe = regexp.MustCompile(`^[\p{L}\p{N} ._+&()-]{1,64}$`)
 
-var schemeRe = regexp.MustCompile(`^[a-z0-9-]{1,32}$`)
+var (
+	schemeRe     = regexp.MustCompile(`^[a-z0-9-]{1,32}$`)
+	profileIDRe  = regexp.MustCompile(`^[a-z0-9]{1,32}$`)
+	colorRe      = regexp.MustCompile(`^#[0-9a-f]{6}$`)
+	backgroundRe = regexp.MustCompile(`^[0-9a-f]{16}\.(png|jpg|webp)$`)
+)
 
 // normalize clamps numbers into range and replaces unknown choices with
 // defaults, so a hand-edited file never breaks the app.
 func (s *Settings) normalize() {
 	d := Defaults()
 	oneOf(&s.Theme, d.Theme, "dark", "light", "system")
-	t, dt := &s.Terminal, d.Terminal
+	s.Terminal.Profile.normalize()
+	seen := map[string]bool{DefaultProfileID: true}
+	list := []NamedProfile{}
+	for _, p := range s.Profiles {
+		p.Name = strings.TrimSpace(p.Name)
+		if !profileIDRe.MatchString(p.ID) || seen[p.ID] || len(list) == MaxProfiles {
+			continue
+		}
+		seen[p.ID] = true
+		if p.Name == "" {
+			p.Name = "Profile"
+		}
+		if len([]rune(p.Name)) > 40 {
+			p.Name = string([]rune(p.Name)[:40])
+		}
+		p.Profile.normalize()
+		list = append(list, p)
+	}
+	s.Profiles = list
+}
+
+func (t *Profile) normalize() {
+	dt := DefaultProfile()
 	t.FontFamily = strings.TrimSpace(t.FontFamily)
 	if t.FontFamily != "" && !fontFamilyRe.MatchString(t.FontFamily) {
 		t.FontFamily = ""
@@ -126,8 +276,49 @@ func (s *Settings) normalize() {
 	if !schemeRe.MatchString(t.ColorScheme) {
 		t.ColorScheme = dt.ColorScheme
 	}
+	t.Palette.normalize()
+	if t.Background != "" && !backgroundRe.MatchString(t.Background) {
+		t.Background = ""
+	}
+	t.BackgroundShade = clamp(t.BackgroundShade, 0, 100)
+	t.HeaderColor = strings.ToLower(t.HeaderColor)
+	if t.HeaderColor != "" && !colorRe.MatchString(t.HeaderColor) {
+		t.HeaderColor = ""
+	}
 	t.Scrollback = clamp(t.Scrollback, 0, MaxScrollback)
+	if t.ScrollSpeed == 0 {
+		t.ScrollSpeed = dt.ScrollSpeed
+	}
+	t.ScrollSpeed = clamp(t.ScrollSpeed, 1, 10)
 	oneOf(&t.Bell, dt.Bell, "off", "visual")
+	t.Command = strings.TrimSpace(strings.ReplaceAll(t.Command, "\x00", ""))
+	if len(t.Command) > MaxCommand || strings.ContainsAny(t.Command, "\n\r") {
+		t.Command = ""
+	}
+	oneOf(&t.Backspace, dt.Backspace, "del", "ctrl-h")
+	oneOf(&t.Delete, dt.Delete, "escape", "del", "ctrl-h")
+}
+
+func (p *Palette) normalize() {
+	d := DefaultPalette()
+	fix := func(v *string, def string) {
+		*v = strings.ToLower(strings.TrimSpace(*v))
+		if !colorRe.MatchString(*v) {
+			*v = def
+		}
+	}
+	fix(&p.Background, d.Background)
+	fix(&p.Foreground, d.Foreground)
+	fix(&p.Cursor, d.Cursor)
+	fix(&p.Selection, d.Selection)
+	colors := make([]string, 16)
+	for i := range colors {
+		if i < len(p.Colors) {
+			colors[i] = p.Colors[i]
+		}
+		fix(&colors[i], d.Colors[i])
+	}
+	p.Colors = colors
 }
 
 func oneOf(v *string, def string, allowed ...string) {

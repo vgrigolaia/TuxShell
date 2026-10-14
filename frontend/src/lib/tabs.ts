@@ -23,5 +23,7 @@ export interface TabInfo {
   key: number
   title: string
   exited: boolean
+  /** A pane in the tab rang its bell. */
+  bell: boolean
   panes: number
 }

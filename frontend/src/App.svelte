@@ -113,6 +113,7 @@
       key: t.key,
       title: workspace.tabTitle(t),
       exited: t.paneIds.every((id) => workspace.pane(id)?.exited),
+      bell: t.paneIds.some((id) => workspace.pane(id)?.bell),
       panes: t.paneIds.length,
     })),
   )

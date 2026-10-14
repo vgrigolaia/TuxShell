@@ -102,3 +102,44 @@ func TestParseFonts(t *testing.T) {
 		t.Fatalf("parseFonts = %q, want %q", got, want)
 	}
 }
+
+func TestProfiles(t *testing.T) {
+	s := newTestService(t)
+	os.MkdirAll(filepath.Dir(s.path), 0o700)
+	// Settings from before profiles: the default profile is read from the flat
+	// terminal fields and new options get their defaults.
+	os.WriteFile(s.path, []byte(`{"terminal":{"fontSize":16,"bell":"visual"},"profiles":[
+		{"id":"prod","name":"  Production  ","profile":{"fontSize":20,"headerColor":"#FF0000","colorScheme":"custom","palette":{"colors":["#000000"]},"command":"tmux attach"}},
+		{"id":"prod","name":"duplicate"},
+		{"id":"Bad ID","name":"x"},
+		{"id":"evil","profile":{"command":"a\nb","background":"../../hosts.db","headerColor":"red"}}
+	]}`), 0o600)
+	again := NewService(s.path)
+	got := again.Get().Settings
+	if got.Terminal.FontSize != 16 || got.Terminal.Bell != "visual" || !got.Terminal.Scrollbar || got.Terminal.Backspace != "del" {
+		t.Errorf("default profile = %+v", got.Terminal.Profile)
+	}
+	if len(got.Profiles) != 2 {
+		t.Fatalf("profiles = %+v", got.Profiles)
+	}
+	p := got.Profiles[0]
+	if p.Name != "Production" || p.Profile.FontSize != 20 || p.Profile.HeaderColor != "#ff0000" || !p.Profile.KeepShell || !p.Profile.Scrollbar {
+		t.Errorf("prod = %+v", p)
+	}
+	if c := p.Profile.Palette.Colors; len(c) != 16 || c[0] != "#000000" || c[1] != DefaultPalette().Colors[1] {
+		t.Errorf("palette = %v", c)
+	}
+	if p.Profile.RemoteCommand() != "tmux attach; exec $SHELL -l" {
+		t.Errorf("remote command = %q", p.Profile.RemoteCommand())
+	}
+	e := got.Profiles[1].Profile
+	if e.Command != "" || e.Background != "" || e.HeaderColor != "" || got.Profiles[1].Name != "Profile" {
+		t.Errorf("evil = %+v", got.Profiles[1])
+	}
+	if got.ProfileFor("prod").FontSize != 20 || got.ProfileFor("").FontSize != 16 || got.ProfileFor("gone").FontSize != 16 {
+		t.Error("ProfileFor")
+	}
+	if (Profile{Command: "htop"}).RemoteCommand() != "htop" || (Profile{KeepShell: true}).RemoteCommand() != "" {
+		t.Error("RemoteCommand")
+	}
+}

@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { BUNDLED_FONT, limits, loginShells, prefs, systemFonts, type Terminal } from '../settings.svelte'
-  import { schemes, schemeTheme } from '../schemes'
+  import { BUNDLED_FONT, DEFAULT_PROFILE, defaultPalette, limits, loginShells, prefs, systemFonts, type Palette, type Profile } from '../settings.svelte'
+  import { ansiNames, paletteTheme, profileTheme, schemes, schemeTheme } from '../schemes'
+  import { backgroundImages } from '../profiles.svelte'
   import { theme } from '../theme.svelte'
   import Icon from './Icon.svelte'
   import { hostStatus } from '../status.svelte'
@@ -23,17 +24,33 @@
   }
   let { onClose, onImport }: Props = $props()
 
-  type Section = 'text' | 'cursor' | 'colours' | 'behaviour' | 'hosts' | 'security' | 'shortcuts' | 'about'
-  const sections: { id: Section; label: string }[] = [
-    { id: 'text', label: 'Text' },
-    { id: 'cursor', label: 'Cursor' },
-    { id: 'colours', label: 'Colours' },
-    { id: 'behaviour', label: 'Behaviour' },
-    { id: 'hosts', label: 'Hosts' },
-    { id: 'security', label: 'Security' },
-    { id: 'shortcuts', label: 'Shortcuts' },
-    { id: 'about', label: 'About' },
+  type Section = 'profiles' | 'text' | 'cursor' | 'colours' | 'scrolling' | 'bell' | 'command' | 'general' | 'hosts' | 'security' | 'shortcuts' | 'about'
+  // Profile sections edit the profile chosen at their top; app sections apply everywhere.
+  const groups: { label: string; sections: { id: Section; label: string }[] }[] = [
+    {
+      label: 'Terminal profile',
+      sections: [
+        { id: 'profiles', label: 'Profiles' },
+        { id: 'text', label: 'Text' },
+        { id: 'cursor', label: 'Cursor' },
+        { id: 'colours', label: 'Colours' },
+        { id: 'scrolling', label: 'Scrolling' },
+        { id: 'bell', label: 'Bell' },
+        { id: 'command', label: 'Command & keys' },
+      ],
+    },
+    {
+      label: 'App',
+      sections: [
+        { id: 'general', label: 'General' },
+        { id: 'hosts', label: 'Hosts' },
+        { id: 'security', label: 'Security' },
+        { id: 'shortcuts', label: 'Shortcuts' },
+        { id: 'about', label: 'About' },
+      ],
+    },
   ]
+  const profileSections: Section[] = ['text', 'cursor', 'colours', 'scrolling', 'bell', 'command']
   let section = $state<Section>('text')
   let dialog: HTMLDialogElement
   let fonts = $state<string[] | null>(null)
@@ -69,7 +86,63 @@
   }
   const id = $props.id()
 
-  const t = $derived(prefs.value.terminal)
+  // The profile being edited; a deleted one falls back to the default.
+  let editingId = $state(DEFAULT_PROFILE)
+  const editing = $derived(prefs.value.profiles?.some((p) => p.id === editingId) ? editingId : DEFAULT_PROFILE)
+  const t = $derived(prefs.profile(editing))
+  // App-wide terminal settings.
+  const g = $derived(prefs.value.terminal)
+  const setP = (patch: Partial<Profile>) => prefs.updateProfile(editing, patch)
+  const editingName = $derived(editing === DEFAULT_PROFILE ? 'Default' : (prefs.value.profiles?.find((p) => p.id === editing)?.name ?? 'Default'))
+  const hostsUsing = (pid: string) => hostStore.list.filter((h) => (h.profile || DEFAULT_PROFILE) === pid).length
+
+  let bgError = $state('')
+  async function chooseBackground() {
+    bgError = ''
+    try {
+      const name = await backgroundImages.choose()
+      if (name) setP({ background: name })
+    } catch (e) {
+      bgError = e instanceof Error ? e.message : String(e)
+    }
+  }
+
+  function setPaletteColor(key: keyof Palette, value: string, index = 0) {
+    const pal: Palette = { ...(t.palette ?? defaultPalette()), colors: [...(t.palette?.colors ?? defaultPalette().colors ?? [])] }
+    if (key === 'colors') pal.colors![index] = value
+    else (pal as unknown as Record<string, string>)[key] = value
+    setP({ palette: pal, colorScheme: 'custom' })
+  }
+
+  /** Starts a custom palette from the scheme shown now. */
+  function customize() {
+    const th = profileTheme(t, theme.resolved)
+    const names = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'] as const
+    const colors = [...names.map((n) => th[n]), ...names.map((n) => th[`bright${n[0].toUpperCase()}${n.slice(1)}` as 'brightBlack'])]
+    const hex = (c: string | undefined, d: string) => (c && /^#[0-9a-fA-F]{6}$/.test(c) ? c.toLowerCase() : d)
+    const d = defaultPalette()
+    setP({
+      colorScheme: 'custom',
+      palette: {
+        background: hex(th.background, d.background),
+        foreground: hex(th.foreground, d.foreground),
+        cursor: hex(th.cursor, d.cursor),
+        selection: hex(th.selectionBackground, d.selection),
+        colors: colors.map((c, i) => hex(c, d.colors![i])),
+      },
+    })
+  }
+
+  let newName = $state('')
+  function addProfile(from: string) {
+    const base = from === DEFAULT_PROFILE ? 'Default' : (prefs.value.profiles?.find((p) => p.id === from)?.name ?? 'Profile')
+    const name = newName.trim() || (from === DEFAULT_PROFILE && !newName.trim() ? 'New profile' : `${base} copy`)
+    editingId = prefs.addProfile(name.slice(0, 40), from)
+    newName = ''
+  }
+  let confirmDelete = $state<string | null>(null)
+
+  const headerColors = ['#8b7cff', '#22d3ee', '#a3e635', '#facc15', '#fb923c', '#f43f5e', '#ec4899', '#94a3b8']
   const fontMissing = $derived(!!fonts && !!t.fontFamily && t.fontFamily !== BUNDLED_FONT && !fonts.includes(t.fontFamily))
   const weights = [100, 200, 300, 400, 500, 600, 700, 800, 900]
 
@@ -79,9 +152,9 @@
     void loginShells().then((l) => (shells = l))
   })
 
-  function setNumber(key: keyof Terminal, raw: string, [lo, hi]: readonly [number, number]) {
+  function setNumber(key: keyof Profile, raw: string, [lo, hi]: readonly [number, number]) {
     const v = Number(raw)
-    if (raw.trim() !== '' && Number.isFinite(v)) prefs.update({ [key]: Math.min(Math.max(v, lo), hi) })
+    if (raw.trim() !== '' && Number.isFinite(v)) setP({ [key]: Math.min(Math.max(v, lo), hi) })
   }
 
   const shortcuts: [string, string][] = [
@@ -130,29 +203,99 @@
   </header>
 
   <div class="flex min-h-0 flex-1">
-    <nav aria-label="Preference sections" class="w-40 shrink-0 border-r border-line p-2">
-      <ul>
-        {#each sections as s (s.id)}
-          <li>
-            <button
-              class="w-full rounded-lg px-3 py-2 text-left text-[13px] {section === s.id ? 'bg-raised font-medium text-fg' : 'text-muted hover:bg-raised/60 hover:text-fg'}"
-              aria-current={section === s.id ? 'page' : undefined}
-              onclick={() => (section = s.id)}
-            >
-              {s.label}
-            </button>
-          </li>
-        {/each}
-      </ul>
+    <nav aria-label="Preference sections" class="w-44 shrink-0 overflow-y-auto border-r border-line p-2">
+      {#each groups as grp (grp.label)}
+        <h3 class="px-3 pt-2 pb-1 text-[10px] font-semibold tracking-wider text-subtle uppercase">{grp.label}</h3>
+        <ul class="mb-2">
+          {#each grp.sections as s (s.id)}
+            <li>
+              <button
+                class="w-full rounded-lg px-3 py-1.5 text-left text-[13px] {section === s.id ? 'bg-raised font-medium text-fg' : 'text-muted hover:bg-raised/60 hover:text-fg'}"
+                aria-current={section === s.id ? 'page' : undefined}
+                onclick={() => (section = s.id)}
+              >
+                {s.label}
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {/each}
     </nav>
 
     <div class="min-w-0 flex-1 overflow-y-auto px-6 py-5">
-      {#if section === 'text'}
+      {#if profileSections.includes(section)}
+        <div class="mb-5 flex items-center gap-2 rounded-xl border border-line bg-ground/60 px-3 py-2">
+          <label class="text-xs font-medium text-muted" for="{id}-editing">Editing profile</label>
+          <select id="{id}-editing" class="{field} h-8 min-w-0 flex-1" value={editing} onchange={(e) => (editingId = e.currentTarget.value)}>
+            <option value={DEFAULT_PROFILE}>Default</option>
+            {#each prefs.value.profiles ?? [] as p (p.id)}<option value={p.id}>{p.name}</option>{/each}
+          </select>
+          <button class="rounded-lg px-2.5 py-1.5 text-xs text-muted hover:bg-raised hover:text-fg" onclick={() => (section = 'profiles')}>Manage…</button>
+        </div>
+      {/if}
+      {#if section === 'profiles'}
+        <h3 class="sr-only">Profiles</h3>
+        <p class="text-[13px] text-muted">
+          A profile is a set of terminal settings: text, cursor, colours, background, scrolling, bell and a command to run on connect. Pick one per host in the host form. Local tabs and hosts
+          without a profile use <span class="text-fg">Default</span>.
+        </p>
+        <ul class="mt-4 divide-y divide-line rounded-xl border border-line">
+          {#each [{ id: DEFAULT_PROFILE, name: 'Default' }, ...(prefs.value.profiles ?? [])] as p (p.id)}
+            {@const isDefault = p.id === DEFAULT_PROFILE}
+            {@const pal = profileTheme(prefs.profile(p.id), theme.resolved)}
+            <li class="flex items-center gap-3 px-3 py-2.5">
+              <span class="grid size-8 shrink-0 place-items-center rounded-lg border border-line font-mono text-[11px]" style:background={pal.background} style:color={pal.green} aria-hidden="true">$_</span>
+              {#if isDefault}
+                <span class="min-w-0 flex-1 text-[13px] font-medium">Default</span>
+              {:else}
+                <input
+                  class="{field} h-8 min-w-0 flex-1"
+                  aria-label="Profile name"
+                  maxlength="40"
+                  value={p.name}
+                  onchange={(e) => e.currentTarget.value.trim() && prefs.renameProfile(p.id, e.currentTarget.value.trim())}
+                />
+              {/if}
+              <span class="shrink-0 text-xs text-subtle">{isDefault ? 'local tabs + ' : ''}{hostsUsing(p.id)} host{hostsUsing(p.id) === 1 ? '' : 's'}</span>
+              <button
+                class="rounded-lg px-2 py-1 text-xs text-muted hover:bg-raised hover:text-fg"
+                onclick={() => {
+                  editingId = p.id
+                  section = 'text'
+                }}>Edit</button
+              >
+              <button class="rounded-lg px-2 py-1 text-xs text-muted hover:bg-raised hover:text-fg" onclick={() => addProfile(p.id)} aria-label="Duplicate {p.name}">Duplicate</button>
+              {#if !isDefault}
+                {#if confirmDelete === p.id}
+                  <button class="rounded-lg bg-danger px-2 py-1 text-xs font-medium text-white hover:bg-danger/90" onclick={() => (prefs.deleteProfile(p.id), (confirmDelete = null))}>Delete</button>
+                  <button class="rounded-lg px-2 py-1 text-xs text-muted hover:bg-raised" onclick={() => (confirmDelete = null)}>Keep</button>
+                {:else}
+                  <button class="grid size-7 place-items-center rounded-lg text-muted hover:bg-raised hover:text-danger" aria-label="Delete {p.name}" onclick={() => (confirmDelete = p.id)}><Icon name="trash" size={14} /></button>
+                {/if}
+              {/if}
+            </li>
+          {/each}
+        </ul>
+        {#if confirmDelete}
+          <p class="mt-2 text-xs text-muted" role="status">Hosts using it will use Default instead.</p>
+        {/if}
+        <form
+          class="mt-4 flex items-center gap-2"
+          onsubmit={(e) => {
+            e.preventDefault()
+            addProfile(DEFAULT_PROFILE)
+          }}
+        >
+          <input class="{field} w-64" placeholder="New profile name, e.g. Production" maxlength="40" aria-label="New profile name" bind:value={newName} />
+          <button class="rounded-lg bg-accent px-3 py-2 text-xs font-medium text-on-accent hover:bg-accent/90" disabled={(prefs.value.profiles?.length ?? 0) >= 50}>New profile</button>
+          <span class="text-xs text-subtle">Starts as a copy of Default.</span>
+        </form>
+      {:else if section === 'text'}
         <h3 class="sr-only">Text</h3>
         <div class="grid grid-cols-2 gap-x-5 gap-y-4">
           <div class="col-span-2">
             <label class={label} for="{id}-font">Font</label>
-            <select id="{id}-font" class="{field} w-full" value={t.fontFamily || BUNDLED_FONT} onchange={(e) => prefs.update({ fontFamily: e.currentTarget.value === BUNDLED_FONT ? '' : e.currentTarget.value })}>
+            <select id="{id}-font" class="{field} w-full" value={t.fontFamily || BUNDLED_FONT} onchange={(e) => setP({ fontFamily: e.currentTarget.value === BUNDLED_FONT ? '' : e.currentTarget.value })}>
               <optgroup label="Bundled">
                 <option value={BUNDLED_FONT}>JetBrains Mono (default)</option>
               </optgroup>
@@ -173,9 +316,9 @@
           <div>
             <label class={label} for="{id}-size">Size</label>
             <div class="flex items-center gap-1.5">
-              <button class="{field} w-9 px-0 hover:bg-raised" aria-label="Smaller text" onclick={() => prefs.update({ fontSize: Math.max(t.fontSize - 1, limits.fontSize[0]) })}>−</button>
+              <button class="{field} w-9 px-0 hover:bg-raised" aria-label="Smaller text" onclick={() => setP({ fontSize: Math.max(t.fontSize - 1, limits.fontSize[0]) })}>−</button>
               <input id="{id}-size" type="number" class="{field} w-20 text-center" min={limits.fontSize[0]} max={limits.fontSize[1]} value={t.fontSize} oninput={(e) => setNumber('fontSize', e.currentTarget.value, limits.fontSize)} />
-              <button class="{field} w-9 px-0 hover:bg-raised" aria-label="Larger text" onclick={() => prefs.update({ fontSize: Math.min(t.fontSize + 1, limits.fontSize[1]) })}>+</button>
+              <button class="{field} w-9 px-0 hover:bg-raised" aria-label="Larger text" onclick={() => setP({ fontSize: Math.min(t.fontSize + 1, limits.fontSize[1]) })}>+</button>
               <span class="text-xs text-subtle">px</span>
             </div>
             {#if prefs.zoom}
@@ -201,13 +344,13 @@
 
           <div>
             <label class={label} for="{id}-weight">Weight</label>
-            <select id="{id}-weight" class="{field} w-full" value={t.fontWeight} onchange={(e) => prefs.update({ fontWeight: Number(e.currentTarget.value) })}>
+            <select id="{id}-weight" class="{field} w-full" value={t.fontWeight} onchange={(e) => setP({ fontWeight: Number(e.currentTarget.value) })}>
               {#each weights as w (w)}<option value={w}>{w}{w === 400 ? ' (normal)' : ''}</option>{/each}
             </select>
           </div>
           <div>
             <label class={label} for="{id}-bold">Bold weight</label>
-            <select id="{id}-bold" class="{field} w-full" value={t.fontWeightBold} onchange={(e) => prefs.update({ fontWeightBold: Number(e.currentTarget.value) })}>
+            <select id="{id}-bold" class="{field} w-full" value={t.fontWeightBold} onchange={(e) => setP({ fontWeightBold: Number(e.currentTarget.value) })}>
               {#each weights as w (w)}<option value={w}>{w}{w === 700 ? ' (bold)' : ''}</option>{/each}
             </select>
           </div>
@@ -219,7 +362,7 @@
           <div class="flex gap-2">
             {#each [['block', 'Block'], ['bar', 'Bar'], ['underline', 'Underline']] as [value, name] (value)}
               <label class="flex flex-1 cursor-pointer flex-col items-center gap-2 rounded-xl border px-3 py-3 text-[13px] {t.cursorStyle === value ? 'border-accent bg-accent/10' : 'border-line hover:bg-raised'}">
-                <input type="radio" class="sr-only" name="{id}-cursor" {value} checked={t.cursorStyle === value} onchange={() => prefs.update({ cursorStyle: value })} />
+                <input type="radio" class="sr-only" name="{id}-cursor" {value} checked={t.cursorStyle === value} onchange={() => setP({ cursorStyle: value })} />
                 <span class="flex h-6 items-end font-mono text-base" aria-hidden="true">
                   $&nbsp;<span class={value === 'block' ? 'h-5 w-2.5 bg-accent' : value === 'bar' ? 'h-5 w-0.5 bg-accent' : 'mb-0.5 h-0.5 w-2.5 bg-accent'}></span>
                 </span>
@@ -229,30 +372,17 @@
           </div>
         </fieldset>
         <label class="{check} mt-5">
-          <input type="checkbox" class="mt-0.5 accent-accent" checked={t.cursorBlink} onchange={(e) => prefs.update({ cursorBlink: e.currentTarget.checked })} />
+          <input type="checkbox" class="mt-0.5 accent-accent" checked={t.cursorBlink} onchange={(e) => setP({ cursorBlink: e.currentTarget.checked })} />
           <span>Blinking cursor</span>
         </label>
       {:else if section === 'colours'}
         <fieldset>
-          <legend class={label}>App theme</legend>
-          <div class="flex gap-2">
-            {#each [['dark', 'Dark', 'moon'], ['light', 'Light', 'sun'], ['system', 'Follow system', 'monitor']] as const as [value, name, icon] (value)}
-              <label class="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-[13px] {theme.mode === value ? 'border-accent bg-accent/10' : 'border-line hover:bg-raised'}">
-                <input type="radio" class="sr-only" name="{id}-theme" {value} checked={theme.mode === value} onchange={() => prefs.setTheme(value)} />
-                <Icon name={icon} size={15} />
-                {name}
-              </label>
-            {/each}
-          </div>
-        </fieldset>
-
-        <fieldset class="mt-6">
           <legend class={label}>Terminal colours</legend>
           <div class="grid grid-cols-3 gap-2">
-            {#each [{ id: 'auto', name: 'Match app theme' }, ...schemes] as s (s.id)}
-              {@const palette = schemeTheme(s.id, theme.resolved)}
+            {#each [{ id: 'auto', name: 'Match app theme' }, ...schemes, { id: 'custom', name: 'Custom' }] as s (s.id)}
+              {@const palette = s.id === 'custom' ? paletteTheme(t.palette ?? defaultPalette()) : schemeTheme(s.id, theme.resolved)}
               <label class="cursor-pointer rounded-xl border p-1.5 text-xs {t.colorScheme === s.id ? 'border-accent ring-1 ring-accent' : 'border-line hover:border-subtle'}">
-                <input type="radio" class="sr-only" name="{id}-scheme" value={s.id} checked={t.colorScheme === s.id} onchange={() => prefs.update({ colorScheme: s.id })} />
+                <input type="radio" class="sr-only" name="{id}-scheme" value={s.id} checked={t.colorScheme === s.id} onchange={() => setP({ colorScheme: s.id })} />
                 <span class="block rounded-lg px-2.5 py-2 font-mono text-[11px]" style:background={palette.background} style:color={palette.foreground}>
                   <span style:color={palette.green}>user@host</span>:<span style:color={palette.blue}>~</span>$ ls
                   <span class="mt-1.5 flex gap-1" aria-hidden="true">
@@ -266,8 +396,80 @@
             {/each}
           </div>
         </fieldset>
+
+        <section class="mt-6" aria-labelledby="{id}-palette">
+          <div class="flex items-center gap-3">
+            <h4 id="{id}-palette" class="{label} mb-0 flex-1">Custom colours</h4>
+            <button class="rounded-lg border border-line px-2.5 py-1 text-xs text-muted hover:bg-raised hover:text-fg" onclick={customize}>Start from the scheme shown</button>
+          </div>
+          <div class="mt-2 grid grid-cols-4 gap-2">
+            {#each [['background', 'Background'], ['foreground', 'Text'], ['cursor', 'Cursor'], ['selection', 'Selection']] as const as [key, name] (key)}
+              <label class="flex items-center gap-2 text-xs text-muted">
+                <input type="color" class="h-7 w-9 cursor-pointer rounded border border-line bg-ground" value={t.palette?.[key] ?? defaultPalette()[key]} oninput={(e) => setPaletteColor(key, e.currentTarget.value)} />
+                {name}
+              </label>
+            {/each}
+          </div>
+          <div class="mt-3 grid grid-cols-8 gap-1.5" role="group" aria-label="ANSI colours, normal then bright">
+            {#each t.palette?.colors ?? defaultPalette().colors ?? [] as c, i (i)}
+              <input
+                type="color"
+                class="h-7 w-full cursor-pointer rounded border border-line bg-ground"
+                value={c}
+                aria-label="{i >= 8 ? 'Bright ' : ''}{ansiNames[i % 8]}"
+                title="{i >= 8 ? 'Bright ' : ''}{ansiNames[i % 8]}"
+                oninput={(e) => setPaletteColor('colors', e.currentTarget.value, i)}
+              />
+            {/each}
+          </div>
+          <p class={hint}>Changing a colour switches this profile to Custom.</p>
+        </section>
+
+        <section class="mt-6" aria-labelledby="{id}-bg">
+          <h4 id="{id}-bg" class={label}>Background image</h4>
+          <div class="flex items-center gap-3">
+            {#if t.background}
+              {@const url = backgroundImages.url(t.background)}
+              <span class="h-12 w-20 shrink-0 rounded-lg border border-line bg-cover bg-center" style:background-image={url ? `url(${url})` : undefined} aria-hidden="true"></span>
+            {/if}
+            <button class="rounded-lg border border-line px-2.5 py-1.5 text-xs text-muted hover:bg-raised hover:text-fg" onclick={chooseBackground}>
+              <span class="inline-flex items-center gap-1.5"><Icon name="image" size={13} />{t.background ? 'Change image…' : 'Choose image…'}</span>
+            </button>
+            {#if t.background}
+              <button class="rounded-lg px-2.5 py-1.5 text-xs text-muted hover:bg-raised hover:text-fg" onclick={() => setP({ background: '' })}>Remove</button>
+            {/if}
+          </div>
+          {#if bgError}<p role="alert" class="mt-1 text-xs text-warning">{bgError}</p>{/if}
+          {#if t.background}
+            <label class="mt-3 block {label}" for="{id}-shade">Shade <span class="font-mono text-subtle">{t.backgroundShade}%</span></label>
+            <input id="{id}-shade" type="range" class="w-full accent-accent" min="0" max="100" step="5" value={t.backgroundShade} oninput={(e) => setP({ backgroundShade: Number(e.currentTarget.value) })} />
+            <span class={hint}>How much of the scheme's background colour covers the image, so text stays readable.</span>
+          {:else}
+            <span class={hint}>PNG, JPEG or WebP. TuxShell keeps its own copy.</span>
+          {/if}
+        </section>
+
+        <fieldset class="mt-6">
+          <legend class={label}>Pane header colour</legend>
+          <div class="flex flex-wrap items-center gap-2">
+            <label class="cursor-pointer rounded-lg border px-2.5 py-1 text-xs {t.headerColor === '' ? 'border-accent bg-accent/10' : 'border-line hover:bg-raised'}">
+              <input type="radio" class="sr-only" name="{id}-header" checked={t.headerColor === ''} onchange={() => setP({ headerColor: '' })} />None
+            </label>
+            {#each headerColors as c (c)}
+              <label class="grid size-7 cursor-pointer place-items-center rounded-full border-2 {t.headerColor === c ? 'border-fg' : 'border-transparent'}" title={c}>
+                <input type="radio" class="sr-only" name="{id}-header" value={c} checked={t.headerColor === c} onchange={() => setP({ headerColor: c })} aria-label="Header colour {c}" />
+                <span class="size-5 rounded-full" style:background={c}></span>
+              </label>
+            {/each}
+            <label class="flex items-center gap-1.5 text-xs text-muted">
+              <input type="color" class="h-7 w-9 cursor-pointer rounded border border-line bg-ground" value={t.headerColor || '#8b7cff'} oninput={(e) => setP({ headerColor: e.currentTarget.value })} />
+              Other
+            </label>
+          </div>
+          <span class={hint}>Tints the header of panes using this profile, e.g. red for production servers.</span>
+        </fieldset>
         {@render preview()}
-      {:else if section === 'behaviour'}
+      {:else if section === 'scrolling'}
         <div class="flex flex-col gap-4">
           <div>
             <label class={label} for="{id}-scrollback">Scrollback</label>
@@ -276,17 +478,108 @@
               <span class="text-xs text-subtle">lines kept per terminal</span>
             </div>
           </div>
-
+          <div>
+            <label class={label} for="{id}-speed">Mouse wheel speed <span class="font-mono text-subtle">×{t.scrollSpeed}</span></label>
+            <input id="{id}-speed" type="range" class="w-64 accent-accent" min={limits.scrollSpeed[0]} max={limits.scrollSpeed[1]} step="1" value={t.scrollSpeed} oninput={(e) => setNumber('scrollSpeed', e.currentTarget.value, limits.scrollSpeed)} />
+          </div>
           <label class={check}>
-            <input type="checkbox" class="mt-0.5 accent-accent" checked={t.copyOnSelect} onchange={(e) => prefs.update({ copyOnSelect: e.currentTarget.checked })} />
+            <input type="checkbox" class="mt-0.5 accent-accent" checked={t.scrollbar} onchange={(e) => setP({ scrollbar: e.currentTarget.checked })} />
+            <span>Show the scrollbar<span class={hint}>For new panes. Ctrl+Shift+S still shows or hides it per pane.</span></span>
+          </label>
+          <label class={check}>
+            <input type="checkbox" class="mt-0.5 accent-accent" checked={t.scrollOnOutput} onchange={(e) => setP({ scrollOnOutput: e.currentTarget.checked })} />
+            <span>Scroll to the bottom on output<span class={hint}>Otherwise reading back stays put while new output arrives.</span></span>
+          </label>
+          <label class={check}>
+            <input type="checkbox" class="mt-0.5 accent-accent" checked={t.scrollOnKeypress} onchange={(e) => setP({ scrollOnKeypress: e.currentTarget.checked })} />
+            <span>Scroll to the bottom when typing</span>
+          </label>
+        </div>
+      {:else if section === 'bell'}
+        <p class="text-[13px] text-muted">What happens when a program rings the terminal bell (for example Tab completion with no match).</p>
+        <div class="mt-4 flex flex-col gap-4">
+          <label class={check}>
+            <input type="checkbox" class="mt-0.5 accent-accent" checked={t.bell === 'visual'} onchange={(e) => setP({ bell: e.currentTarget.checked ? 'visual' : 'off' })} />
+            <span>Flash the pane</span>
+          </label>
+          <label class={check}>
+            <input type="checkbox" class="mt-0.5 accent-accent" checked={t.bellIcon} onchange={(e) => setP({ bellIcon: e.currentTarget.checked })} />
+            <span>Show a bell icon<span class={hint}>On the pane and its tab when you're looking elsewhere, until you open it.</span></span>
+          </label>
+          <label class={check}>
+            <input type="checkbox" class="mt-0.5 accent-accent" checked={t.bellSound} onchange={(e) => setP({ bellSound: e.currentTarget.checked })} />
+            <span>Play a sound<span class={hint}>A short, quiet beep.</span></span>
+          </label>
+        </div>
+      {:else if section === 'command'}
+        <div class="flex flex-col gap-4">
+          <div>
+            <label class={label} for="{id}-command">Run on connect</label>
+            <input
+              id="{id}-command"
+              class="{field} w-full font-mono"
+              placeholder="e.g. tmux new -A -s main"
+              maxlength={limits.command}
+              spellcheck="false"
+              value={t.command}
+              aria-describedby="{id}-command-hint"
+              onchange={(e) => setP({ command: e.currentTarget.value.replace(/[\r\n]+/g, ' ').trim() })}
+            />
+            <span id="{id}-command-hint" class={hint}>SSH hosts only: the server runs this after you log in. Local tabs use the shell from General.</span>
+          </div>
+          <label class={check}>
+            <input type="checkbox" class="mt-0.5 accent-accent" checked={t.keepShell} disabled={!t.command} onchange={(e) => setP({ keepShell: e.currentTarget.checked })} />
+            <span>Keep a shell open after the command ends<span class={hint}>Off: the session closes when the command finishes.</span></span>
+          </label>
+
+          <fieldset class="mt-2 border-t border-line pt-4">
+            <legend class="{label} pt-4">Compatibility</legend>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class={label} for="{id}-bs">Backspace key sends</label>
+                <select id="{id}-bs" class="{field} w-full" value={t.backspace} onchange={(e) => setP({ backspace: e.currentTarget.value })}>
+                  <option value="del">ASCII DEL (^?, default)</option>
+                  <option value="ctrl-h">Control-H (^H)</option>
+                </select>
+              </div>
+              <div>
+                <label class={label} for="{id}-del">Delete key sends</label>
+                <select id="{id}-del" class="{field} w-full" value={t.delete} onchange={(e) => setP({ delete: e.currentTarget.value })}>
+                  <option value="escape">Escape sequence (default)</option>
+                  <option value="del">ASCII DEL (^?)</option>
+                  <option value="ctrl-h">Control-H (^H)</option>
+                </select>
+              </div>
+            </div>
+            <span class={hint}>Change these only if Backspace or Delete type odd characters on an old server.</span>
+          </fieldset>
+        </div>
+      {:else if section === 'general'}
+        <fieldset class="mb-6">
+          <legend class={label}>App theme</legend>
+          <div class="flex gap-2">
+            {#each [['dark', 'Dark', 'moon'], ['light', 'Light', 'sun'], ['system', 'Follow system', 'monitor']] as const as [value, name, icon] (value)}
+              <label class="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-[13px] {theme.mode === value ? 'border-accent bg-accent/10' : 'border-line hover:bg-raised'}">
+                <input type="radio" class="sr-only" name="{id}-theme" {value} checked={theme.mode === value} onchange={() => prefs.setTheme(value)} />
+                <Icon name={icon} size={15} />
+                {name}
+              </label>
+            {/each}
+          </div>
+        </fieldset>
+
+
+        <div class="flex flex-col gap-4">
+          <label class={check}>
+            <input type="checkbox" class="mt-0.5 accent-accent" checked={g.copyOnSelect} onchange={(e) => prefs.update({ copyOnSelect: e.currentTarget.checked })} />
             <span>Copy on select<span class={hint}>Selecting text with the mouse copies it to the clipboard.</span></span>
           </label>
           <label class={check}>
-            <input type="checkbox" class="mt-0.5 accent-accent" checked={t.rightClickPaste} onchange={(e) => prefs.update({ rightClickPaste: e.currentTarget.checked })} />
+            <input type="checkbox" class="mt-0.5 accent-accent" checked={g.rightClickPaste} onchange={(e) => prefs.update({ rightClickPaste: e.currentTarget.checked })} />
             <span>Right-click pastes<span class={hint}>Like PuTTY and MobaXterm. Shift+right-click still opens the menu.</span></span>
           </label>
           <label class={check}>
-            <input type="checkbox" class="mt-0.5 accent-accent" checked={t.ctrlWheelZoom} onchange={(e) => prefs.update({ ctrlWheelZoom: e.currentTarget.checked })} />
+            <input type="checkbox" class="mt-0.5 accent-accent" checked={g.ctrlWheelZoom} onchange={(e) => prefs.update({ ctrlWheelZoom: e.currentTarget.checked })} />
             <span>Ctrl+mouse wheel zooms text</span>
           </label>
           <label class={check}>
@@ -306,24 +599,16 @@
             >
           </label>
           <label class={check}>
-            <input type="checkbox" class="mt-0.5 accent-accent" checked={t.confirmClose} onchange={(e) => prefs.update({ confirmClose: e.currentTarget.checked })} />
+            <input type="checkbox" class="mt-0.5 accent-accent" checked={g.confirmClose} onchange={(e) => prefs.update({ confirmClose: e.currentTarget.checked })} />
             <span>Ask before closing running sessions<span class={hint}>When closing a pane, tabs or the window.</span></span>
           </label>
-
-          <div>
-            <label class={label} for="{id}-bell">Terminal bell</label>
-            <select id="{id}-bell" class="{field} w-48" value={t.bell} onchange={(e) => prefs.update({ bell: e.currentTarget.value })}>
-              <option value="off">Off</option>
-              <option value="visual">Flash the pane</option>
-            </select>
-          </div>
 
           <div>
             <label class={label} for="{id}-shell">Shell for local tabs</label>
             <select
               id="{id}-shell"
               class="{field} w-64 font-mono"
-              value={t.shell}
+              value={g.shell}
               aria-invalid={prefs.error?.field === 'shell'}
               aria-describedby="{id}-shell-hint"
               onchange={(e) => prefs.update({ shell: e.currentTarget.value })}
@@ -497,15 +782,15 @@
 </dialog>
 
 {#snippet preview()}
-  {@const palette = schemeTheme(t.colorScheme, theme.resolved)}
+  {@const palette = profileTheme(t, theme.resolved)}
   <figure class="mt-6">
     <figcaption class={label}>Preview</figcaption>
     <div
       class="overflow-hidden rounded-xl border border-line px-4 py-3"
       style:background={palette.background}
       style:color={palette.foreground}
-      style:font-family={prefs.fontFamily}
-      style:font-size="{prefs.fontSize}px"
+      style:font-family={prefs.fontFamilyOf(t)}
+      style:font-size="{prefs.fontSizeOf(t)}px"
       style:line-height={t.lineHeight}
       style:letter-spacing="{t.letterSpacing}px"
       style:font-weight={t.fontWeight}
