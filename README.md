@@ -123,7 +123,8 @@ Then:
 task dev       # run with live reload
 task build     # build bin/tuxshell
 task package   # build .rpm, .deb and AppImage into bin/
-task lint      # go vet, gofmt, svelte-check
+task tools     # once: golangci-lint and gitleaks for task lint
+task lint      # golangci-lint, gitleaks secret scan, svelte-check
 task test      # Go tests
 ```
 

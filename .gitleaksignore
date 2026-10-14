@@ -1,0 +1,4 @@
+# Fake secrets in the clipboard filter's test, from before the lines were
+# marked with gitleaks:allow. Each line is one finding in git history.
+2f63478567d5ed44eac59fdb4a63e894fa0a76ce:internal/cliphist/filter_test.go:jwt:11
+2f63478567d5ed44eac59fdb4a63e894fa0a76ce:internal/cliphist/filter_test.go:generic-api-key:10

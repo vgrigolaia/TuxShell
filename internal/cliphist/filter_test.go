@@ -7,8 +7,9 @@ import (
 
 func TestSensitive(t *testing.T) {
 	secret := []string{
-		"-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjE=\n-----END OPENSSH PRIVATE KEY-----",
-		"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U",
+		// Fake samples for the filter (gitleaks:allow marks them for the secret scan).
+		"-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjE=\n-----END OPENSSH PRIVATE KEY-----", // gitleaks:allow
+		"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U", // gitleaks:allow
 		"AKIAIOSFODNN7EXAMPLE",
 		"ghp_abcdefghijklmnopqrstuvwxyz0123456789",
 		"export PASSWORD=hunter2",
