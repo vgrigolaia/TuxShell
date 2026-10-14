@@ -9,6 +9,9 @@
   import { Browser } from '@wailsio/runtime'
   import Logo from './Logo.svelte'
   import ExportHosts from './ExportHosts.svelte'
+  import { logins } from '../logins.svelte'
+  import * as Login from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/login/service'
+  import { hostStore } from '../hosts.svelte'
   import * as HostIO from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/hostio/service'
 
   const REPO = 'https://github.com/vgrigolaia/TuxShell'
@@ -20,13 +23,14 @@
   }
   let { onClose, onImport }: Props = $props()
 
-  type Section = 'text' | 'cursor' | 'colours' | 'behaviour' | 'hosts' | 'shortcuts' | 'about'
+  type Section = 'text' | 'cursor' | 'colours' | 'behaviour' | 'hosts' | 'security' | 'shortcuts' | 'about'
   const sections: { id: Section; label: string }[] = [
     { id: 'text', label: 'Text' },
     { id: 'cursor', label: 'Cursor' },
     { id: 'colours', label: 'Colours' },
     { id: 'behaviour', label: 'Behaviour' },
     { id: 'hosts', label: 'Hosts' },
+    { id: 'security', label: 'Security' },
     { id: 'shortcuts', label: 'Shortcuts' },
     { id: 'about', label: 'About' },
   ]
@@ -36,6 +40,33 @@
   let shells = $state<string[]>([])
   let confirmReset = $state(false)
   let templateSaved = $state('')
+  let confirmForget = $state(false)
+  let forgetError = $state('')
+
+  $effect(() => {
+    if (section === 'security') void logins.refresh()
+  })
+
+  async function setSavePasswords(on: boolean) {
+    forgetError = ''
+    if (on || logins.status.saved === 0) {
+      prefs.setSavePasswords(on)
+      confirmForget = false
+      return
+    }
+    confirmForget = true
+  }
+
+  async function forgetAndTurnOff() {
+    try {
+      await Login.ForgetAll()
+      prefs.setSavePasswords(false)
+      confirmForget = false
+      await Promise.all([logins.refresh(), hostStore.load()])
+    } catch (e) {
+      forgetError = e instanceof Error ? e.message : String(e)
+    }
+  }
   const id = $props.id()
 
   const t = $derived(prefs.value.terminal)
@@ -308,7 +339,7 @@
         <h3 class="sr-only">Hosts</h3>
         <section aria-labelledby="{id}-import">
           <h4 id="{id}-import" class="text-[13px] font-medium">Import hosts</h4>
-          <p class={hint}>From ~/.ssh/config, CSV/TSV, Excel (.xlsx), a TuxShell export, MobaXterm, Remmina, PuTTY or an Ansible inventory. You see every host before it's saved. Passwords are never imported.</p>
+          <p class={hint}>From ~/.ssh/config, CSV/TSV, Excel (.xlsx), a TuxShell export, MobaXterm, Remmina, PuTTY or an Ansible inventory. You see every host before it's saved. Passwords are imported only if you allow saving them (Security).</p>
           <button class="mt-3 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-on-accent hover:bg-accent/90" onclick={onImport}>Import hosts…</button>
           <button
             class="mt-3 ml-2 rounded-lg border border-line px-3 py-1.5 text-xs text-muted hover:bg-raised hover:text-fg"
@@ -320,6 +351,67 @@
           {#if templateSaved}<p role="status" class="mt-2 truncate text-xs text-success" title={templateSaved}>Template saved to {templateSaved}</p>{/if}
         </section>
         <ExportHosts />
+      {:else if section === 'security'}
+        <h3 class="sr-only">Security</h3>
+        <section aria-labelledby="{id}-how">
+          <h4 id="{id}-how" class="text-[13px] font-medium">How TuxShell logs you in</h4>
+          <ul class="mt-2 flex flex-col gap-2 text-[13px]">
+            <li class="rounded-lg border border-line bg-ground px-3 py-2">
+              <span class="font-medium">SSH keys or your ssh agent</span> <span class="ml-1 rounded bg-success/15 px-1.5 py-0.5 text-[11px] text-success">safest</span>
+              <span class={hint}>No password is needed or stored. Set a key file on the host, or use your agent.</span>
+            </li>
+            <li class="rounded-lg border border-line bg-ground px-3 py-2">
+              <span class="font-medium">1Password</span> <span class="ml-1 rounded bg-raised px-1.5 py-0.5 text-[11px] text-muted">coming soon</span>
+              <span class={hint}>The password stays in your vault; TuxShell asks 1Password when you connect.</span>
+            </li>
+            <li class="rounded-lg border border-line bg-ground px-3 py-2">
+              <span class="font-medium">Saved password</span>
+              <span class={hint}>For servers that only take passwords, if you don't use 1Password. Stored on this computer only.</span>
+            </li>
+          </ul>
+        </section>
+
+        <section aria-labelledby="{id}-save" class="mt-6 border-t border-line pt-5">
+          <h4 id="{id}-save" class="sr-only">Saved passwords</h4>
+          <label class={check}>
+            <input
+              type="checkbox"
+              class="mt-0.5 accent-accent"
+              checked={prefs.value.savePasswords}
+              disabled={!logins.status.available && !prefs.value.savePasswords}
+              onchange={(e) => {
+                const on = e.currentTarget.checked
+                void setSavePasswords(on)
+                if (!on && logins.status.saved > 0) e.currentTarget.checked = true
+              }}
+            />
+            <span
+              >Allow saving passwords on this computer<span class={hint}
+                >Passwords are stored encrypted in your system keyring (GNOME Keyring or KWallet) and unlocked when you log in to your desktop. Anyone using
+                your logged-in session can use them. They're never put in exports, logs or ssh's command line.</span
+              ></span
+            >
+          </label>
+          {#if !logins.status.available}
+            <p role="alert" class="mt-2 text-xs text-warning">No system keyring found. Install and unlock GNOME Keyring or KWallet to save passwords.</p>
+          {/if}
+          {#if prefs.value.savePasswords}
+            <p class="mt-3 text-xs text-muted">
+              {logins.status.saved === 0 ? 'No passwords saved yet.' : `${logins.status.saved} ${logins.status.saved === 1 ? 'password' : 'passwords'} saved.`}
+              When ssh asks for a password, TuxShell shows a box where you can choose to remember it. You can also set one in a host's settings.
+            </p>
+          {/if}
+          {#if confirmForget}
+            <div role="alertdialog" aria-labelledby="{id}-forget" class="mt-3 rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs">
+              <p id="{id}-forget" class="text-fg">Turn off saved passwords and delete the {logins.status.saved} saved {logins.status.saved === 1 ? 'password' : 'passwords'}?</p>
+              <div class="mt-2 flex gap-2">
+                <button class="rounded-lg px-2.5 py-1.5 text-muted hover:bg-raised hover:text-fg" onclick={() => (confirmForget = false)}>Keep them</button>
+                <button class="rounded-lg bg-danger px-2.5 py-1.5 font-medium text-white hover:bg-danger/90" onclick={forgetAndTurnOff}>Delete and turn off</button>
+              </div>
+              {#if forgetError}<p role="alert" class="mt-2 text-warning">{forgetError}</p>{/if}
+            </div>
+          {/if}
+        </section>
       {:else if section === 'about'}
         <h3 class="sr-only">About</h3>
         <div class="flex items-center gap-4">

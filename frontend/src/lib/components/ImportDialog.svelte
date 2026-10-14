@@ -144,7 +144,7 @@
         <button class="shrink-0 rounded-md border border-strong px-2.5 py-1 font-medium hover:bg-raised" onclick={saveTemplate}>Download template</button>
         {#if templateSaved}<p role="status" class="w-full truncate text-success" title={templateSaved}>Saved to {templateSaved}</p>{/if}
       </div>
-      <p class="mt-3 px-3 text-xs text-subtle">Passwords in imported files are never stored. Only 1Password references (op://…) are kept.</p>
+      <p class="mt-3 px-3 text-xs text-subtle">Passwords in files are saved only if you allow it in Preferences → Security, and then only in your system keyring.</p>
     </div>
   {/if}
 </dialog>

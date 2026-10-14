@@ -3,6 +3,24 @@
 All notable changes to TuxShell are listed here. Versions follow
 [Semantic Versioning](https://semver.org).
 
+## [1.1.6] - 2026-10-14
+
+### Added
+
+- Optional saved passwords for people who don't use keys or 1Password. Turn on "Allow saving
+  passwords" in Preferences → Security (off by default). Passwords are kept only in your
+  system keyring, never in TuxShell's files, exports or logs, and are handed to ssh privately.
+- When a server asks for a password, a password box appears over the terminal, with an
+  option to remember it for that host.
+- A saved password can be set, changed or removed in the host form. Home shows which hosts
+  have one.
+- Imported CSV/Excel passwords are saved to the keyring when saving passwords is on.
+
+### Security
+
+- A saved password is tried only once; if the server refuses it, you're asked instead.
+- Jump host prompts, host key questions and key passphrases still appear in the terminal.
+
 ## [1.1.5] - 2026-10-14
 
 ### Fixed
@@ -100,6 +118,7 @@ First release.
 - Dark and light themes, or follow the system.
 - Packages for Fedora/RHEL (.rpm), Debian/Ubuntu (.deb) and an AppImage.
 
+[1.1.6]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.6
 [1.1.5]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.5
 [1.1.4]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.4
 [1.1.3]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.3

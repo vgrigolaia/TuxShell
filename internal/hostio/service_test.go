@@ -1,6 +1,7 @@
 package hostio
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -219,4 +220,62 @@ func TestTemplate(t *testing.T) {
 	if got["db-01"].PasswordRef != "op://Servers/db-01/password" || p.Passwords != 0 {
 		t.Errorf("op:// reference lost: %+v (passwords %d)", got["db-01"], p.Passwords)
 	}
+}
+
+// With saving passwords on, plain passwords from the file go to the keyring
+// (through UsePasswords) and are never part of the preview.
+func TestImportSavesPasswords(t *testing.T) {
+	s, store := newService(t)
+	saved := map[int64]string{}
+	on := false
+	UsePasswords(s, func() bool { return on }, func(id int64, pw string) error { saved[id] = pw; return nil })
+	csv := "Name,Host,User,Password\nweb,10.0.0.5,root,Sup3r-secret!\nref,10.0.0.6,root,op://Ops/ref/password\n"
+
+	p, err := s.load(SourceCSV, writeFile(t, "pw.csv", csv))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Passwords != 1 || p.SavePasswords {
+		t.Errorf("off: passwords %d, save %v", p.Passwords, p.SavePasswords)
+	}
+	if b, _ := json.Marshal(p); strings.Contains(string(b), "Sup3r") {
+		t.Fatal("the preview contains a password")
+	}
+	res, _ := s.Import(p.ID, lines(p), DuplicateSkip, "")
+	if res.Passwords != 0 || len(saved) != 0 {
+		t.Errorf("saved while off: %+v %v", res, saved)
+	}
+
+	on = true
+	for _, h := range mustList(t, store) {
+		_ = store.Delete(h.ID)
+	}
+	p, _ = s.load(SourceCSV, writeFile(t, "pw.csv", csv))
+	if !p.SavePasswords {
+		t.Error("preview doesn't say passwords will be saved")
+	}
+	res, err = s.Import(p.ID, lines(p), DuplicateSkip, "")
+	if err != nil || res.Imported != 2 || res.Passwords != 1 {
+		t.Fatalf("res = %+v, %v", res, err)
+	}
+	for id, pw := range saved {
+		h, _ := store.Get(id)
+		if h.Name != "web" || pw != "Sup3r-secret!" {
+			t.Errorf("saved %q for %+v", pw, h)
+		}
+	}
+	for _, h := range mustList(t, store) {
+		if h.Name == "ref" && h.PasswordRef != "op://Ops/ref/password" {
+			t.Errorf("op:// reference lost: %+v", h)
+		}
+	}
+}
+
+func mustList(t *testing.T, s *hosts.Store) []hosts.Host {
+	t.Helper()
+	l, err := s.List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return l
 }

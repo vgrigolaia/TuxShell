@@ -246,3 +246,39 @@ func TestOS(t *testing.T) {
 		t.Error("unknown OS accepted")
 	}
 }
+
+func TestPasswordSaved(t *testing.T) {
+	s := openTemp(t)
+	var deleted []int64
+	s.OnDelete = func(ids []int64) { deleted = append(deleted, ids...) }
+	h, err := s.Save(Host{Name: "p", Hostname: "p.example", Tags: []string{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetPasswordSaved(h.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	// A save from the form can't clear (or set) the flag.
+	h.PasswordSaved = false
+	h.User = "root"
+	if _, err := s.Save(h); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := s.Get(h.ID)
+	if !got.PasswordSaved {
+		t.Error("Save cleared PasswordSaved")
+	}
+	n, _ := s.Save(Host{Name: "q", Hostname: "q.example", PasswordSaved: true, Tags: []string{}})
+	if got, _ := s.Get(n.ID); got.PasswordSaved {
+		t.Error("Save set PasswordSaved")
+	}
+	if err := s.Delete(h.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.DeleteMany([]int64{n.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if len(deleted) != 2 || deleted[0] != h.ID || deleted[1] != n.ID {
+		t.Errorf("OnDelete got %v", deleted)
+	}
+}

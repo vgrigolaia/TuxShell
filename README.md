@@ -32,8 +32,8 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
 - **Import and export**: import from `~/.ssh/config` (usernames optional), CSV/TSV, Excel
   (.xlsx), MobaXterm, Remmina, PuTTY (Linux or a Windows .reg export) and Ansible INI
   inventories, with a preview of every host before it's saved. A ready-to-fill CSV template
-  is included. Export as TuxShell JSON, CSV or ssh_config (Preferences → Hosts). Passwords are
-  never imported or exported; only 1Password references (`op://…`) are kept.
+  is included. Export as TuxShell JSON, CSV or ssh_config (Preferences → Hosts). Exports never
+  contain passwords; imported passwords are kept only if you allow saving passwords.
 - **Clipboard history** (Ctrl+Shift+H): encrypted at rest with a key in your keyring.
   Skips password- and token-looking text. Pin and edit clips, choose how long they're kept.
   Each clip shows which host it was copied from.
@@ -57,17 +57,17 @@ Download the package for your distribution from the
 
 ```sh
 # Fedora, RHEL, AlmaLinux, Rocky Linux
-sudo dnf install ./tuxshell-1.1.5-1.x86_64.rpm
+sudo dnf install ./tuxshell-1.1.6-1.x86_64.rpm
 
 # Debian, Ubuntu
-sudo apt install ./tuxshell_1.1.5-1_amd64.deb
+sudo apt install ./tuxshell_1.1.6-1_amd64.deb
 ```
 
 Or run the AppImage on any distribution:
 
 ```sh
-chmod +x TuxShell-1.1.5-x86_64.AppImage
-./TuxShell-1.1.5-x86_64.AppImage
+chmod +x TuxShell-1.1.6-x86_64.AppImage
+./TuxShell-1.1.6-x86_64.AppImage
 ```
 
 Supported: Fedora 39+, RHEL/Alma/Rocky 10, Debian 13+ and Ubuntu 24.04+. TuxShell needs
@@ -82,7 +82,25 @@ GTK 4 and WebKitGTK 6.0. Remote hosts need GNU `find` for the file browser.
 | Clipboard key | your desktop keyring, as "TuxShell" |
 | Preferences | `~/.config/tuxshell/settings.json` |
 
-TuxShell never stores passwords.
+Saved passwords, if you allow them, are in your desktop keyring too (see below). TuxShell
+never writes passwords to its own files.
+
+## Passwords and security
+
+TuxShell can log you in three ways (Preferences → Security):
+
+- **SSH keys or your ssh agent** (recommended): nothing secret is stored by TuxShell.
+- **1Password** (coming): only `op://` references are stored; the password stays in your vault.
+- **Saved passwords**, for servers that only accept passwords. Off by default. When you turn on
+  *Allow saving passwords*, passwords are stored encrypted in your system keyring (GNOME Keyring
+  or KWallet) and unlocked when you log in to your desktop. Anyone using your logged-in session
+  can use them.
+
+When ssh asks for a password, TuxShell answers through ssh's own `SSH_ASKPASS` mechanism over a
+private socket, so the password never appears in ssh's command line, its environment or the
+terminal. Only the host's own ssh gets its password: prompts from jump hosts, host key questions
+and key passphrases are shown in the terminal as usual. A saved password is tried once; if it's
+refused, TuxShell asks you instead.
 
 ## Build from source
 

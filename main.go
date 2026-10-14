@@ -3,15 +3,19 @@ package main
 import (
 	"embed"
 	"log"
+	"os"
 	"path/filepath"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 
+	"github.com/vgrigolaia/tuxshell/internal/askpass"
 	"github.com/vgrigolaia/tuxshell/internal/cliphist"
 	"github.com/vgrigolaia/tuxshell/internal/files"
 	"github.com/vgrigolaia/tuxshell/internal/hostio"
 	"github.com/vgrigolaia/tuxshell/internal/hosts"
+	"github.com/vgrigolaia/tuxshell/internal/login"
+	"github.com/vgrigolaia/tuxshell/internal/secrets"
 	"github.com/vgrigolaia/tuxshell/internal/settings"
 	"github.com/vgrigolaia/tuxshell/internal/sshcmd"
 	"github.com/vgrigolaia/tuxshell/internal/sshconfig"
@@ -35,6 +39,8 @@ func init() {
 	application.RegisterEvent[int](eventConfirmClose)
 	application.RegisterEvent[[]status.Result](status.EventChanged)
 	application.RegisterEvent[application.Void](tunnels.EventChanged)
+	application.RegisterEvent[login.PasswordRequest](login.EventPassword)
+	application.RegisterEvent[string](login.EventDone)
 }
 
 // eventConfirmClose asks the frontend to confirm closing the window while
@@ -42,6 +48,12 @@ func init() {
 const eventConfirmClose = "app:confirm-close"
 
 func main() {
+	// ssh runs this binary as its askpass helper; answer and exit before
+	// anything of the app starts.
+	if askpass.IsHelper() {
+		os.Exit(askpass.Helper(os.Args[1:]))
+	}
+
 	dbPath, err := hosts.DefaultPath()
 	if err != nil {
 		log.Fatal(err)
@@ -105,9 +117,24 @@ func main() {
 		func(r []status.Result) { app.Event.Emit(status.EventChanged, r) },
 	)
 	forwards := tunnels.NewService(store, resolver, func() { app.Event.Emit(tunnels.EventChanged) })
+	// Saved passwords answer ssh's prompts through a private socket next to
+	// the control sockets; without that directory they stay in the terminal.
+	logins := login.New(store, secrets.New(),
+		func() bool { return prefs.Get().Settings.SavePasswords },
+		func(name string, data any) { app.Event.Emit(name, data) },
+	)
+	store.OnDelete = logins.HostsDeleted
+	hostio.UsePasswords(hostFiles, func() bool { return prefs.Get().Settings.SavePasswords }, logins.SavePassword)
+	if exe, err := os.Executable(); err != nil || controlDir == "" {
+		log.Printf("saved passwords unavailable: no executable path or private socket directory")
+	} else if err := logins.Start(controlDir, exe); err != nil {
+		log.Printf("saved passwords unavailable: %v", err)
+	}
+
 	terminals := terminal.NewService(func(name string, data any) {
 		app.Event.Emit(name, data)
 	}, resolver, prefs.Shell)
+	terminal.SetAuth(terminals, logins)
 
 	app = application.New(application.Options{
 		Name:        "TuxShell",
@@ -121,6 +148,7 @@ func main() {
 		},
 		Services: []application.Service{
 			application.NewService(terminals),
+			application.NewService(logins.Service()),
 			application.NewService(hosts.NewService(store)),
 			application.NewService(sshconfig.NewService(store, sshConfigPath)),
 			application.NewService(hostFiles),

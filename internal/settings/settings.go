@@ -24,8 +24,11 @@ type Settings struct {
 	HostStatus bool `json:"hostStatus"`
 	// UpdateCheck asks GitHub for a newer release at startup. Off by default:
 	// the app makes no requests of its own unless the user turns this on.
-	UpdateCheck bool     `json:"updateCheck"`
-	Terminal    Terminal `json:"terminal"`
+	UpdateCheck bool `json:"updateCheck"`
+	// SavePasswords allows saving host passwords in the system keyring. Off by
+	// default: keys, the ssh agent or 1Password are safer.
+	SavePasswords bool     `json:"savePasswords"`
+	Terminal      Terminal `json:"terminal"`
 }
 
 // Terminal holds the look and behaviour of terminal panes.

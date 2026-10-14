@@ -20,6 +20,7 @@ const defaults = (): Settings => ({
   hostsSidebar: true,
   hostStatus: true,
   updateCheck: false,
+  savePasswords: false,
   terminal: {
     fontFamily: '',
     fontSize: 13,
@@ -109,6 +110,11 @@ class Preferences {
 
   setHostStatus(on: boolean) {
     this.value.hostStatus = on
+    this.queueSave()
+  }
+
+  setSavePasswords(on: boolean) {
+    this.value.savePasswords = on
     this.queueSave()
   }
 

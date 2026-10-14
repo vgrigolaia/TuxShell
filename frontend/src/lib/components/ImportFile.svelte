@@ -104,15 +104,23 @@
           {#each result.errors as e (e)}<li>{e}</li>{/each}
         </ul>
       {/if}
+      {#if result.passwords}
+        <p class="text-xs text-muted">{result.passwords} {result.passwords === 1 ? 'password was' : 'passwords were'} saved in your system keyring.</p>
+      {/if}
       {#if preview.passwords}
-        <p class="text-xs text-muted">Passwords weren't imported. Consider deleting <span class="font-mono">{preview.file}</span> if it holds passwords.</p>
+        <p class="text-xs text-muted">{preview.savePasswords ? '' : "Passwords weren't imported. "}Consider deleting <span class="font-mono">{preview.file}</span> now: it holds passwords in plain text.</p>
       {/if}
     </div>
   {:else}
     {#if preview.passwords}
       <p class="mb-3 rounded-lg border border-line bg-raised px-3 py-2 text-xs text-muted">
-        <span class="font-medium text-fg">{preview.passwords} {preview.passwords === 1 ? 'password' : 'passwords'} won't be imported.</span>
-        TuxShell never stores passwords; only 1Password references (op://…) are kept. Keys, your ssh agent or 1Password still log you in.
+        {#if preview.savePasswords}
+          <span class="font-medium text-fg">{preview.passwords} {preview.passwords === 1 ? 'password' : 'passwords'} will be saved</span>
+          encrypted in your system keyring, for the hosts you import.
+        {:else}
+          <span class="font-medium text-fg">{preview.passwords} {preview.passwords === 1 ? 'password' : 'passwords'} won't be imported.</span>
+          To import them, turn on <span class="font-medium">Allow saving passwords</span> in Preferences → Security and open the file again. 1Password references (op://…) are always kept.
+        {/if}
       </p>
     {/if}
 
