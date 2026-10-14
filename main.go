@@ -10,6 +10,7 @@ import (
 
 	"github.com/vgrigolaia/tuxshell/internal/cliphist"
 	"github.com/vgrigolaia/tuxshell/internal/files"
+	"github.com/vgrigolaia/tuxshell/internal/hostio"
 	"github.com/vgrigolaia/tuxshell/internal/hosts"
 	"github.com/vgrigolaia/tuxshell/internal/settings"
 	"github.com/vgrigolaia/tuxshell/internal/sshcmd"
@@ -78,6 +79,14 @@ func main() {
 			SetButtonText("Upload").
 			PromptForMultipleSelection()
 	})
+	hostFiles := hostio.NewService(store, func(title string, filters []hostio.Filter) (string, error) {
+		d := app.Dialog.OpenFile().CanChooseFiles(true).SetTitle(title).SetButtonText("Open")
+		for _, f := range filters {
+			d.AddFilter(f.Name, f.Pattern)
+		}
+		d.AddFilter("All files", "*")
+		return d.PromptForSingleSelection()
+	})
 	clips := cliphist.NewService(
 		filepath.Join(filepath.Dir(dbPath), "clipboard.db"),
 		func() (string, bool) { return app.Clipboard.Text() },
@@ -106,6 +115,7 @@ func main() {
 			application.NewService(terminals),
 			application.NewService(hosts.NewService(store)),
 			application.NewService(sshconfig.NewService(store, sshConfigPath)),
+			application.NewService(hostFiles),
 			application.NewService(clips),
 			application.NewService(fileBrowser),
 			application.NewService(prefs),

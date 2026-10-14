@@ -73,7 +73,7 @@
     const actions: Item[] = [
       { kind: 'action', id: 'shell', label: 'New local shell', icon: 'terminal', run: onNewShell },
       { kind: 'action', id: 'new', label: 'New host…', icon: 'plus', run: onNewHost },
-      { kind: 'action', id: 'import', label: 'Import from ~/.ssh/config…', icon: 'import', run: onImport },
+      { kind: 'action', id: 'import', label: 'Import hosts…', icon: 'import', run: onImport },
     ]
     for (const a of actions) if (a.kind === 'action' && best(q, [a.label]) > 0) out.push(a)
     return out

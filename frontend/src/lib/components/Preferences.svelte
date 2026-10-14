@@ -13,15 +13,18 @@
 
   interface Props {
     onClose: () => void
+    /** Opens the import window (it stacks over Preferences). */
+    onImport: () => void
   }
-  let { onClose }: Props = $props()
+  let { onClose, onImport }: Props = $props()
 
-  type Section = 'text' | 'cursor' | 'colours' | 'behaviour' | 'shortcuts' | 'about'
+  type Section = 'text' | 'cursor' | 'colours' | 'behaviour' | 'hosts' | 'shortcuts' | 'about'
   const sections: { id: Section; label: string }[] = [
     { id: 'text', label: 'Text' },
     { id: 'cursor', label: 'Cursor' },
     { id: 'colours', label: 'Colours' },
     { id: 'behaviour', label: 'Behaviour' },
+    { id: 'hosts', label: 'Hosts' },
     { id: 'shortcuts', label: 'Shortcuts' },
     { id: 'about', label: 'About' },
   ]
@@ -298,6 +301,13 @@
             {#if prefs.error?.field === 'shell'}<p role="alert" class="mt-1 text-xs text-warning">{prefs.error.message}</p>{/if}
           </div>
         </div>
+      {:else if section === 'hosts'}
+        <h3 class="sr-only">Hosts</h3>
+        <section aria-labelledby="{id}-import">
+          <h4 id="{id}-import" class="text-[13px] font-medium">Import hosts</h4>
+          <p class={hint}>From ~/.ssh/config or a CSV/TSV file. You see every host before it's saved. Passwords are never imported.</p>
+          <button class="mt-3 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-on-accent hover:bg-accent/90" onclick={onImport}>Import hosts…</button>
+        </section>
       {:else if section === 'about'}
         <h3 class="sr-only">About</h3>
         <div class="flex items-center gap-4">

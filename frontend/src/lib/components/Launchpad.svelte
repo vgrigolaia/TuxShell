@@ -25,7 +25,8 @@
     onConnect: (host: Host) => void
     onConnectTarget: (target: string) => void
     onNew: () => void
-    onImport: () => void
+    /** Opens the import window, at the ~/.ssh/config list when asked. */
+    onImport: (start?: 'sshconfig') => void
     /** The host editor, shown on the right when a host is selected. */
     editor?: Snippet
     /** Double-clicking Hosts opens the terminal view with the host list. */
@@ -129,7 +130,7 @@
     <header class="flex flex-wrap items-center gap-3.5">
       <h1 class="font-display text-3xl font-bold tracking-[-0.03em]">{greeting}</h1>
       <div class="ml-auto flex gap-2.5">
-        <button class="h-[42px] rounded-[13px] border border-strong bg-panel px-4 text-sm font-semibold hover:bg-raised" onclick={onImport}>Import</button>
+        <button class="h-[42px] rounded-[13px] border border-strong bg-panel px-4 text-sm font-semibold hover:bg-raised" onclick={() => onImport()}>Import</button>
         <button class="new-host h-[42px] rounded-[13px] bg-accent px-[18px] text-sm font-bold text-on-accent hover:bg-accent/90" onclick={onNew}>+ New host</button>
       </div>
     </header>
@@ -161,7 +162,7 @@
       <div class="flex flex-wrap items-center gap-3.5 rounded-2xl bg-accent-soft px-[18px] py-3.5 text-[13.5px] text-accent-ink">
         <span class="text-accent-text"><Icon name="import" size={18} /></span>
         <span><strong>Found {found} {found === 1 ? 'host' : 'hosts'}</strong> in ~/.ssh/config that {found === 1 ? "isn't" : "aren't"} saved yet.</span>
-        <button class="ml-auto h-8 rounded-[10px] bg-accent-text px-3.5 text-[13px] font-bold text-on-accent hover:opacity-90" onclick={onImport}>Review & import</button>
+        <button class="ml-auto h-8 rounded-[10px] bg-accent-text px-3.5 text-[13px] font-bold text-on-accent hover:opacity-90" onclick={() => onImport('sshconfig')}>Review & import</button>
       </div>
     {/if}
 

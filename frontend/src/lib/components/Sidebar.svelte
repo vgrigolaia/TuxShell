@@ -177,7 +177,7 @@
         onclick={() => (selecting ? stopSelecting() : startSelecting())}>Select</button
       >
     {/if}
-    <button class="grid size-6 place-items-center rounded-md text-subtle hover:bg-raised hover:text-fg" aria-label="Import from ~/.ssh/config" title="Import from ~/.ssh/config" onclick={onImport}>
+    <button class="grid size-6 place-items-center rounded-md text-subtle hover:bg-raised hover:text-fg" aria-label="Import hosts" title="Import hosts" onclick={onImport}>
       <Icon name="import" size={13} />
     </button>
     <button class="grid size-6 place-items-center rounded-md text-subtle hover:bg-raised hover:text-fg" aria-label="New host" title="New host" onclick={onNew}>
@@ -225,7 +225,7 @@
         <span class="grid size-10 place-items-center rounded-xl bg-raised text-subtle"><Icon name="server" size={18} /></span>
         <p class="text-[13px] text-muted">No hosts yet</p>
         <button class="rounded-lg bg-accent px-3 py-1.5 text-[13px] font-medium text-on-accent hover:bg-accent/90" onclick={onNew}>Add a host</button>
-        <button class="text-[13px] text-accent-text hover:underline" onclick={onImport}>Import from ~/.ssh/config</button>
+        <button class="text-[13px] text-accent-text hover:underline" onclick={onImport}>Import hosts</button>
       </div>
     {:else if filter && visible.length === 0}
       <p class="px-3 pt-6 text-center text-[13px] text-muted">No hosts match “{filter}”</p>
