@@ -86,6 +86,7 @@ type Service struct {
 	emit      func(name string, data any)
 
 	pickFolder func() (string, error)
+	relay      *Relay
 
 	seq      atomic.Uint64
 	mu       sync.Mutex
@@ -130,27 +131,39 @@ func (s *Service) Client() ClientInfo {
 	return ClientInfo{Installed: true, Client: c}
 }
 
-// Connect opens a remote desktop for a saved RDP host.
-func (s *Service) Connect(ctx context.Context, hostID int64, opts ConnectOptions) (Session, error) {
+// prepared is a host ready to connect: tunnel open and certificate checked.
+type prepared struct {
+	host        hosts.Host
+	server      string
+	port        int
+	tunnel      *exec.Cmd
+	fingerprint string
+}
+
+func (p *prepared) stop() {
+	if p.tunnel != nil && p.tunnel.Process != nil {
+		_ = p.tunnel.Process.Kill()
+		_ = p.tunnel.Wait()
+	}
+}
+
+// prepare loads an RDP host, opens its SSH tunnel and checks its
+// certificate (a CertError asks the user; trust is a fingerprint they accepted).
+func (s *Service) prepare(ctx context.Context, hostID int64, trust string) (*prepared, error) {
 	h, err := s.store.Get(hostID)
 	if err != nil {
-		return Session{}, err
+		return nil, err
 	}
 	h.Normalize()
 	if err := h.Validate(); err != nil {
-		return Session{}, err
+		return nil, err
 	}
 	if h.Protocol != hosts.ProtocolRDP {
-		return Session{}, errors.New("not a remote desktop host")
+		return nil, errors.New("not a remote desktop host")
 	}
-	client, err := FindClient(s.prefer())
-	if err != nil {
-		return Session{}, fmt.Errorf("%w. %s", err, InstallHint)
-	}
+	p := &prepared{host: h, server: h.Hostname, port: h.Port}
 
 	// Through a jump host: a local SSH tunnel to the desktop's port.
-	server, port := h.Hostname, h.Port
-	var tunnel *exec.Cmd
 	if h.ProxyJump != "" {
 		// A hop may name a saved SSH host rather than an ssh_config alias.
 		if list, err := s.store.List(); err == nil {
@@ -159,58 +172,66 @@ func (s *Service) Connect(ctx context.Context, hostID int64, opts ConnectOptions
 				byName[strings.ToLower(x.Name)] = x
 			}
 			h.ProxyJump = hosts.ResolveJump(h.Name, h.ProxyJump, byName)
+			p.host.ProxyJump = h.ProxyJump
 		}
 		local, err := freePort()
 		if err != nil {
-			return Session{}, err
+			return nil, err
 		}
-		tunnel, err = s.tunnels.JumpTunnelCommand(h.ProxyJump, sshcmd.LocalForward(local, h.Hostname, h.Port))
+		tunnel, err := s.tunnels.JumpTunnelCommand(h.ProxyJump, sshcmd.LocalForward(local, h.Hostname, h.Port))
 		if err != nil {
-			return Session{}, err
+			return nil, err
 		}
 		if err := startTunnel(ctx, tunnel, local); err != nil {
-			return Session{}, err
+			return nil, err
 		}
-		server, port = "127.0.0.1", local
-	}
-	stop := func() {
-		if tunnel != nil && tunnel.Process != nil {
-			_ = tunnel.Process.Kill()
-			_ = tunnel.Wait()
-		}
+		p.tunnel, p.server, p.port = tunnel, "127.0.0.1", local
 	}
 
 	// The certificate, checked by TuxShell (FreeRDP can't remember it
 	// through a tunnel, whose local port changes each time). A gateway
 	// stands between, so then FreeRDP checks it itself.
-	fingerprint := ""
 	if h.RDP.Gateway.Host == "" {
 		pctx, cancel := context.WithTimeout(ctx, 15*time.Second)
-		cert, err := FetchCertificate(pctx, net.JoinHostPort(server, strconv.Itoa(port)), h.Hostname)
+		cert, err := FetchCertificate(pctx, net.JoinHostPort(p.server, strconv.Itoa(p.port)), h.Hostname)
 		cancel()
 		switch {
 		case errors.Is(err, ErrNoTLS):
 			// Old RDP security has no certificate; FreeRDP decides.
 		case err != nil:
-			stop()
-			return Session{}, explainDial(err, tunnel != nil)
+			p.stop()
+			return nil, explainDial(err, p.tunnel != nil)
 		case cert.Fingerprint == h.RDPCert:
-			fingerprint = cert.Fingerprint
-		case opts.Trust == cert.Fingerprint:
+			p.fingerprint = cert.Fingerprint
+		case trust == cert.Fingerprint:
 			if err := s.store.SetRDPCert(h.ID, cert.Fingerprint); err != nil {
-				stop()
-				return Session{}, err
+				p.stop()
+				return nil, err
 			}
-			fingerprint = cert.Fingerprint
+			p.fingerprint = cert.Fingerprint
 		default:
-			stop()
+			p.stop()
 			kind := "new"
 			if h.RDPCert != "" {
 				kind = "changed"
 			}
-			return Session{}, &CertError{Kind: kind, Cert: cert, Previous: h.RDPCert}
+			return nil, &CertError{Kind: kind, Cert: cert, Previous: h.RDPCert}
 		}
 	}
+	return p, nil
+}
+
+// Connect opens a remote desktop for a saved RDP host in FreeRDP's window.
+func (s *Service) Connect(ctx context.Context, hostID int64, opts ConnectOptions) (Session, error) {
+	client, err := FindClient(s.prefer())
+	if err != nil {
+		return Session{}, fmt.Errorf("%w. %s", err, InstallHint)
+	}
+	p, err := s.prepare(ctx, hostID, opts.Trust)
+	if err != nil {
+		return Session{}, err
+	}
+	h, server, port, tunnel, fingerprint, stop := p.host, p.server, p.port, p.tunnel, p.fingerprint, p.stop
 
 	password := opts.Password
 	if password == "" {
@@ -354,6 +375,9 @@ func (s *Service) Forget(id string) {
 
 // ServiceShutdown closes every remote desktop when the app quits.
 func (s *Service) ServiceShutdown() error {
+	if s.relay != nil {
+		_ = s.relay.Close()
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, r := range s.sessions {

@@ -10,5 +10,6 @@ export type {
     Client,
     ClientInfo,
     ConnectOptions,
-    Session
+    Session,
+    TabSession
 } from "./models.js";

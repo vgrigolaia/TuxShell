@@ -9,8 +9,10 @@
   interface Props {
     host: Host
     onClose: () => void
+    /** Opens the remote desktop in a TuxShell tab (beta). */
+    onOpenTab: (host: Host) => void
   }
-  let { host, onClose }: Props = $props()
+  let { host, onClose, onOpenTab }: Props = $props()
 
   let dialog: HTMLDialogElement
   let passwordInput = $state<HTMLInputElement>()
@@ -23,14 +25,16 @@
   let missing = $state('')
   const id = $props.id()
 
-  // A saved password (while saving is on) connects without asking.
-  const useSaved = $derived(host.passwordSaved && prefs.value.savePasswords)
+  // A saved password (while saving is on) connects without asking; tabs
+  // always ask, since a saved password never leaves Go.
+  const inTab = $derived(remoteDesktops.mode === 'tab')
+  const useSaved = $derived(host.passwordSaved && prefs.value.savePasswords && !inTab)
   const target = $derived(`${host.user ? host.user + '@' : ''}${host.hostname}${host.port !== 3389 ? ':' + host.port : ''}`)
 
   onMount(() => {
     dialog.showModal()
     void remoteDesktops.checkClient().then((c) => {
-      if (c && !c.installed) missing = c.hint
+      if (c && !c.installed && !inTab) missing = c.hint
       else if (useSaved) void connect()
       else passwordInput?.focus()
     })
@@ -39,6 +43,25 @@
   async function connect(trust = '') {
     busy = true
     error = ''
+    if (inTab) {
+      try {
+        const res = await remoteDesktops.openTab(host, trust)
+        busy = false
+        if ('cert' in res) {
+          cert = res.cert
+          return
+        }
+        remoteDesktops.giveTab(host.id, res, password)
+        password = ''
+        onOpenTab(host)
+        dialog.close()
+      } catch (e) {
+        busy = false
+        cert = null
+        error = e instanceof Error ? e.message : String(e)
+      }
+      return
+    }
     const res = await remoteDesktops.connect(host, useSaved ? '' : password, remember && !useSaved, trust)
     busy = false
     if (res.ok) {
@@ -76,6 +99,26 @@
     </button>
   </header>
 
+  <div class="px-5 pt-4">
+    <div class="flex gap-1 rounded-[10px] bg-ground p-1" role="radiogroup" aria-label="Open in">
+      {#each [['window', 'Own window'], ['tab', 'Tab (beta)']] as const as [m, name] (m)}
+        <button
+          type="button"
+          role="radio"
+          aria-checked={remoteDesktops.mode === m}
+          class="h-8 flex-1 rounded-lg text-xs font-semibold {remoteDesktops.mode === m ? 'bg-panel text-fg shadow-sm' : 'text-muted hover:text-fg'}"
+          onclick={() => {
+            remoteDesktops.setMode(m)
+            missing = ''
+            cert = null
+            error = ''
+            if (m === 'tab') setTimeout(() => passwordInput?.focus())
+          }}>{name}</button
+        >
+      {/each}
+    </div>
+    {#if inTab}<p class="mt-2 text-[11px] text-subtle">Drawn inside TuxShell. Copy and paste work; shared folders, sound and saved passwords only work in its own window for now.</p>{/if}
+  </div>
   <div class="px-5 py-4">
     {#if missing}
       <p class="text-[13px] text-muted">Remote desktops open with FreeRDP, which isn't installed.</p>

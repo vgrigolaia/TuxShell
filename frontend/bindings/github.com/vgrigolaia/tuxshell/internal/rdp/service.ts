@@ -29,7 +29,7 @@ export function Client(): $CancellablePromise<$models.ClientInfo> {
 }
 
 /**
- * Connect opens a remote desktop for a saved RDP host.
+ * Connect opens a remote desktop for a saved RDP host in FreeRDP's window.
  */
 export function Connect(hostID: number, opts: $models.ConnectOptions): $CancellablePromise<$models.Session> {
     return $Call.ByID(2959029283, hostID, opts);
@@ -54,6 +54,15 @@ export function Forget(id: string): $CancellablePromise<void> {
  */
 export function Log(id: string): $CancellablePromise<string[] | null> {
     return $Call.ByID(21967727, id);
+}
+
+/**
+ * OpenTab prepares a remote desktop for a TuxShell tab: the same certificate
+ * check and SSH tunnel as Connect, then a ticket for the relay. The password
+ * is typed into the tab and goes from the page straight to the server.
+ */
+export function OpenTab(hostID: number, trust: string): $CancellablePromise<$models.TabSession> {
+    return $Call.ByID(1798239066, hostID, trust);
 }
 
 /**

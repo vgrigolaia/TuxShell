@@ -164,6 +164,12 @@ func main() {
 		func() string { return prefs.Get().Settings.RDPClient },
 		func(name string, data any) { app.Event.Emit(name, data) })
 
+	// Remote desktops in tabs reach their server through a loopback relay.
+	if relay, err := rdp.StartRelay(); err != nil {
+		log.Printf("remote desktops in tabs unavailable: %v", err)
+	} else {
+		rdp.UseRelay(remoteDesktops, relay)
+	}
 	rdp.UseFolderPicker(remoteDesktops, func() (string, error) {
 		return app.Dialog.OpenFile().CanChooseDirectories(true).CanChooseFiles(false).
 			SetTitle("Folder to share with the remote desktop").SetButtonText("Share").PromptForSingleSelection()

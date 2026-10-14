@@ -73,7 +73,8 @@
   }
 
   function hostTitle(source: Source) {
-    return source.kind === 'host' ? hostStore.get(source.hostId)?.name : source.kind === 'shell' ? 'Local shell' : source.target
+    if (source.kind === 'host' || source.kind === 'rdp') return hostStore.get(source.hostId)?.name
+    return source.kind === 'shell' ? 'Local shell' : source.target
   }
 
   function newTabSame(paneId: number) {
@@ -479,7 +480,7 @@
 
 {#if remoteDesktops.connecting}
   {#key remoteDesktops.connecting.id}
-    <RdpConnect host={remoteDesktops.connecting} onClose={() => (remoteDesktops.connecting = null)} />
+    <RdpConnect host={remoteDesktops.connecting} onClose={() => (remoteDesktops.connecting = null)} onOpenTab={(h) => open({ kind: 'rdp', hostId: h.id }, h.name)} />
   {/key}
 {/if}
 {#if prefsOpen}

@@ -1,5 +1,6 @@
 <script lang="ts">
   import TerminalPane from './TerminalPane.svelte'
+  import RdpPane from './RdpPane.svelte'
   import Icon from './Icon.svelte'
   import { workspace, type Pane } from '../workspace.svelte'
   import { MAX_PANES, dividers, drag, rects, type Divider } from '../layout'
@@ -208,6 +209,16 @@
                 aria-hidden="true"
               ></div>
             {/if}
+            {#if pane.source.kind === 'rdp'}
+              <RdpPane
+                paneId={pane.id}
+                hostId={pane.source.hostId}
+                visible={at.visible}
+                focused={at.visible && at.focused}
+                onStart={() => workspace.updatePane(pane.id, { exited: false, startedAt: Date.now() })}
+                onExit={() => workspace.updatePane(pane.id, { exited: true })}
+              />
+            {:else}
             <TerminalPane
               bind:this={refs[pane.id]}
               source={pane.source}
@@ -230,6 +241,7 @@
               maximized={at.maximized}
               actions={actions(pane.id)}
             />
+            {/if}
           </div>
         </section>
       </div>

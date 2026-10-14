@@ -72,3 +72,22 @@ export interface Session {
      */
     "tunnel": string;
 }
+
+/**
+ * TabSession is what the page needs to draw a remote desktop in a tab.
+ */
+export interface TabSession {
+    /**
+     * Proxy is the relay's WebSocket address and Token the one-time ticket.
+     */
+    "proxy": string;
+    "token": string;
+
+    /**
+     * Destination is shown by the client; the relay ignores it.
+     */
+    "destination": string;
+    "user": string;
+    "domain": string;
+    "name": string;
+}
