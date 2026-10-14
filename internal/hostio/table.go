@@ -29,7 +29,9 @@ const (
 	FieldAlias = "alias"
 	// FieldOS is free text ("Ubuntu 24.04"); unrecognised values become a tag.
 	FieldOS = "os"
-	// FieldPassword keeps 1Password references (op://…). Plain passwords are dropped.
+	// FieldPassword keeps 1Password references (op://…) on the host. Plain
+	// passwords go to the keyring when saving passwords is on; otherwise
+	// they're dropped. They never reach the frontend.
 	FieldPassword = "password"
 )
 
@@ -191,9 +193,9 @@ func (t *table) guess() (fields []string, header bool) {
 	return fields, used[FieldHostname]
 }
 
-// rowHost builds a host from one row. dropped reports a plain password that
-// was left out.
-func rowHost(cells []string, fields []string) (h hosts.Host, dropped bool, err error) {
+// rowHost builds a host from one row. plain is a plain (not op://) password
+// found in it, or "".
+func rowHost(cells []string, fields []string) (h hosts.Host, plain string, err error) {
 	h.Tags = []string{}
 	for i, f := range fields {
 		if i >= len(cells) || cells[i] == "" {
@@ -212,7 +214,7 @@ func rowHost(cells []string, fields []string) (h hosts.Host, dropped bool, err e
 		case FieldPort:
 			p, perr := strconv.Atoi(v)
 			if perr != nil {
-				return h, dropped, &hosts.ValidationError{Field: "port", Message: fmt.Sprintf("Port %q is not a number", v)}
+				return h, plain, &hosts.ValidationError{Field: "port", Message: fmt.Sprintf("Port %q is not a number", v)}
 			}
 			h.Port = p
 		case FieldProxyJump:
@@ -231,12 +233,12 @@ func rowHost(cells []string, fields []string) (h hosts.Host, dropped bool, err e
 			if strings.HasPrefix(v, "op://") {
 				h.PasswordRef = v
 			} else {
-				dropped = true
+				plain = v
 			}
 		}
 	}
 	splitAddress(&h)
-	return h, dropped, nil
+	return h, plain, nil
 }
 
 func splitTags(v string) []string {

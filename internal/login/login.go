@@ -335,6 +335,10 @@ func (s *Manager) forgetAll() (int, error) {
 	return n, nil
 }
 
+// SavePassword saves a password for a host, e.g. from an imported file. The
+// caller checks that saving passwords is on.
+func (s *Manager) SavePassword(hostID int64, password string) error { return s.save(hostID, password) }
+
 // HostsDeleted removes the saved passwords of deleted hosts (hosts.Store.OnDelete).
 func (s *Manager) HostsDeleted(ids []int64) {
 	for _, id := range ids {

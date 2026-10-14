@@ -131,16 +131,21 @@ type Preview struct {
 	Tabular bool     `json:"tabular"`
 	Columns []Column `json:"columns"`
 	Rows    []Row    `json:"rows"`
-	// Passwords counts plain passwords that were found and won't be imported.
+	// Passwords counts plain passwords found in the file.
 	Passwords int `json:"passwords"`
+	// SavePasswords is true when they will be saved in the keyring (saving
+	// passwords is on); otherwise they're left out.
+	SavePasswords bool `json:"savePasswords"`
 }
 
 // Result summarises an import.
 type Result struct {
-	Imported int      `json:"imported"`
-	Updated  int      `json:"updated"`
-	Skipped  int      `json:"skipped"`
-	Errors   []string `json:"errors"`
+	Imported int `json:"imported"`
+	Updated  int `json:"updated"`
+	Skipped  int `json:"skipped"`
+	// Passwords counts passwords saved in the keyring.
+	Passwords int      `json:"passwords"`
+	Errors    []string `json:"errors"`
 }
 
 // ErrStale means the preview was replaced or the window reopened.
@@ -151,6 +156,9 @@ type Service struct {
 	store *hosts.Store
 	pick  PickFunc
 	save  SaveFunc
+	// Saving imported plain passwords, set with UsePasswords.
+	pwEnabled func() bool
+	pwSave    func(hostID int64, password string) error
 
 	mu      sync.Mutex
 	seq     int
@@ -171,6 +179,15 @@ type pending struct {
 func NewService(store *hosts.Store, pick PickFunc, save SaveFunc) *Service {
 	return &Service{store: store, pick: pick, save: save}
 }
+
+// UsePasswords lets s save plain passwords from imported files through save
+// while enabled() is true. A function rather than a method so it isn't bound
+// to the frontend.
+func UsePasswords(s *Service, enabled func() bool, save func(hostID int64, password string) error) {
+	s.pwEnabled, s.pwSave = enabled, save
+}
+
+func (s *Service) passwordsOn() bool { return s.pwEnabled != nil && s.pwSave != nil && s.pwEnabled() }
 
 // Open asks for a file of the given source and previews it. It returns nil
 // when the picker was cancelled.
@@ -254,7 +271,10 @@ func (s *Service) preview(p *pending) (*Preview, error) {
 	}
 	pv := &Preview{ID: p.id, File: p.file, Source: p.source, Header: p.header, Tabular: !sources[p.source].fixed}
 	pv.Columns = columns(p)
-	pv.Rows, pv.Passwords = buildRows(p, existing)
+	var plain map[int]string
+	pv.Rows, plain = buildRows(p, existing)
+	pv.Passwords = len(plain)
+	pv.SavePasswords = s.passwordsOn()
 	return pv, nil
 }
 
@@ -303,7 +323,9 @@ func key(h hosts.Host) string {
 	return strings.ToLower(addr) + "\x00" + h.User + "\x00" + strconv.Itoa(port)
 }
 
-func buildRows(p *pending, existing []hosts.Host) ([]Row, int) {
+// buildRows previews the pending table. plain holds plain passwords by line;
+// they're kept here in Go for Import and never put in a Row.
+func buildRows(p *pending, existing []hosts.Host) (rows []Row, plain map[int]string) {
 	saved := map[string]hosts.Host{}
 	taken := map[string]bool{}
 	for _, h := range existing {
@@ -313,8 +335,8 @@ func buildRows(p *pending, existing []hosts.Host) ([]Row, int) {
 		taken[strings.ToLower(h.Name)] = true
 	}
 	seen := map[string]int{}
-	rows := []Row{}
-	passwords := 0
+	rows = []Row{}
+	plain = map[int]string{}
 	start := 0
 	if p.header {
 		start = 1
@@ -330,9 +352,9 @@ func buildRows(p *pending, existing []hosts.Host) ([]Row, int) {
 		if len(cells) > 0 && strings.HasPrefix(cells[0], "#") {
 			continue
 		}
-		h, dropped, err := rowHost(cells, p.fields)
-		if dropped {
-			passwords++
+		h, pw, err := rowHost(cells, p.fields)
+		if pw != "" {
+			plain[start+i+1] = pw
 		}
 		if h.Name == "" {
 			h.Name = h.Hostname
@@ -377,7 +399,7 @@ func buildRows(p *pending, existing []hosts.Host) ([]Row, int) {
 		r.Host = h
 		rows = append(rows, r)
 	}
-	return rows, passwords
+	return rows, plain
 }
 
 // resolveJump replaces hops that name a known host with that host's address,
@@ -448,7 +470,8 @@ func (s *Service) Import(id string, lines []int, duplicate, group string) (Resul
 	for _, h := range existing {
 		taken[strings.ToLower(h.Name)] = true
 	}
-	rows, _ := buildRows(p, existing)
+	rows, plain := buildRows(p, existing)
+	savePw := s.passwordsOn()
 	want := map[int]bool{}
 	for _, l := range lines {
 		want[l] = true
@@ -460,8 +483,20 @@ func (s *Service) Import(id string, lines []int, duplicate, group string) (Resul
 		res.Skipped++
 		res.Errors = append(res.Errors, fmt.Sprintf("Line %d: %s", r.Line, msg))
 	}
+	// keepPassword saves the row's plain password for the stored host.
+	keepPassword := func(r Row, hostID int64) {
+		pw := plain[r.Line]
+		if !savePw || pw == "" {
+			return
+		}
+		if err := s.pwSave(hostID, pw); err != nil {
+			res.Errors = append(res.Errors, fmt.Sprintf("Line %d: the password wasn't saved: %v", r.Line, err))
+			return
+		}
+		res.Passwords++
+	}
 	save := func(r Row, h hosts.Host) error {
-		_, err := s.store.Save(h)
+		saved, err := s.store.Save(h)
 		var ve *hosts.ValidationError
 		if errors.As(err, &ve) {
 			fail(r, ve.Message)
@@ -469,6 +504,7 @@ func (s *Service) Import(id string, lines []int, duplicate, group string) (Resul
 		}
 		if err == nil {
 			res.Imported++
+			keepPassword(r, saved.ID)
 		}
 		return err
 	}
@@ -503,6 +539,7 @@ func (s *Service) Import(id string, lines []int, duplicate, group string) (Resul
 				fail(r, err.Error())
 			} else {
 				res.Updated++
+				keepPassword(r, r.ExistingID)
 			}
 		case r.ExistingID != 0 && duplicate == DuplicateCopy:
 			copies = append(copies, r)

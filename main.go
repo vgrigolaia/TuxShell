@@ -124,6 +124,7 @@ func main() {
 		func(name string, data any) { app.Event.Emit(name, data) },
 	)
 	store.OnDelete = logins.HostsDeleted
+	hostio.UsePasswords(hostFiles, func() bool { return prefs.Get().Settings.SavePasswords }, logins.SavePassword)
 	if exe, err := os.Executable(); err != nil || controlDir == "" {
 		log.Printf("saved passwords unavailable: no executable path or private socket directory")
 	} else if err := logins.Start(controlDir, exe); err != nil {

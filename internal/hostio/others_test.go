@@ -17,12 +17,12 @@ func rowsOf(t *testing.T, tb *table) (map[string]Row, int) {
 	if !header {
 		t.Fatal("fixed header not recognised")
 	}
-	rows, passwords := buildRows(&pending{table: tb, fields: fields, header: true}, nil)
+	rows, plain := buildRows(&pending{table: tb, fields: fields, header: true}, nil)
 	out := map[string]Row{}
 	for _, r := range rows {
 		out[r.Host.Name] = r
 	}
-	return out, passwords
+	return out, len(plain)
 }
 
 func expect(t *testing.T, r Row, want hosts.Host) {

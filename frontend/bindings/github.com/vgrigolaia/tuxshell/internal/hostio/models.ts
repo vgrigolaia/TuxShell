@@ -40,9 +40,15 @@ export interface Preview {
     "rows": Row[] | null;
 
     /**
-     * Passwords counts plain passwords that were found and won't be imported.
+     * Passwords counts plain passwords found in the file.
      */
     "passwords": number;
+
+    /**
+     * SavePasswords is true when they will be saved in the keyring (saving
+     * passwords is on); otherwise they're left out.
+     */
+    "savePasswords": boolean;
 }
 
 /**
@@ -52,6 +58,11 @@ export interface Result {
     "imported": number;
     "updated": number;
     "skipped": number;
+
+    /**
+     * Passwords counts passwords saved in the keyring.
+     */
+    "passwords": number;
     "errors": string[] | null;
 }
 

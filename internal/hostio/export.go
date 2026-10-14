@@ -218,7 +218,7 @@ const templateCSV = `Name,Host,User,Password,Port,Group,OS,Tags,Bastion,Key file
 "# Host: a name or IP address (user@host:port works too). Port: 22 if empty. Tags: separated by spaces.",,,,,,,,,
 "# OS: e.g. Ubuntu, Debian, RHEL, AlmaLinux, Rocky, Fedora, CentOS, openSUSE, Arch, Alpine, FreeBSD, Windows.",,,,,,,,,
 "# Bastion: the Name of another row (or user@host:port) to connect through. Key file: a path like ~/.ssh/id_ed25519.",,,,,,,,,
-"# Password: only 1Password references (op://Vault/Item/password) are imported; TuxShell doesn't store plain passwords.",,,,,,,,,
+"# Password: saved encrypted in your system keyring if you allow it (Preferences > Security). 1Password references (op://...) always work.",,,,,,,,,
 bastion-01,203.0.113.10,admin,,22,Jump,Ubuntu,gateway,,~/.ssh/id_ed25519
 db-01,10.0.0.7,postgres,op://Servers/db-01/password,2222,Production,Rocky Linux,db primary,bastion-01,
 web-01,10.0.0.5,deploy,,,Production,Debian,web,bastion-01,
