@@ -29,6 +29,26 @@ export const emptyHost = (): Host => ({
   os: '',
   passwordSaved: false,
   profile: '',
+  protocol: 'ssh',
+  rdp: defaultRDP(),
+  rdpCert: '',
+})
+
+/** Mirrors hosts.DefaultRDP. */
+export const defaultRDP = (): Host['rdp'] => ({
+  domain: '',
+  window: 'window',
+  size: 'fit',
+  width: 1600,
+  height: 900,
+  multimon: false,
+  clipboard: true,
+  folders: [],
+  homeFolder: false,
+  sound: 'local',
+  microphone: false,
+  quality: 'balanced',
+  gateway: { host: '', port: 443, user: '', domain: '' },
 })
 
 /** Name of the automatic group holding jump hosts. */

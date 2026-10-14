@@ -32,6 +32,13 @@ type Host struct {
 	// Profile is the terminal profile's ID, or "" for the default profile. A
 	// profile that no longer exists also means the default.
 	Profile string `json:"profile"`
+	// Protocol is "ssh" or "rdp" (a remote desktop, opened with FreeRDP).
+	Protocol string `json:"protocol"`
+	// RDP holds the remote desktop options (used when Protocol is "rdp").
+	RDP RDP `json:"rdp"`
+	// RDPCert is the remote desktop's trusted certificate (SHA-256, hex), or
+	// "" before the first connection. Only Store.SetRDPCert changes it.
+	RDPCert string `json:"rdpCert"`
 }
 
 // ValidationError reports a problem with one field, so the form can show it inline.
@@ -68,9 +75,20 @@ func (h *Host) Normalize() {
 	if h.Profile = strings.TrimSpace(h.Profile); h.Profile == "default" {
 		h.Profile = ""
 	}
+	if h.Protocol = strings.ToLower(strings.TrimSpace(h.Protocol)); h.Protocol == "" {
+		h.Protocol = ProtocolSSH
+	}
 	if h.Port == 0 {
 		h.Port = 22
+		if h.Protocol == ProtocolRDP {
+			h.Port = 3389
+		}
 	}
+	if h.Protocol == ProtocolSSH {
+		// Only remote desktops use these; keep them at their defaults.
+		h.RDP = DefaultRDP()
+	}
+	h.RDP.normalize()
 	tags := h.Tags[:0]
 	seen := map[string]bool{}
 	for _, t := range h.Tags {
@@ -113,6 +131,17 @@ func (h *Host) Validate() error {
 		return invalid("os", "Unknown operating system")
 	case h.Profile != "" && !profileRe.MatchString(h.Profile):
 		return invalid("profile", "Unknown profile")
+	case h.Protocol != ProtocolSSH && h.Protocol != ProtocolRDP:
+		return invalid("protocol", "Choose SSH or remote desktop (RDP)")
+	case h.Protocol == ProtocolRDP && h.Hostname == "":
+		return invalid("hostname", "Host is required")
+	case h.Protocol == ProtocolRDP && !noBreak(h.User):
+		return invalid("user", "User can't contain commas")
+	}
+	if h.Protocol == ProtocolRDP {
+		if err := h.RDP.validate(); err != nil {
+			return err
+		}
 	}
 	for _, t := range h.Tags {
 		if !tagRe.MatchString(t) {

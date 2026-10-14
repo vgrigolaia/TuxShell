@@ -97,6 +97,9 @@ func (r Resolver) host(id int64, user *string) (hosts.Host, error) {
 	if err != nil {
 		return h, err
 	}
+	if h.Protocol == hosts.ProtocolRDP {
+		return h, fmt.Errorf("%q is a remote desktop host, not SSH", h.Name)
+	}
 	if user != nil {
 		h.User = *user
 	}
