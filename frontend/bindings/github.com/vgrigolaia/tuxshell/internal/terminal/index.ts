@@ -8,5 +8,6 @@ export {
 
 export type {
     DataEvent,
-    ExitEvent
+    ExitEvent,
+    RecordingEvent
 } from "./models.js";

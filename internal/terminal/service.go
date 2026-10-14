@@ -15,13 +15,26 @@ import (
 	"syscall"
 
 	"github.com/creack/pty"
+
+	"github.com/vgrigolaia/tuxshell/internal/recordings"
 )
 
 // Event names emitted to the frontend.
 const (
 	EventData = "terminal:data"
 	EventExit = "terminal:exit"
+	// EventRecording reports a recording that started or stopped (a RecordingEvent).
+	EventRecording = "terminal:recording"
 )
+
+// RecordingEvent says whether a session is being recorded. Error is set when
+// a recording stopped by itself (e.g. it grew too large).
+type RecordingEvent struct {
+	ID        string `json:"id"`
+	Recording bool   `json:"recording"`
+	Name      string `json:"name"`
+	Error     string `json:"error"`
+}
 
 // DataEvent carries a chunk of PTY output. Data is base64 so that UTF-8
 // sequences split across reads survive the JSON hop intact.
@@ -77,7 +90,11 @@ type session struct {
 	hungUp bool
 	end    func()
 	// visited records the session's end in the history (nil if not recorded).
-	visited func(code int)
+	visited    func(code int)
+	cols, rows int
+	// rec is the running recording, or nil.
+	rec     *recordings.Writer
+	recName string
 }
 
 // Service manages PTY sessions. Its exported methods are bound to the frontend.
@@ -91,6 +108,62 @@ type Service struct {
 	sessions map[string]*session
 	auth     Auth
 	history  History
+	recDir   string
+}
+
+// SetRecordings saves s's recordings in dir. A function, so it isn't bound.
+func SetRecordings(s *Service, dir string) { s.recDir = dir }
+
+// StartRecording records a session's output (never its input) to a new file
+// and returns the file's name. title names the file and the recording.
+func (s *Service) StartRecording(id, title string) (string, error) {
+	if s.recDir == "" {
+		return "", errors.New("recordings aren't available")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	sess, ok := s.sessions[id]
+	if !ok {
+		return "", fmt.Errorf("no terminal session %q", id)
+	}
+	if sess.rec != nil {
+		return sess.recName, nil
+	}
+	w, name, err := recordings.Create(s.recDir, title, sess.cols, sess.rows)
+	if err != nil {
+		return "", err
+	}
+	sess.rec, sess.recName = w, name
+	s.emit(EventRecording, RecordingEvent{ID: id, Recording: true, Name: name})
+	return name, nil
+}
+
+// StopRecording ends a session's recording.
+func (s *Service) StopRecording(id string) error {
+	s.mu.Lock()
+	sess, ok := s.sessions[id]
+	s.mu.Unlock()
+	if !ok {
+		return nil
+	}
+	return s.stopRecording(id, sess, nil)
+}
+
+func (s *Service) stopRecording(id string, sess *session, cause error) error {
+	s.mu.Lock()
+	w, name := sess.rec, sess.recName
+	sess.rec = nil
+	s.mu.Unlock()
+	if w == nil {
+		return nil
+	}
+	err := w.Close()
+	ev := RecordingEvent{ID: id, Name: name}
+	if cause != nil {
+		ev.Error = cause.Error()
+	}
+	s.emit(EventRecording, ev)
+	return err
 }
 
 // SetAuth answers s's saved hosts' password prompts through a. It's a
@@ -174,7 +247,7 @@ func (s *Service) start(cmd *exec.Cmd, cols, rows int, v visit) (string, error) 
 	}
 
 	s.mu.Lock()
-	s.sessions[id] = &session{cmd: cmd, ptmx: ptmx, end: end, visited: visited}
+	s.sessions[id] = &session{cmd: cmd, ptmx: ptmx, end: end, visited: visited, cols: cols, rows: rows}
 	s.mu.Unlock()
 
 	go s.pump(id, cmd, ptmx)
@@ -188,6 +261,7 @@ func (s *Service) pump(id string, cmd *exec.Cmd, ptmx *os.File) {
 		n, err := ptmx.Read(buf)
 		if n > 0 {
 			s.emit(EventData, DataEvent{ID: id, Data: base64.StdEncoding.EncodeToString(buf[:n])})
+			s.record(id, buf[:n])
 		}
 		if err != nil {
 			// Linux returns EIO once the child side closes; either way we're done.
@@ -215,8 +289,28 @@ func (s *Service) pump(id string, cmd *exec.Cmd, ptmx *os.File) {
 	if sess != nil && sess.visited != nil {
 		sess.visited(code)
 	}
+	if sess != nil {
+		_ = s.stopRecording(id, sess, nil)
+	}
 	_ = ptmx.Close()
 	s.emit(EventExit, ExitEvent{ID: id, Code: code})
+}
+
+// record adds output to the session's recording, if it has one.
+func (s *Service) record(id string, data []byte) {
+	s.mu.Lock()
+	sess := s.sessions[id]
+	var w *recordings.Writer
+	if sess != nil {
+		w = sess.rec
+	}
+	s.mu.Unlock()
+	if w == nil {
+		return
+	}
+	if err := w.Output(data); err != nil {
+		_ = s.stopRecording(id, sess, err)
+	}
 }
 
 // Write sends keyboard input to a session.
@@ -234,6 +328,13 @@ func (s *Service) Resize(id string, cols, rows int) error {
 	sess, err := s.get(id)
 	if err != nil {
 		return err
+	}
+	s.mu.Lock()
+	sess.cols, sess.rows = cols, rows
+	w := sess.rec
+	s.mu.Unlock()
+	if w != nil {
+		_ = w.Resize(cols, rows)
 	}
 	return pty.Setsize(sess.ptmx, winsize(cols, rows))
 }

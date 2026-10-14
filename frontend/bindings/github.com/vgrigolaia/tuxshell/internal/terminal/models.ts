@@ -17,3 +17,14 @@ export interface ExitEvent {
     "id": string;
     "code": number;
 }
+
+/**
+ * RecordingEvent says whether a session is being recorded. Error is set when
+ * a recording stopped by itself (e.g. it grew too large).
+ */
+export interface RecordingEvent {
+    "id": string;
+    "recording": boolean;
+    "name": string;
+    "error": string;
+}

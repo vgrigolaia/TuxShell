@@ -6,7 +6,7 @@
   import { SearchAddon } from '@xterm/addon-search'
   import { WebLinksAddon } from '@xterm/addon-web-links'
   import { Unicode11Addon } from '@xterm/addon-unicode11'
-  import { Browser, Clipboard } from '@wailsio/runtime'
+  import { Browser, Clipboard, Events } from '@wailsio/runtime'
   import { claim, release } from '../terminal-events'
   import { isTerminalReport } from '../broadcast'
   import * as Terminals from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/terminal/service'
@@ -75,6 +75,9 @@
   const profile = $derived(paneProfile(source))
 
   let bell = $state(false)
+  // The running session's recording (the file name), and why one stopped by itself.
+  let recording = $state('')
+  let recordError = $state('')
   let menu = $state<{ x: number; y: number } | null>(null)
 
   function launch(cols: number, rows: number): Promise<string> {
@@ -112,6 +115,30 @@
 
   // The running session, for password boxes ssh asks for.
   let liveSession = $state<string | undefined>()
+
+  onMount(() =>
+    Events.On('terminal:recording', (ev) => {
+      const r = ev.data as { id: string; recording: boolean; name: string; error: string }
+      if (r.id !== liveSession) return
+      recording = r.recording ? r.name : ''
+      recordError = r.error
+    }),
+  )
+
+  async function startRecording() {
+    if (!liveSession) return
+    recordError = ''
+    try {
+      recording = await Terminals.StartRecording(liveSession, clipSource)
+    } catch (e) {
+      recordError = errorMessage(e)
+    }
+  }
+
+  function stopRecording() {
+    if (liveSession) void Terminals.StopRecording(liveSession)
+    recording = ''
+  }
   const passwordRequest = $derived(logins.forSession(liveSession))
 
   onMount(() => {
@@ -304,6 +331,8 @@
       onStart?.()
       const id = sessionId
       liveSession = id
+      recording = ''
+      if (profile.record) void startRecording()
       claim(id, {
         data: (bytes) => {
           term?.write(bytes)
@@ -312,6 +341,7 @@
         exit: (code) => {
           if (sessionId === id) sessionId = undefined
           if (liveSession === id) liveSession = undefined
+          recording = ''
           exited = code
           onExit?.(code)
         },
@@ -352,6 +382,9 @@
       { label: 'Paste', icon: 'clipboard', hint: 'Ctrl+Shift+V', disabled: !live || readOnly, run: pasteClipboard },
       { label: 'Select all', icon: 'selectAll', run: () => term?.selectAll() },
       { label: 'Clear scrollback', icon: 'eraser', run: () => term?.clear() },
+      recording
+        ? { label: 'Stop recording', icon: 'record', run: stopRecording }
+        : { label: 'Start recording', icon: 'record', disabled: !live || !liveSession, run: () => void startRecording() },
     ]
     if (!a) return items
     items.push({ label: 'Set title…', icon: 'tag', hint: 'Ctrl+Alt+W', separator: true, run: a.rename })
@@ -483,6 +516,15 @@
   <!-- isolate keeps xterm's own z-indexed layers (e.g. the WebGL link canvas)
        inside this box, so the overlays below can sit on top and get clicks. -->
   <div bind:this={host} class="isolate h-full w-full select-text" class:hide-scrollbar={!showScrollbar} class:see-through={!!profile.background}></div>
+  {#if recording || recordError}
+    <span
+      class="pointer-events-none absolute top-1.5 z-10 flex items-center gap-1 rounded-md px-2 py-0.5 font-mono text-[10px] {recordError ? 'bg-warning/15 text-warning' : 'bg-danger/15 text-danger-text'} {readOnly ? 'right-24' : 'right-3'}"
+      role="status"
+      title={recordError || `Recording output to ${recording}`}
+    >
+      {#if recordError}recording stopped{:else}<span class="size-1.5 animate-pulse rounded-full bg-danger" aria-hidden="true"></span>REC{/if}
+    </span>
+  {/if}
   {#if readOnly}
     <span class="pointer-events-none absolute top-1.5 right-3 z-10 rounded-md bg-warning/15 px-2 py-0.5 font-mono text-[10px] text-warning">read only</span>
   {/if}

@@ -16,6 +16,7 @@ import (
 	"github.com/vgrigolaia/tuxshell/internal/hostio"
 	"github.com/vgrigolaia/tuxshell/internal/hosts"
 	"github.com/vgrigolaia/tuxshell/internal/login"
+	"github.com/vgrigolaia/tuxshell/internal/recordings"
 	"github.com/vgrigolaia/tuxshell/internal/secrets"
 	"github.com/vgrigolaia/tuxshell/internal/settings"
 	"github.com/vgrigolaia/tuxshell/internal/sshcmd"
@@ -35,6 +36,7 @@ func init() {
 	// Registered events get typed bindings in the frontend.
 	application.RegisterEvent[terminal.DataEvent](terminal.EventData)
 	application.RegisterEvent[terminal.ExitEvent](terminal.EventExit)
+	application.RegisterEvent[terminal.RecordingEvent](terminal.EventRecording)
 	application.RegisterEvent[application.Void](cliphist.EventChanged)
 	application.RegisterEvent[files.DropEvent](files.EventDropped)
 	application.RegisterEvent[files.EditEvent](files.EventEdited)
@@ -156,6 +158,11 @@ func main() {
 		app.Event.Emit(name, data)
 	}, resolver, prefs.Shell)
 	terminal.SetAuth(terminals, logins)
+	recordingDir, err := recordings.DefaultDir()
+	if err != nil {
+		log.Fatal(err)
+	}
+	terminal.SetRecordings(terminals, recordingDir)
 	// Connection history: which host, when and for how long, never what was typed or shown.
 	if err := store.CloseOpenVisits(); err != nil {
 		log.Printf("history: %v", err)
@@ -192,6 +199,7 @@ func main() {
 			application.NewService(hostStatus),
 			application.NewService(hosts.NewSnippetService(store)),
 			application.NewService(hosts.NewHistoryService(store)),
+			application.NewService(recordings.NewService(recordingDir)),
 			application.NewService(forwards),
 			application.NewService(updates.NewService()),
 			application.NewService(images),
