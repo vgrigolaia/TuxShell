@@ -31,6 +31,7 @@ declare module "@wailsio/runtime" {
             "login:password": login$0.PasswordRequest;
             "terminal:data": terminal$0.DataEvent;
             "terminal:exit": terminal$0.ExitEvent;
+            "terminal:recording": terminal$0.RecordingEvent;
             "tunnels:changed": void;
         }
     }

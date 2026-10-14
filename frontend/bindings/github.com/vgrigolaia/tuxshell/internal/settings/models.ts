@@ -149,6 +149,11 @@ export interface Profile {
      * Delete sends "escape" (ESC [3~), "del" or "ctrl-h".
      */
     "delete": string;
+
+    /**
+     * Record starts recording each session's output when it connects.
+     */
+    "record": boolean;
 }
 
 /**
@@ -293,6 +298,11 @@ export interface Terminal {
      * Delete sends "escape" (ESC [3~), "del" or "ctrl-h".
      */
     "delete": string;
+
+    /**
+     * Record starts recording each session's output when it connects.
+     */
+    "record": boolean;
     "copyOnSelect": boolean;
     "rightClickPaste": boolean;
 

@@ -105,6 +105,8 @@ type Profile struct {
 	Backspace string `json:"backspace"`
 	// Delete sends "escape" (ESC [3~), "del" or "ctrl-h".
 	Delete string `json:"delete"`
+	// Record starts recording each session's output when it connects.
+	Record bool `json:"record"`
 }
 
 // Palette is a custom colour scheme: 16 ANSI colours (normal then bright)

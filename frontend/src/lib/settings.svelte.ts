@@ -53,6 +53,7 @@ export const defaultProfile = (): Profile => ({
   keepShell: true,
   backspace: 'del',
   delete: 'escape',
+  record: false,
 })
 
 export const BUNDLED_FONT = 'JetBrains Mono'
