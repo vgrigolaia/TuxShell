@@ -88,6 +88,8 @@
   }
 </script>
 
+<!-- The body sizes from its content (flex-auto) and scrolls once the dialog hits max-height.
+     flex-1 (a zero base size) collapses to nothing in some WebKitGTK versions. -->
 <dialog
   bind:this={dialog}
   aria-labelledby="import-title"
@@ -116,7 +118,7 @@
   {:else if step === 'file' && preview}
     <ImportFile {preview} close={() => dialog.close()} />
   {:else}
-    <div class="min-h-0 flex-1 overflow-y-auto p-3">
+    <div class="min-h-0 flex-auto overflow-y-auto p-3">
       {#if error}
         <p role="alert" class="mb-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">{error}</p>
       {/if}

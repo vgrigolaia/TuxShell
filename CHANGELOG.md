@@ -3,6 +3,18 @@
 All notable changes to TuxShell are listed here. Versions follow
 [Semantic Versioning](https://semver.org).
 
+## [1.1.5] - 2026-10-14
+
+### Fixed
+
+- The import window opened empty on some systems (seen on a fresh Fedora install).
+- GNOME Software and App Center showed a generic icon and no details for TuxShell. Packages
+  now include AppStream metadata, PNG icons and, for Debian/Ubuntu, the license file.
+
+### Changed
+
+- Clearer package description.
+
 ## [1.1.4] - 2026-10-14
 
 ### Added
@@ -88,6 +100,7 @@ First release.
 - Dark and light themes, or follow the system.
 - Packages for Fedora/RHEL (.rpm), Debian/Ubuntu (.deb) and an AppImage.
 
+[1.1.5]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.5
 [1.1.4]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.4
 [1.1.3]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.3
 [1.1.1]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.1
