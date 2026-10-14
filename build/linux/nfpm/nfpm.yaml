@@ -63,6 +63,10 @@ depends:
   - openssh-client
   - fontconfig
 
+# Remote desktop hosts open with FreeRDP 3; SSH-only users don't need it.
+recommends:
+  - freerdp3-x11
+
 # Distribution-specific overrides for different package formats
 overrides:
   # RPM packages for Fedora / RHEL / AlmaLinux / Rocky Linux
@@ -72,6 +76,8 @@ overrides:
       - webkitgtk6.0
       - openssh-clients
       - fontconfig
+    recommends:
+      - freerdp
 
   # Arch Linux packages
   archlinux:
