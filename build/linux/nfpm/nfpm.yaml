@@ -26,7 +26,7 @@ contents:
   - src: "./build/appicon.svg"
     dst: "/usr/share/icons/hicolor/scalable/apps/tuxshell.svg"
   - src: "./build/linux/tuxshell.desktop"
-    dst: "/usr/share/applications/tuxshell.desktop"
+    dst: "/usr/share/applications/io.github.vgrigolaia.TuxShell.desktop"
   - src: "./LICENSE"
     dst: "/usr/share/licenses/tuxshell/LICENSE"
 

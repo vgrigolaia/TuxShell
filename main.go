@@ -94,6 +94,13 @@ func main() {
 	app = application.New(application.Options{
 		Name:        "TuxShell",
 		Description: "SSH connection manager for Linux",
+		// GNOME matches the window to build/linux/tuxshell.desktop (StartupWMClass)
+		// by this id, which is how the dock finds our icon. The program name stays
+		// "tuxshell" so WebKit keeps its data in the same folders.
+		Linux: application.LinuxOptions{
+			ApplicationID: "io.github.vgrigolaia.TuxShell",
+			ProgramName:   "tuxshell",
+		},
 		Services: []application.Service{
 			application.NewService(terminals),
 			application.NewService(hosts.NewService(store)),

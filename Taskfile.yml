@@ -44,6 +44,15 @@ tasks:
     cmds:
       - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
 
+  dev:desktop:
+    summary: Installs a desktop entry and icon for this user, so a dev build shows its icon in the dock
+    vars:
+      APPS: '{{.XDG_DATA_HOME | default (printf "%s/.local/share" .HOME)}}'
+    cmds:
+      - install -Dm644 build/appicon.svg "{{.APPS}}/icons/hicolor/scalable/apps/tuxshell.svg"
+      - mkdir -p "{{.APPS}}/applications"
+      - sed 's#^Exec=tuxshell#Exec={{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}#' build/linux/tuxshell.desktop > "{{.APPS}}/applications/io.github.vgrigolaia.TuxShell.desktop"
+
   lint:
     summary: Runs Go vet, gofmt check and Svelte/TypeScript checks
     # main.go embeds frontend/dist, so the frontend must be built before Go tooling runs.
