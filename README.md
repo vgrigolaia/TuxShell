@@ -1,6 +1,6 @@
 # TuxShell
 
-A free, open-source SSH connection manager for Linux, in the spirit of Termius and MobaXterm.
+A free, open-source SSH connection manager for Linux.
 
 TuxShell keeps your hosts in one place and connects with the system `ssh`, so your
 `~/.ssh/config`, keys, agents and jump hosts work as they already do.
