@@ -14,6 +14,7 @@
   import Icon from './lib/components/Icon.svelte'
   import FilePanel from './lib/components/FilePanel.svelte'
   import Preferences from './lib/components/Preferences.svelte'
+  import { updates } from './lib/updates.svelte'
   import PromptDialog from './lib/components/PromptDialog.svelte'
   import { prefs } from './lib/settings.svelte'
   import { closer } from './lib/close.svelte'
@@ -117,7 +118,10 @@
 
   onMount(() => {
     void hostStore.load()
-    void prefs.load()
+    // The startup update check is opt-in (Preferences → About).
+    void prefs.load().then(() => {
+      if (prefs.value.updateCheck) void updates.check()
+    })
     const offStatus = hostStatus.start()
     const offTunnels = tunnels.start()
     void snippets.load()

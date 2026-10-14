@@ -19,6 +19,7 @@ const defaults = (): Settings => ({
   theme: 'dark',
   hostsSidebar: true,
   hostStatus: true,
+  updateCheck: false,
   terminal: {
     fontFamily: '',
     fontSize: 13,
@@ -108,6 +109,11 @@ class Preferences {
 
   setHostStatus(on: boolean) {
     this.value.hostStatus = on
+    this.queueSave()
+  }
+
+  setUpdateCheck(on: boolean) {
+    this.value.updateCheck = on
     this.queueSave()
   }
 

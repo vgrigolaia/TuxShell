@@ -21,8 +21,11 @@ type Settings struct {
 	// HostsSidebar shows the hosts sidebar.
 	HostsSidebar bool `json:"hostsSidebar"`
 	// HostStatus pings saved hosts in the background to show which are up.
-	HostStatus bool     `json:"hostStatus"`
-	Terminal   Terminal `json:"terminal"`
+	HostStatus bool `json:"hostStatus"`
+	// UpdateCheck asks GitHub for a newer release at startup. Off by default:
+	// the app makes no requests of its own unless the user turns this on.
+	UpdateCheck bool     `json:"updateCheck"`
+	Terminal    Terminal `json:"terminal"`
 }
 
 // Terminal holds the look and behaviour of terminal panes.

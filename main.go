@@ -17,6 +17,7 @@ import (
 	"github.com/vgrigolaia/tuxshell/internal/status"
 	"github.com/vgrigolaia/tuxshell/internal/terminal"
 	"github.com/vgrigolaia/tuxshell/internal/tunnels"
+	"github.com/vgrigolaia/tuxshell/internal/updates"
 )
 
 // The built frontend is embedded into the binary.
@@ -94,6 +95,13 @@ func main() {
 	app = application.New(application.Options{
 		Name:        "TuxShell",
 		Description: "SSH connection manager for Linux",
+		// GNOME matches the window to build/linux/tuxshell.desktop (StartupWMClass)
+		// by this id, which is how the dock finds our icon. The program name stays
+		// "tuxshell" so WebKit keeps its data in the same folders.
+		Linux: application.LinuxOptions{
+			ApplicationID: "io.github.vgrigolaia.TuxShell",
+			ProgramName:   "tuxshell",
+		},
 		Services: []application.Service{
 			application.NewService(terminals),
 			application.NewService(hosts.NewService(store)),
@@ -104,6 +112,7 @@ func main() {
 			application.NewService(hostStatus),
 			application.NewService(hosts.NewSnippetService(store)),
 			application.NewService(forwards),
+			application.NewService(updates.NewService()),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

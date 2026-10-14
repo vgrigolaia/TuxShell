@@ -1,12 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { Window } from '@wailsio/runtime'
+  import { Browser, Window } from '@wailsio/runtime'
   import { SvelteSet } from 'svelte/reactivity'
   import Icon from './Icon.svelte'
+  import Logo from './Logo.svelte'
   import ContextMenu, { type MenuItem } from './ContextMenu.svelte'
   import type { TabInfo } from '../tabs'
   import { theme } from '../theme.svelte'
   import { prefs } from '../settings.svelte'
+  import { updates } from '../updates.svelte'
   import type { Orientation } from '../layout'
   import { MAX_PANES } from '../layout'
 
@@ -151,15 +153,7 @@
     >
       <Icon name="sidebar" size={14} />
     </button>
-    <!-- Same mark as build/appicon.svg: a prompt whose cursor line runs on to two hosts. -->
-    <span class="logo grid size-[30px] place-items-center rounded-[10px] border border-strong bg-raised" aria-hidden="true">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
-        <path class="text-subtle" stroke="currentColor" stroke-width="1.1" d="M14 17.85C18.4 17.85 17.25 5.55 21.6 5.55M14 17.85H21.6" />
-        <path class="text-accent" stroke="currentColor" stroke-width="3.1" d="M1.6 5.7l5.6 5.85-5.6 5.85M9.8 17.85H14" />
-        <circle class="text-success" fill="currentColor" cx="21.6" cy="5.55" r="2.25" />
-        <circle class="text-success" fill="currentColor" cx="21.6" cy="17.85" r="2.25" />
-      </svg>
-    </span>
+    <Logo />
     <span class="font-display text-[17px] font-bold tracking-[-0.02em]">TuxShell</span>
   </div>
 
@@ -235,6 +229,16 @@
   </button>
 
   <div class="flex items-center gap-1.5">
+    {#if updates.result?.newer}
+      <button
+        class="no-drag flex h-[30px] items-center gap-1.5 rounded-[10px] bg-accent-chip px-2.5 text-xs font-medium whitespace-nowrap text-accent-ink hover:bg-accent hover:text-on-accent"
+        title="TuxShell {updates.result.latest} is available. Open the release page"
+        onclick={() => void Browser.OpenURL(updates.result!.url)}
+      >
+        <Icon name="download" size={13} />
+        Update {updates.result.latest}
+      </button>
+    {/if}
     <button
       class="{wc} {clipboardOpen ? 'bg-accent-chip text-accent-ink' : ''}"
       aria-label="Clipboard history"
@@ -293,9 +297,6 @@
 {/if}
 
 <style>
-  .logo {
-    box-shadow: 0 0 20px color-mix(in srgb, var(--color-accent) 22%, transparent);
-  }
   .tab-current {
     box-shadow: inset 0 0 0 1px var(--color-tab-ring);
   }
