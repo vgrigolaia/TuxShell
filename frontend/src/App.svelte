@@ -16,6 +16,7 @@
   import Preferences from './lib/components/Preferences.svelte'
   import { updates } from './lib/updates.svelte'
   import { logins } from './lib/logins.svelte'
+  import { edits } from './lib/edits.svelte'
   import PromptDialog from './lib/components/PromptDialog.svelte'
   import { prefs } from './lib/settings.svelte'
   import { closer } from './lib/close.svelte'
@@ -132,6 +133,7 @@
     const offStatus = hostStatus.start()
     const offTunnels = tunnels.start()
     const offLogins = logins.start()
+    const offEdits = edits.start()
     void snippets.load()
     void Terminals.DisplayServer().then((d) => (displayServer = d), () => {})
     const clock = setInterval(() => (now = Date.now()), 30000)
@@ -196,6 +198,7 @@
       offStatus()
       offTunnels()
       offLogins()
+      offEdits()
       clearInterval(clock)
       offClose()
       window.removeEventListener('keydown', onKey, { capture: true })

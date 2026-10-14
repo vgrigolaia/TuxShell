@@ -37,6 +37,7 @@ func init() {
 	application.RegisterEvent[terminal.ExitEvent](terminal.EventExit)
 	application.RegisterEvent[application.Void](cliphist.EventChanged)
 	application.RegisterEvent[files.DropEvent](files.EventDropped)
+	application.RegisterEvent[files.EditEvent](files.EventEdited)
 	application.RegisterEvent[int](eventConfirmClose)
 	application.RegisterEvent[[]status.Result](status.EventChanged)
 	application.RegisterEvent[application.Void](tunnels.EventChanged)
@@ -94,6 +95,7 @@ func main() {
 			SetButtonText("Upload").
 			PromptForMultipleSelection()
 	})
+	files.UseEvents(fileBrowser, func(name string, data any) { app.Event.Emit(name, data) })
 	hostFiles := hostio.NewService(store, func(title string, filters []hostio.Filter) (string, error) {
 		d := app.Dialog.OpenFile().CanChooseFiles(true).SetTitle(title).SetButtonText("Open")
 		for _, f := range filters {

@@ -15,6 +15,29 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 import * as $models from "./models.js";
 
 /**
+ * Chmod sets dir/name's permissions (octal, e.g. "755"), and with recursive
+ * everything inside a folder too.
+ */
+export function Chmod(loc: $models.Location, dir: string, name: string, mode: string, recursive: boolean): $CancellablePromise<void> {
+    return $Call.ByID(2963881949, loc, dir, name, mode, recursive);
+}
+
+/**
+ * CloseEdit stops watching an edit and deletes its local copy. Unsaved
+ * changes in the copy are lost.
+ */
+export function CloseEdit(id: string): $CancellablePromise<void> {
+    return $Call.ByID(100821332, id);
+}
+
+/**
+ * Delete removes items in dir, folders with everything in them.
+ */
+export function Delete(loc: $models.Location, dir: string, names: string[] | null): $CancellablePromise<void> {
+    return $Call.ByID(3079852807, loc, dir, names);
+}
+
+/**
  * Download saves a file into the Downloads folder and returns its local path.
  */
 export function Download(loc: $models.Location, file: string): $CancellablePromise<string> {
@@ -22,10 +45,47 @@ export function Download(loc: $models.Location, file: string): $CancellablePromi
 }
 
 /**
+ * Edit copies a file to this computer and opens it in the default app for
+ * its type. Saves are reported with EventEdited; SaveEdit uploads them.
+ */
+export function Edit(loc: $models.Location, file: string): $CancellablePromise<$models.Edit> {
+    return $Call.ByID(799148280, loc, file);
+}
+
+/**
+ * Edits lists the open edits.
+ */
+export function Edits(): $CancellablePromise<$models.Edit[] | null> {
+    return $Call.ByID(2266198737);
+}
+
+/**
  * List returns a directory's contents; an empty dir means the home folder.
  */
 export function List(loc: $models.Location, dir: string): $CancellablePromise<$models.Listing> {
     return $Call.ByID(4269362516, loc, dir);
+}
+
+/**
+ * MakeDir creates the folder dir/name.
+ */
+export function MakeDir(loc: $models.Location, dir: string, name: string): $CancellablePromise<void> {
+    return $Call.ByID(1455028829, loc, dir, name);
+}
+
+/**
+ * Rename renames dir/from to dir/to; it never replaces an existing item.
+ */
+export function Rename(loc: $models.Location, dir: string, $from: string, to: string): $CancellablePromise<void> {
+    return $Call.ByID(3082519054, loc, dir, $from, to);
+}
+
+/**
+ * SaveEdit uploads the edited copy over the original. Unless force is set,
+ * it refuses with ErrChangedOnServer when the original changed meanwhile.
+ */
+export function SaveEdit(id: string, force: boolean): $CancellablePromise<void> {
+    return $Call.ByID(1736232269, id, force);
 }
 
 /**

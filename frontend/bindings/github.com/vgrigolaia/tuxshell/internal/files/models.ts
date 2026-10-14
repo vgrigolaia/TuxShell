@@ -10,6 +10,33 @@ export interface DropEvent {
 }
 
 /**
+ * Edit is a file opened in a desktop app. The local copy lives in a private
+ * folder until the edit is closed or the app quits.
+ */
+export interface Edit {
+    "id": string;
+    "name": string;
+
+    /**
+     * Path is the original file, on the host or this computer.
+     */
+    "path": string;
+
+    /**
+     * Changed is true when the copy was saved and not uploaded yet.
+     */
+    "changed": boolean;
+}
+
+/**
+ * EditEvent reports an edit whose copy changed.
+ */
+export interface EditEvent {
+    "id": string;
+    "name": string;
+}
+
+/**
  * Entry is one item in a directory.
  */
 export interface Entry {

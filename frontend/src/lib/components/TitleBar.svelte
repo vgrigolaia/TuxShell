@@ -9,6 +9,7 @@
   import { theme } from '../theme.svelte'
   import { prefs } from '../settings.svelte'
   import { updates } from '../updates.svelte'
+  import { edits } from '../edits.svelte'
   import type { Orientation } from '../layout'
   import { MAX_PANES } from '../layout'
 
@@ -251,14 +252,15 @@
       <Icon name="clipboard" size={14} />
     </button>
     <button
-      class="{wc} {filesOpen ? 'bg-accent-chip text-accent-ink' : ''}"
-      aria-label="Files"
+      class="relative {wc} {filesOpen ? 'bg-accent-chip text-accent-ink' : ''}"
+      aria-label={edits.changed ? 'Files (an edited file is waiting to be uploaded)' : 'Files'}
       aria-pressed={filesOpen}
       aria-keyshortcuts="Control+Shift+E"
-      title="Files (Ctrl+Shift+E)"
+      title={edits.changed ? 'Files: an edited file is waiting to be uploaded (Ctrl+Shift+E)' : 'Files (Ctrl+Shift+E)'}
       onclick={onToggleFiles}
     >
       <Icon name="folder" size={14} />
+      {#if edits.changed}<span class="absolute top-1 right-1 size-1.5 rounded-full bg-warning" aria-hidden="true"></span>{/if}
     </button>
     <button
       class={wc}
