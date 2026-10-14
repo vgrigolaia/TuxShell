@@ -1,4 +1,6 @@
 <script lang="ts" module>
+  import { installClipboard } from '../rdpClipboard'
+
   type RdpBackend = typeof import('@devolutions/iron-remote-desktop-rdp')
 
   // The RDP engine (7 MB of WebAssembly) loads on the first remote desktop
@@ -6,6 +8,7 @@
   let ready: Promise<RdpBackend> | undefined
   function engine(): Promise<RdpBackend> {
     ready ??= (async () => {
+      installClipboard()
       const [, rdp] = await Promise.all([import('@devolutions/iron-remote-desktop'), import('@devolutions/iron-remote-desktop-rdp')])
       await rdp.init('WARN')
       return rdp
@@ -18,6 +21,7 @@
   import { onMount } from 'svelte'
   import type { UserInteraction } from '@devolutions/iron-remote-desktop'
   import { remoteDesktops, type TabSession } from '../rdp.svelte'
+  import { Clipboard } from '@wailsio/runtime'
   import { hostStore } from '../hosts.svelte'
   import Icon from './Icon.svelte'
 
@@ -43,6 +47,7 @@
   let started = 0
   // Measured for the first screen: how long until the desktop showed.
   let firstFrameMs = $state(0)
+  const clipboard = $derived(host?.rdp.clipboard ?? true)
 
   onMount(() => {
     // The connect window may have handed us a ticket and the typed password.
@@ -66,6 +71,7 @@
   async function connect(session?: TabSession) {
     error = ''
     phase = 'connecting'
+    lastClip = ''
     started = performance.now()
     try {
       if (!session) {
@@ -94,13 +100,22 @@
         .withDesktopSize({ width: Math.max(Math.round(rect.width), 640), height: Math.max(Math.round(rect.height), 480) })
         .withExtension(rdp.displayControl(true))
         .build()
-      ui.setEnableClipboard(host?.rdp.clipboard ?? true)
-      ui.setEnableAutoClipboard(host?.rdp.clipboard ?? true)
+      ui.setEnableClipboard(clipboard)
+      ui.setEnableAutoClipboard(false)
+      // Copied on the remote desktop: put it on this computer's clipboard.
+      ui.onClipboardRemoteUpdateCallback(() => {
+        void ui
+          ?.saveRemoteClipboardData()
+          .then(() => Clipboard.Text())
+          .then((t) => (lastClip = t ?? ''))
+          .catch(() => {})
+      })
       const info = await ui.connect(config)
       password = ''
       phase = 'open'
       firstFrameMs = Math.round(performance.now() - started)
       ui.setVisibility(true)
+      void sendClipboard()
       onStart?.()
       const end = await info.run()
       phase = 'ended'
@@ -112,6 +127,17 @@
       error = describe(e)
       onExit?.(1)
     }
+  }
+
+  // This computer's clipboard goes to the remote desktop whenever the tab
+  // gets focus (the server asks for it when something is pasted there).
+  let lastClip = ''
+  async function sendClipboard() {
+    if (!clipboard || phase !== 'open' || !ui) return
+    const text = (await Clipboard.Text().catch(() => '')) ?? ''
+    if (!text || text === lastClip) return
+    lastClip = text
+    await ui.sendClipboardData().catch(() => {})
   }
 
   // IronRDP's errors carry a kind; turn it into words.
@@ -145,23 +171,35 @@
   })
 
   $effect(() => {
-    if (visible && focused && phase === 'open') (box.querySelector('iron-remote-desktop') as HTMLElement | null)?.focus()
+    if (visible && focused && phase === 'open') {
+      ;(box.querySelector('iron-remote-desktop') as HTMLElement | null)?.focus()
+      void sendClipboard()
+    }
+  })
+
+  // Coming back to TuxShell from another app, maybe with something new copied.
+  $effect(() => {
+    const back = () => visible && focused && void sendClipboard()
+    window.addEventListener('focus', back)
+    return () => window.removeEventListener('focus', back)
   })
 </script>
 
-<div class="relative h-full w-full">
-  <div bind:this={box} class="h-full w-full" class:invisible={phase !== 'open'}>
+<div class="relative flex h-full w-full flex-col">
+  <!-- Its own row, so it never covers the remote desktop's own buttons. -->
+  <div class="flex h-8 shrink-0 items-center justify-end gap-1 border-b border-line px-2">
+    {#if phase === 'open'}
+      {#if firstFrameMs}<span class="mr-auto px-1 font-mono text-[10px] text-subtle" title="Time until the desktop showed">{firstFrameMs} ms</span>{/if}
+      <button class="rounded-md px-2 py-1 text-[11px] font-medium text-muted hover:bg-raised hover:text-fg" title="Send Ctrl+Alt+Del" onclick={() => ui?.ctrlAltDel()}>Ctrl+Alt+Del</button>
+      <button class="rounded-md px-2 py-1 text-[11px] font-medium text-muted hover:bg-raised hover:text-fg" title="Disconnect" onclick={() => ui?.shutdown()}>Disconnect</button>
+    {/if}
+  </div>
+  <div bind:this={box} class="min-h-0 w-full flex-1" class:invisible={phase !== 'open'} onfocusin={() => void sendClipboard()}>
     {#if rdp}<iron-remote-desktop scale="fit" flexcenter="true" module={rdp.Backend} onready={onReady}></iron-remote-desktop>{/if}
   </div>
 
-  {#if phase === 'open'}
-    <div class="absolute top-2 right-3 z-10 flex gap-1 opacity-30 transition-opacity hover:opacity-100 focus-within:opacity-100">
-      <button class="rounded-md bg-raised px-2 py-1 text-[11px] font-medium text-muted hover:text-fg" title="Send Ctrl+Alt+Del" onclick={() => ui?.ctrlAltDel()}>Ctrl+Alt+Del</button>
-      <button class="rounded-md bg-raised px-2 py-1 text-[11px] font-medium text-muted hover:text-fg" title="Disconnect" onclick={() => ui?.shutdown()}>Disconnect</button>
-      {#if firstFrameMs}<span class="rounded-md bg-raised px-2 py-1 font-mono text-[10px] text-subtle" title="Time until the desktop showed">{firstFrameMs} ms</span>{/if}
-    </div>
-  {:else}
-    <div class="absolute inset-0 grid place-items-center">
+  {#if phase !== 'open'}
+    <div class="absolute inset-0 top-8 grid place-items-center">
       <form
         class="w-80 rounded-2xl border border-line bg-panel p-5 shadow-xl"
         onsubmit={(e) => {
