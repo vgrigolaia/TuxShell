@@ -25,12 +25,14 @@ const (
 	FieldProxyJump    = "proxyJump"
 	FieldIdentityFile = "identityFile"
 	FieldTags         = "tags"
+	// FieldAlias is a ~/.ssh/config Host alias that ssh connects through.
+	FieldAlias = "alias"
 	// FieldPassword keeps 1Password references (op://…). Plain passwords are dropped.
 	FieldPassword = "password"
 )
 
 // Fields lists the choices offered for each column, in display order.
-var Fields = []string{FieldIgnore, FieldName, FieldHostname, FieldUser, FieldPort, FieldGroup, FieldTags, FieldProxyJump, FieldIdentityFile, FieldPassword}
+var Fields = []string{FieldIgnore, FieldName, FieldHostname, FieldUser, FieldPort, FieldGroup, FieldTags, FieldProxyJump, FieldIdentityFile, FieldAlias, FieldPassword}
 
 // headerNames maps normalized header text to a field. Normalized means lower
 // case with everything but letters and digits removed ("User Name" → "username").
@@ -57,6 +59,8 @@ var headerNames = map[string]string{
 
 	"key": FieldIdentityFile, "keyfile": FieldIdentityFile, "identityfile": FieldIdentityFile,
 	"privatekey": FieldIdentityFile, "sshkey": FieldIdentityFile, "identity": FieldIdentityFile,
+
+	"alias": FieldAlias, "sshalias": FieldAlias,
 
 	"password": FieldPassword, "pass": FieldPassword, "passwd": FieldPassword, "pwd": FieldPassword,
 	"secret": FieldPassword, "passwordref": FieldPassword,
@@ -208,6 +212,8 @@ func rowHost(cells []string, fields []string) (h hosts.Host, dropped bool, err e
 			h.IdentityFile = v
 		case FieldTags:
 			h.Tags = append(h.Tags, splitTags(v)...)
+		case FieldAlias:
+			h.Alias = v
 		case FieldPassword:
 			if strings.HasPrefix(v, "op://") {
 				h.PasswordRef = v

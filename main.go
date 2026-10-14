@@ -86,6 +86,14 @@ func main() {
 		}
 		d.AddFilter("All files", "*")
 		return d.PromptForSingleSelection()
+	}, func(title, filename string, filters []hostio.Filter) (string, error) {
+		opts := &application.SaveFileDialogOptions{Title: title, Filename: filename, ButtonText: "Export", CanCreateDirectories: true}
+		for _, f := range filters {
+			opts.Filters = append(opts.Filters, application.FileFilter{DisplayName: f.Name, Pattern: f.Pattern})
+		}
+		d := app.Dialog.SaveFile()
+		d.SetOptions(opts)
+		return d.PromptForSingleSelection()
 	})
 	clips := cliphist.NewService(
 		filepath.Join(filepath.Dir(dbPath), "clipboard.db"),

@@ -20,7 +20,8 @@ import (
 
 // Source ids the frontend can ask for.
 const (
-	SourceCSV = "csv"
+	SourceCSV  = "csv"
+	SourceJSON = "json"
 )
 
 // Duplicate modes for hosts that are already saved.
@@ -43,6 +44,8 @@ type source struct {
 	title   string
 	filters []Filter
 	read    func(data []byte) (*table, error)
+	// fixed sources know their columns, so the preview doesn't offer to change them.
+	fixed bool
 }
 
 var sources = map[string]source{
@@ -50,6 +53,12 @@ var sources = map[string]source{
 		title:   "Import hosts from a CSV or TSV file",
 		filters: []Filter{{"CSV or TSV", "*.csv;*.CSV;*.tsv;*.TSV;*.txt;*.TXT"}},
 		read:    readDelimited,
+	},
+	SourceJSON: {
+		title:   "Import a TuxShell hosts file",
+		filters: []Filter{{"TuxShell hosts (JSON)", "*.json;*.JSON"}},
+		read:    readTuxShellJSON,
+		fixed:   true,
 	},
 }
 
@@ -83,7 +92,9 @@ type Preview struct {
 	File   string `json:"file"`
 	Source string `json:"source"`
 	// Header is true when the first row holds column names.
-	Header  bool     `json:"header"`
+	Header bool `json:"header"`
+	// Tabular is true for spreadsheets, whose columns the user can remap.
+	Tabular bool     `json:"tabular"`
 	Columns []Column `json:"columns"`
 	Rows    []Row    `json:"rows"`
 	// Passwords counts plain passwords that were found and won't be imported.
@@ -105,6 +116,7 @@ var ErrStale = errors.New("this preview is out of date; open the file again")
 type Service struct {
 	store *hosts.Store
 	pick  PickFunc
+	save  SaveFunc
 
 	mu      sync.Mutex
 	seq     int
@@ -120,14 +132,10 @@ type pending struct {
 	header bool
 }
 
-// NewService imports into store, asking for files with pick.
-func NewService(store *hosts.Store, pick PickFunc) *Service {
-	return &Service{store: store, pick: pick}
-}
-
-// Sources lists the source ids that can be opened.
-func (s *Service) Sources() []string {
-	return []string{SourceCSV}
+// NewService imports into and exports from store, asking for files with
+// pick and save.
+func NewService(store *hosts.Store, pick PickFunc, save SaveFunc) *Service {
+	return &Service{store: store, pick: pick, save: save}
 }
 
 // Open asks for a file of the given source and previews it. It returns nil
@@ -173,6 +181,10 @@ func (s *Service) Remap(id string, fields []string, header bool) (*Preview, erro
 		s.mu.Unlock()
 		return nil, ErrStale
 	}
+	if sources[p.source].fixed {
+		s.mu.Unlock()
+		return s.preview(p)
+	}
 	valid := map[string]bool{}
 	for _, f := range Fields {
 		valid[f] = true
@@ -195,7 +207,7 @@ func (s *Service) preview(p *pending) (*Preview, error) {
 	if err != nil {
 		return nil, err
 	}
-	pv := &Preview{ID: p.id, File: p.file, Source: p.source, Header: p.header}
+	pv := &Preview{ID: p.id, File: p.file, Source: p.source, Header: p.header, Tabular: !sources[p.source].fixed}
 	pv.Columns = columns(p)
 	pv.Rows, pv.Passwords = buildRows(p, existing)
 	return pv, nil

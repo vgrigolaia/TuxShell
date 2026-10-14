@@ -18,6 +18,7 @@
   const sources: { id: string; title: string; detail: string }[] = [
     { id: 'sshconfig', title: '~/.ssh/config', detail: 'Hosts from your OpenSSH config' },
     { id: 'csv', title: 'CSV or TSV file', detail: 'A spreadsheet saved as CSV, from Excel, LibreOffice or another tool' },
+    { id: 'json', title: 'TuxShell export (.json)', detail: 'A file made with Export in Preferences → Hosts' },
   ]
 
   let dialog: HTMLDialogElement

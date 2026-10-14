@@ -22,6 +22,14 @@ export function Cancel(): $CancellablePromise<void> {
 }
 
 /**
+ * Export writes the hosts with the given ids to a file the user picks. It
+ * returns the path, or "" when the dialog was cancelled.
+ */
+export function Export(format: string, ids: number[] | null): $CancellablePromise<string> {
+    return $Call.ByID(4094372237, format, ids);
+}
+
+/**
  * Import saves the chosen lines of the preview. Hosts without a group go into
  * group. duplicate says what to do with hosts that are already saved.
  */
@@ -42,11 +50,4 @@ export function Open(sourceID: string): $CancellablePromise<$models.Preview | nu
  */
 export function Remap(id: string, fields: string[] | null, header: boolean): $CancellablePromise<$models.Preview | null> {
     return $Call.ByID(4001294288, id, fields, header);
-}
-
-/**
- * Sources lists the source ids that can be opened.
- */
-export function Sources(): $CancellablePromise<string[] | null> {
-    return $Call.ByID(1407049803);
 }

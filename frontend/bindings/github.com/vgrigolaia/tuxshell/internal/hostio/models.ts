@@ -31,6 +31,11 @@ export interface Preview {
      * Header is true when the first row holds column names.
      */
     "header": boolean;
+
+    /**
+     * Tabular is true for spreadsheets, whose columns the user can remap.
+     */
+    "tabular": boolean;
     "columns": Column[] | null;
     "rows": Row[] | null;
 

@@ -16,7 +16,7 @@ func newService(t *testing.T) (*Service, *hosts.Store) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { store.Close() })
-	return NewService(store, nil), store
+	return NewService(store, nil, nil), store
 }
 
 func writeFile(t *testing.T, name, body string) string {

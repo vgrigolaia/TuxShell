@@ -14,7 +14,8 @@
   let preview = $state<Preview>(initial)
   let chosen = $state<Record<number, boolean>>({})
   let duplicate = $state<'skip' | 'update' | 'copy'>('skip')
-  let group = $state('Imported')
+  // svelte-ignore state_referenced_locally
+  let group = $state(initial.tabular ? 'Imported' : '')
   let busy = $state(false)
   let error = $state<string | null>(null)
   let result = $state<Result | null>(null)
@@ -29,6 +30,7 @@
     group: 'Group',
     tags: 'Tags',
     proxyJump: 'Jump host',
+    alias: 'SSH config alias',
     identityFile: 'Key file',
     password: '1Password (op://)',
   }
@@ -38,7 +40,7 @@
   const importable = (r: Row) => !r.error && !r.sameAs
   const selected = $derived(rows.filter((r) => importable(r) && chosen[r.line]))
   const existing = $derived(rows.filter((r) => importable(r) && r.existingId).length)
-  const hasHost = $derived(columns.some((c) => c.field === 'hostname'))
+  const hasHost = $derived(!preview.tabular || columns.some((c) => c.field === 'hostname' || c.field === 'alias'))
 
   // New rows start selected; a remap keeps the choices already made.
   function adopt(p: Preview) {
@@ -112,6 +114,7 @@
       </p>
     {/if}
 
+    {#if preview.tabular}
     <fieldset>
       <legend class="mb-2 flex w-full items-center gap-3 text-xs font-medium text-muted">
         Columns
@@ -133,6 +136,7 @@
       </div>
       {#if !hasHost}<p role="alert" class="text-xs text-warning">Choose which column holds the host (name or IP address).</p>{/if}
     </fieldset>
+    {/if}
 
     <div class="mt-3 grid grid-cols-2 gap-3">
       <div>
