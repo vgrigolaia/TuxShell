@@ -226,8 +226,14 @@
 
   // Hosts without a saved user ask for one in the pane before connecting.
   // Remote desktop hosts open their own window instead of a terminal.
-  const connect = (host: Host) => (host.protocol === 'rdp' ? (remoteDesktops.connecting = host) : open({ kind: 'host', hostId: host.id, askUser: !host.user }, host.name))
-  const connectAs = (host: Host) => (host.protocol === 'rdp' ? (remoteDesktops.connecting = host) : open({ kind: 'host', hostId: host.id, askUser: true }, host.name))
+  function connect(host: Host) {
+    if (host.protocol === 'rdp') remoteDesktops.connecting = host
+    else open({ kind: 'host', hostId: host.id, askUser: !host.user }, host.name)
+  }
+  function connectAs(host: Host) {
+    if (host.protocol === 'rdp') remoteDesktops.connecting = host
+    else open({ kind: 'host', hostId: host.id, askUser: true }, host.name)
+  }
 
   // Opens hosts as the panes of one new tab (quick connect's "Open all in split").
   function openSplit(all: Host[]) {
