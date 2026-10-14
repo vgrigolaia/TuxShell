@@ -203,6 +203,7 @@
             <span class="truncate {tab.exited ? 'text-subtle line-through decoration-subtle/50' : ''}">{tab.title}</span>
             {#if tab.panes > 1}<span class="text-[11px] text-subtle" aria-label="{tab.panes} tiles">{tab.panes}</span>{/if}
             {#if tab.exited}<span class="size-2 shrink-0 rounded-full border-2 border-warning" aria-label="disconnected"></span>{/if}
+            {#if tab.bell}<span class="shrink-0 text-warning" role="img" aria-label="bell rang"><Icon name="bell" size={12} /></span>{/if}
           </button>
           <button
             class="mr-1.5 grid size-5 place-items-center rounded text-subtle opacity-0 group-hover:opacity-100 hover:bg-line hover:text-fg focus-visible:opacity-100"

@@ -1,5 +1,6 @@
 import type { ITheme } from '@xterm/xterm'
 import { terminalThemes, type Resolved } from './theme.svelte'
+import type { Palette, Profile } from './settings.svelte'
 
 export interface Scheme {
   id: string
@@ -140,3 +141,21 @@ export function schemeTheme(id: string, resolved: Resolved): ITheme {
 export function schemeBackground(id: string): string | undefined {
   return schemes.find((s) => s.id === id)?.theme.background
 }
+
+/** The xterm palette of a custom scheme. */
+export function paletteTheme(p: Palette): ITheme {
+  return ansi({ background: p.background, foreground: p.foreground, cursor: p.cursor, selection: p.selection }, p.colors ?? [])
+}
+
+/** A profile's xterm palette ("custom" uses its own palette). */
+export function profileTheme(p: Profile, resolved: Resolved): ITheme {
+  return p.colorScheme === 'custom' ? paletteTheme(p.palette) : schemeTheme(p.colorScheme, resolved)
+}
+
+/** A profile's colour behind the terminal, or undefined for the panel colour. */
+export function profileBackground(p: Profile): string | undefined {
+  return p.colorScheme === 'custom' ? p.palette.background : schemeBackground(p.colorScheme)
+}
+
+/** The ANSI colour names in palette order, for editors. */
+export const ansiNames = ['Black', 'Red', 'Green', 'Yellow', 'Blue', 'Magenta', 'Cyan', 'White']

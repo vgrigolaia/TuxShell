@@ -19,7 +19,8 @@
   import { clipboardHistory } from '../clipboard.svelte'
   import { theme } from '../theme.svelte'
   import { prefs } from '../settings.svelte'
-  import { schemeTheme } from '../schemes'
+  import { profileTheme } from '../schemes'
+  import { beep, paneProfile } from '../profiles.svelte'
 
   interface Props {
     source: Source
@@ -35,6 +36,8 @@
     onTitle?: (title: string) => void
     onSize?: (cols: number, rows: number) => void
     onExit?: (code: number) => void
+    /** The bell rang and the profile marks it with an icon. */
+    onBell?: () => void
     /** Typing and pasting are blocked. */
     readOnly?: boolean
     showScrollbar?: boolean
@@ -45,7 +48,7 @@
     actions?: PaneActions
   }
 
-  let { source, visible, focused, onStart, onInput, onLogin, onTitle, onSize, onExit, readOnly = false, showScrollbar = true, split = false, maximized = false, actions }: Props = $props()
+  let { source, visible, focused, onStart, onInput, onLogin, onTitle, onSize, onExit, onBell, readOnly = false, showScrollbar = true, split = false, maximized = false, actions }: Props = $props()
 
   let host: HTMLDivElement
   let term: Terminal | undefined
@@ -66,6 +69,9 @@
   const clipSource = $derived(source.kind === 'host' ? hostName : source.kind === 'target' ? source.target : 'local shell')
   const savedUser = $derived(source.kind === 'host' ? (hostStore.get(source.hostId)?.user ?? '') : '')
 
+  // The host's terminal profile (fonts, colours, scrolling, bell, keys).
+  const profile = $derived(paneProfile(source))
+
   let bell = $state(false)
   let menu = $state<{ x: number; y: number } | null>(null)
 
@@ -83,6 +89,9 @@
   }
 
   let submitLogin: (user: string, save: boolean) => void = () => {}
+
+  // Handles typed input (read-only, broadcast, then the session).
+  let typed: (data: string) => void = () => {}
 
   // Set once the session machinery exists; writes to this pane's session only.
   let sendToSession: (data: string) => void = () => {}
@@ -110,7 +119,7 @@
 
     const start = async () => {
       // Measure cell size with the real font, not the fallback.
-      await loadFont(prefs.fontFamily)
+      await loadFont(prefs.fontFamilyOf(profile))
       if (disposed) return
 
       term = new Terminal({ allowProposedApi: true, ...termOptions() })
@@ -123,6 +132,19 @@
       // Linux terminal conventions; xterm.js leaves copy/paste keys to the embedder.
       term.attachCustomKeyEventHandler((e) => {
         if (e.type !== 'keydown') return true
+        // What Backspace and Delete send, for servers that expect other codes.
+        const plain = !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey
+        const keyCode =
+          plain && e.key === 'Backspace' && profile.backspace !== 'del'
+            ? eraseCode(profile.backspace)
+            : plain && e.key === 'Delete' && profile.delete !== 'escape'
+              ? eraseCode(profile.delete)
+              : undefined
+        if (keyCode !== undefined) {
+          e.preventDefault()
+          typed(keyCode)
+          return false
+        }
         const key = e.key.toLowerCase()
         const copy = (e.ctrlKey && e.shiftKey && key === 'c') || (e.ctrlKey && !e.shiftKey && key === 'insert')
         const paste = (e.ctrlKey && e.shiftKey && key === 'v') || (e.shiftKey && !e.ctrlKey && key === 'insert')
@@ -151,12 +173,13 @@
       sendToSession = (data) => {
         if (sessionId) void Terminals.Write(sessionId, data)
       }
-      const input = term.onData((data) => {
+      typed = (data) => {
         // Read-only drops keystrokes; terminal reports (e.g. cursor position) still go through.
         if (readOnly && !isTerminalReport(data)) return
         if (onInput?.(data)) return
         sendToSession(data)
-      })
+      }
+      const input = term.onData((data) => typed(data))
       const resize = term.onResize(({ cols, rows }) => {
         onSize?.(cols, rows)
         if (sessionId) void Terminals.Resize(sessionId, cols, rows)
@@ -164,7 +187,9 @@
       const title = term.onTitleChange((t) => onTitle?.(t))
       let bellTimer: ReturnType<typeof setTimeout> | undefined
       const ring = term.onBell(() => {
-        if (prefs.value.terminal.bell !== 'visual') return
+        if (profile.bellSound) beep()
+        if (profile.bellIcon) onBell?.()
+        if (profile.bell !== 'visual') return
         bell = true
         clearTimeout(bellTimer)
         bellTimer = setTimeout(() => (bell = false), 150)
@@ -268,7 +293,10 @@
       const id = sessionId
       liveSession = id
       claim(id, {
-        data: (bytes) => term?.write(bytes),
+        data: (bytes) => {
+          term?.write(bytes)
+          if (profile.scrollOnOutput) term?.scrollToBottom()
+        },
         exit: (code) => {
           if (sessionId === id) sessionId = undefined
           if (liveSession === id) liveSession = undefined
@@ -340,11 +368,19 @@
     return items
   }
 
+  function eraseCode(v: string): string {
+    return v === 'ctrl-h' ? '\x08' : v === 'del' ? '\x7f' : '\x1b[3~'
+  }
+
   function termOptions() {
-    const t = prefs.value.terminal
+    const t = profile
+    const palette = profileTheme(t, theme.resolved)
+    // With a background image the terminal is see-through; the pane paints
+    // the image and the shade behind it.
+    const image = !!t.background
     return {
-      fontFamily: prefs.fontFamily,
-      fontSize: prefs.fontSize,
+      fontFamily: prefs.fontFamilyOf(t),
+      fontSize: prefs.fontSizeOf(t),
       lineHeight: t.lineHeight,
       letterSpacing: t.letterSpacing,
       fontWeight: t.fontWeight as FontWeight,
@@ -352,14 +388,17 @@
       cursorStyle: t.cursorStyle as 'block' | 'bar' | 'underline',
       cursorBlink: t.cursorBlink,
       scrollback: t.scrollback,
-      theme: schemeTheme(t.colorScheme, theme.resolved),
+      scrollSensitivity: t.scrollSpeed,
+      scrollOnUserInput: t.scrollOnKeypress,
+      allowTransparency: image,
+      theme: image ? { ...palette, background: '#00000000' } : palette,
     }
   }
 
   // Waits for a font so xterm measures cells with it rather than a fallback.
   async function loadFont(family: string) {
     try {
-      await document.fonts.load(`${prefs.fontSize}px ${family}`)
+      await document.fonts.load(`${prefs.fontSizeOf(profile)}px ${family}`)
     } catch {
       // Unknown font: xterm uses the fallback in the list.
     }
@@ -390,7 +429,7 @@
 <div class="relative h-full w-full">
   <!-- isolate keeps xterm's own z-indexed layers (e.g. the WebGL link canvas)
        inside this box, so the overlays below can sit on top and get clicks. -->
-  <div bind:this={host} class="isolate h-full w-full select-text" class:hide-scrollbar={!showScrollbar}></div>
+  <div bind:this={host} class="isolate h-full w-full select-text" class:hide-scrollbar={!showScrollbar} class:see-through={!!profile.background}></div>
   {#if readOnly}
     <span class="pointer-events-none absolute top-1.5 right-3 z-10 rounded-md bg-warning/15 px-2 py-0.5 font-mono text-[10px] text-warning">read only</span>
   {/if}

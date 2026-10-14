@@ -119,6 +119,12 @@ body {
   scrollbar-color: var(--color-line) transparent;
 }
 
+/* Panes with a background image: xterm.css paints the viewport black. */
+.see-through .xterm .xterm-viewport,
+.see-through .xterm .xterm-screen {
+  background-color: transparent !important;
+}
+
 /* Host badge tints (01 dark, 06 light); text is 4.5:1 or better on its background. */
 .tint-violet { background: #2b2550; color: #c9bfff; }
 .tint-amber { background: #3a2716; color: #fdba74; }

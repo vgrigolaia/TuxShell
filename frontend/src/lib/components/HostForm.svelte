@@ -215,6 +215,15 @@
           </select>
           {@render field('os')}
         </div>
+        <div class="col-span-3">
+          <label class={label} for="host-profile">Terminal profile</label>
+          <select id="host-profile" class={input} bind:value={draft.profile} aria-invalid={!!fieldError('profile')} aria-describedby="host-profile-error host-profile-hint">
+            <option value="">Default</option>
+            {#each prefs.value.profiles ?? [] as p (p.id)}<option value={p.id}>{p.name}</option>{/each}
+          </select>
+          <span id="host-profile-hint" class="mt-1 block text-[11.5px] text-subtle">Fonts, colours, header colour and a command to run on connect. Make profiles in Preferences → Profiles.</span>
+          {@render field('profile')}
+        </div>
       </div>
 
       <fieldset class="flex flex-col gap-2.5 rounded-2xl border border-accent-line bg-accent-soft p-4">
