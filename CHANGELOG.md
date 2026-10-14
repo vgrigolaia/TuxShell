@@ -3,6 +3,19 @@
 All notable changes to TuxShell are listed here. Versions follow
 [Semantic Versioning](https://semver.org).
 
+## [1.1.9] - 2026-10-14
+
+### Added
+
+- Connection history under Home → History: which host, when, for how long and whether it
+  worked, with search and one-click reconnect. Never commands or screen content. Can be
+  turned off or limited in Preferences → General.
+- Session recording: start and stop it from the terminal's right-click menu, or record
+  automatically per profile. Only what the terminal shows is saved, never keystrokes, as
+  standard asciinema files readable only by you. A REC badge shows while recording.
+- A player for recordings under History → Recordings, with speed, seeking and long pauses
+  skipped.
+
 ## [1.1.8] - 2026-10-14
 
 ### Added
@@ -147,6 +160,7 @@ First release.
 - Dark and light themes, or follow the system.
 - Packages for Fedora/RHEL (.rpm), Debian/Ubuntu (.deb) and an AppImage.
 
+[1.1.9]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.9
 [1.1.8]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.8
 [1.1.7]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.7
 [1.1.6]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.6
