@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AppStream metadata: what GNOME Software and KDE Discover show for TuxShell.
+     Add a <release> entry at the top for every release. -->
+<component type="desktop-application">
+  <id>io.github.vgrigolaia.TuxShell</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+
+  <name>TuxShell</name>
+  <summary>Manage and connect to your SSH hosts</summary>
+  <developer id="io.github.vgrigolaia">
+    <name>vgrigolaia</name>
+  </developer>
+
+  <description>
+    <p>
+      TuxShell keeps your SSH hosts in one place and connects with the system ssh, so your
+      ~/.ssh/config, keys, agents and jump hosts work as they already do.
+    </p>
+    <ul>
+      <li>Saved hosts with groups, tags, jump hosts and an optional operating system logo</li>
+      <li>Import from ~/.ssh/config, CSV, Excel, MobaXterm, Remmina, PuTTY and Ansible inventories</li>
+      <li>Tabs and split view with up to four panes, and typing broadcast to several panes</li>
+      <li>A file browser that reuses the open SSH connection</li>
+      <li>Snippets, local port forwards and SOCKS tunnels</li>
+      <li>Encrypted clipboard history</li>
+      <li>Dark and light themes</li>
+    </ul>
+    <p>TuxShell is free and open source. It makes no network requests of its own unless you turn on the update check.</p>
+  </description>
+
+  <launchable type="desktop-id">io.github.vgrigolaia.TuxShell.desktop</launchable>
+  <icon type="stock">tuxshell</icon>
+
+  <url type="homepage">https://github.com/vgrigolaia/TuxShell</url>
+  <url type="bugtracker">https://github.com/vgrigolaia/TuxShell/issues</url>
+  <url type="vcs-browser">https://github.com/vgrigolaia/TuxShell</url>
+  <url type="contribute">https://github.com/vgrigolaia/TuxShell/blob/main/CONTRIBUTING.md</url>
+
+  <categories>
+    <category>Network</category>
+    <category>RemoteAccess</category>
+  </categories>
+  <keywords>
+    <keyword>ssh</keyword>
+    <keyword>terminal</keyword>
+    <keyword>sftp</keyword>
+    <keyword>remote</keyword>
+    <keyword>server</keyword>
+  </keywords>
+
+  <provides>
+    <binary>tuxshell</binary>
+  </provides>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+  <requires>
+    <display_length compare="ge">760</display_length>
+  </requires>
+  <content_rating type="oars-1.1"/>
+
+  <releases>
+    <release version="1.1.5" date="2026-10-14">
+      <description>
+        <p>The import window no longer opens empty on some systems. GNOME Software and App Center show TuxShell's icon, description and license.</p>
+      </description>
+    </release>
+    <release version="1.1.4" date="2026-10-14">
+      <description>
+        <p>Import hosts from CSV, Excel, MobaXterm, Remmina, PuTTY and Ansible, with a preview and a CSV template. Export as JSON, CSV or ssh_config. Optional operating system logos.</p>
+      </description>
+    </release>
+    <release version="1.1.3" date="2026-10-14">
+      <description>
+        <p>About page and an optional check for updates. The dock shows the TuxShell icon.</p>
+      </description>
+    </release>
+    <release version="1.1.1" date="2026-10-13">
+      <description>
+        <p>New app icon. Files on Home opens this computer.</p>
+      </description>
+    </release>
+    <release version="1.1.0" date="2026-10-13">
+      <description>
+        <p>New design with a Home page, host status, snippets and tunnels.</p>
+      </description>
+    </release>
+    <release version="1.0.0" date="2026-10-13">
+      <description>
+        <p>First release.</p>
+      </description>
+    </release>
+  </releases>
+</component>

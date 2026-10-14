@@ -6,17 +6,27 @@
 name: "tuxshell"
 arch: ${GOARCH}
 platform: "linux"
-version: "1.1.4"
+version: "1.1.5"
 section: "net"
 priority: "extra"
 maintainer: "vgrigolaia <vgrigolaia@outlook.com>"
 # The first line is the package summary.
 description: |
-  SSH connection manager for Linux
-  Saved hosts, ~/.ssh/config import, split panes, broadcast typing,
-  a file browser and encrypted clipboard history.
+  Manage and connect to your SSH hosts
+  TuxShell is a free, open-source SSH connection manager for Linux. It
+  connects with your system ssh, so your ~/.ssh/config, keys, agents and
+  jump hosts work as they already do.
+
+  - Saved hosts with groups, tags, jump hosts and operating system logos
+  - Import from ~/.ssh/config, CSV, Excel, MobaXterm, Remmina, PuTTY, Ansible
+  - Split view with up to four panes, and typing to several servers at once
+  - A file browser that reuses your open SSH connection
+  - Snippets, port forwards and SOCKS tunnels
+  - Encrypted clipboard history, dark and light themes
+
+  No account and no cloud: your hosts stay on your computer.
 vendor: "vgrigolaia"
-homepage: "https://github.com/vgrigolaia/tuxshell"
+homepage: "https://github.com/vgrigolaia/TuxShell"
 license: "GPL-3.0-or-later"
 release: "1"
 
@@ -27,8 +37,23 @@ contents:
     dst: "/usr/share/icons/hicolor/scalable/apps/tuxshell.svg"
   - src: "./build/linux/tuxshell.desktop"
     dst: "/usr/share/applications/io.github.vgrigolaia.TuxShell.desktop"
+  - src: "./build/linux/icons/tuxshell-64.png"
+    dst: "/usr/share/icons/hicolor/64x64/apps/tuxshell.png"
+  - src: "./build/linux/icons/tuxshell-128.png"
+    dst: "/usr/share/icons/hicolor/128x128/apps/tuxshell.png"
+  - src: "./build/linux/icons/tuxshell-256.png"
+    dst: "/usr/share/icons/hicolor/256x256/apps/tuxshell.png"
+  - src: "./build/linux/icons/tuxshell-512.png"
+    dst: "/usr/share/icons/hicolor/512x512/apps/tuxshell.png"
+  # AppStream: name, icon, description and releases in GNOME Software / KDE Discover.
+  - src: "./build/linux/io.github.vgrigolaia.TuxShell.metainfo.xml"
+    dst: "/usr/share/metainfo/io.github.vgrigolaia.TuxShell.metainfo.xml"
   - src: "./LICENSE"
     dst: "/usr/share/licenses/tuxshell/LICENSE"
+  # Debian keeps a package's license here (machine-readable copyright format).
+  - src: "./build/linux/copyright"
+    dst: "/usr/share/doc/tuxshell/copyright"
+    packager: deb
 
 # Default dependencies for the GTK4 + WebKitGTK 6.0 stack (Ubuntu 24.04+ / Debian 13+)
 # TuxShell runs the system ssh, and lists fonts with fontconfig.
