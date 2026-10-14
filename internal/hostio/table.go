@@ -3,6 +3,7 @@ package hostio
 import (
 	"bytes"
 	"encoding/csv"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -33,10 +34,17 @@ const (
 	// passwords go to the keyring when saving passwords is on; otherwise
 	// they're dropped. They never reach the frontend.
 	FieldPassword = "password"
+	// FieldProtocol is "SSH" or "RDP" (remote desktop); empty means SSH.
+	FieldProtocol = "protocol"
+	// FieldDomain is a remote desktop's Windows domain.
+	FieldDomain = "domain"
+	// FieldRDP carries a remote desktop's options as JSON (our own exports
+	// and other apps' files; not offered for spreadsheets).
+	FieldRDP = "rdpOptions"
 )
 
 // Fields lists the choices offered for each column, in display order.
-var Fields = []string{FieldIgnore, FieldName, FieldHostname, FieldUser, FieldPort, FieldGroup, FieldOS, FieldTags, FieldProxyJump, FieldIdentityFile, FieldAlias, FieldPassword}
+var Fields = []string{FieldIgnore, FieldName, FieldHostname, FieldUser, FieldPort, FieldGroup, FieldOS, FieldTags, FieldProxyJump, FieldIdentityFile, FieldAlias, FieldPassword, FieldProtocol, FieldDomain}
 
 // headerNames maps normalized header text to a field. Normalized means lower
 // case with everything but letters and digits removed ("User Name" → "username").
@@ -75,6 +83,10 @@ var headerNames = map[string]string{
 
 	"password": FieldPassword, "pass": FieldPassword, "passwd": FieldPassword, "pwd": FieldPassword,
 	"secret": FieldPassword, "passwordref": FieldPassword,
+
+	"protocol": FieldProtocol, "type": FieldProtocol, "connectiontype": FieldProtocol, "kind": FieldProtocol,
+	"domain": FieldDomain, "windowsdomain": FieldDomain, "addomain": FieldDomain,
+	"rdpoptions": FieldRDP,
 }
 
 // table is a spreadsheet read into rows of cells.
@@ -197,12 +209,32 @@ func (t *table) guess() (fields []string, header bool) {
 // found in it, or "".
 func rowHost(cells []string, fields []string) (h hosts.Host, plain string, err error) {
 	h.Tags = []string{}
+	h.RDP = hosts.DefaultRDP()
+	// The options first, so a Domain column can still override theirs.
+	for i, f := range fields {
+		if f == FieldRDP && i < len(cells) && cells[i] != "" {
+			if json.Unmarshal([]byte(cells[i]), &h.RDP) != nil {
+				return h, plain, &hosts.ValidationError{Field: "rdp", Message: "The remote desktop options can't be read"}
+			}
+		}
+	}
 	for i, f := range fields {
 		if i >= len(cells) || cells[i] == "" {
 			continue
 		}
 		v := cells[i]
 		switch f {
+		case FieldProtocol:
+			switch p := strings.ToLower(strings.TrimSpace(v)); {
+			case p == "ssh":
+				h.Protocol = hosts.ProtocolSSH
+			case strings.Contains(p, "rdp") || strings.Contains(p, "remote desktop") || p == "mstsc":
+				h.Protocol = hosts.ProtocolRDP
+			default:
+				return h, plain, &hosts.ValidationError{Field: "protocol", Message: fmt.Sprintf("Type %q: use SSH or RDP", v)}
+			}
+		case FieldDomain:
+			h.RDP.Domain = v
 		case FieldName:
 			h.Name = v
 		case FieldGroup:

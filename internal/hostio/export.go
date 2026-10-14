@@ -46,10 +46,13 @@ type exportHost struct {
 	PasswordRef  string   `json:"passwordRef,omitempty"`
 	Tags         []string `json:"tags,omitempty"`
 	OS           string   `json:"os,omitempty"`
+	// Protocol and RDP are set for remote desktops only.
+	Protocol string     `json:"protocol,omitempty"`
+	RDP      *hosts.RDP `json:"rdp,omitempty"`
 }
 
 // csvHeader is also read back by the CSV import (see headerNames).
-var csvHeader = []string{"Name", "Group", "Hostname", "User", "Port", "Tags", "ProxyJump", "IdentityFile", "PasswordRef", "Alias", "OS"}
+var csvHeader = []string{"Name", "Group", "Hostname", "User", "Port", "Tags", "ProxyJump", "IdentityFile", "PasswordRef", "Alias", "OS", "Protocol", "Domain", "RDPOptions"}
 
 var formats = map[string]struct {
 	ext    string
@@ -116,7 +119,12 @@ func encode(format string, list []hosts.Host, now time.Time) ([]byte, error) {
 			if port == 22 {
 				port = 0
 			}
-			out.Hosts = append(out.Hosts, exportHost{h.Name, h.Group, h.Alias, h.Hostname, h.User, port, h.ProxyJump, h.IdentityFile, h.PasswordRef, h.Tags, h.OS})
+			e := exportHost{h.Name, h.Group, h.Alias, h.Hostname, h.User, port, h.ProxyJump, h.IdentityFile, h.PasswordRef, h.Tags, h.OS, "", nil}
+			if h.Protocol == hosts.ProtocolRDP {
+				r := h.RDP
+				e.Protocol, e.RDP = hosts.ProtocolRDP, &r
+			}
+			out.Hosts = append(out.Hosts, e)
 		}
 		b, err := json.MarshalIndent(out, "", "  ")
 		return append(b, '\n'), err
@@ -125,7 +133,12 @@ func encode(format string, list []hosts.Host, now time.Time) ([]byte, error) {
 		w := csv.NewWriter(&buf)
 		_ = w.Write(csvHeader)
 		for _, h := range list {
-			_ = w.Write([]string{h.Name, h.Group, h.Hostname, h.User, strconv.Itoa(h.Port), strings.Join(h.Tags, " "), h.ProxyJump, h.IdentityFile, h.PasswordRef, h.Alias, h.OS})
+			protocol, domain, options := "SSH", "", ""
+			if h.Protocol == hosts.ProtocolRDP {
+				b, _ := json.Marshal(h.RDP)
+				protocol, domain, options = "RDP", h.RDP.Domain, string(b)
+			}
+			_ = w.Write([]string{h.Name, h.Group, h.Hostname, h.User, strconv.Itoa(h.Port), strings.Join(h.Tags, " "), h.ProxyJump, h.IdentityFile, h.PasswordRef, h.Alias, h.OS, protocol, domain, options})
 		}
 		w.Flush()
 		return buf.Bytes(), w.Error()
@@ -144,6 +157,9 @@ func sshConfig(list []hosts.Host, now time.Time) []byte {
 	fmt.Fprintf(&b, "# Exported from TuxShell on %s.\n# Include it from ~/.ssh/config, or copy the blocks you need.\n", now.Format("2006-01-02"))
 	used := map[string]bool{}
 	for _, h := range list {
+		if h.Protocol == hosts.ProtocolRDP {
+			continue // ssh can't open remote desktops
+		}
 		alias := h.Alias
 		if alias == "" {
 			alias = strings.Trim(aliasUnsafe.ReplaceAllString(h.Name, "-"), "-.")
@@ -205,7 +221,12 @@ func readTuxShellJSON(data []byte) (*table, error) {
 		if h.Port != 0 {
 			port = strconv.Itoa(h.Port)
 		}
-		t.rows = append(t.rows, []string{h.Name, h.Group, h.Hostname, h.User, port, strings.Join(h.Tags, " "), h.ProxyJump, h.IdentityFile, h.PasswordRef, h.Alias, h.OS})
+		protocol, domain, options := h.Protocol, "", ""
+		if h.RDP != nil {
+			b, _ := json.Marshal(h.RDP)
+			domain, options = h.RDP.Domain, string(b)
+		}
+		t.rows = append(t.rows, []string{h.Name, h.Group, h.Hostname, h.User, port, strings.Join(h.Tags, " "), h.ProxyJump, h.IdentityFile, h.PasswordRef, h.Alias, h.OS, protocol, domain, options})
 	}
 	return t, nil
 }
@@ -213,15 +234,17 @@ func readTuxShellJSON(data []byte) (*table, error) {
 // templateCSV is a starting point for people who keep hosts in a spreadsheet.
 // Its headers are all recognised by the import, and lines starting with # are
 // skipped, so the notes can stay in the file.
-const templateCSV = `Name,Host,User,Password,Port,Group,OS,Tags,Bastion,Key file
-"# Only Host is required; delete these example rows. Lines starting with # are skipped.",,,,,,,,,
-"# Host: a name or IP address (user@host:port works too). Port: 22 if empty. Tags: separated by spaces.",,,,,,,,,
-"# OS: e.g. Ubuntu, Debian, RHEL, AlmaLinux, Rocky, Fedora, CentOS, openSUSE, Arch, Alpine, FreeBSD, Windows.",,,,,,,,,
-"# Bastion: the Name of another row (or user@host:port) to connect through. Key file: a path like ~/.ssh/id_ed25519.",,,,,,,,,
-"# Password: saved encrypted in your system keyring if you allow it (Preferences > Security). 1Password references (op://...) always work.",,,,,,,,,
-bastion-01,203.0.113.10,admin,,22,Jump,Ubuntu,gateway,,~/.ssh/id_ed25519
-db-01,10.0.0.7,postgres,op://Servers/db-01/password,2222,Production,Rocky Linux,db primary,bastion-01,
-web-01,10.0.0.5,deploy,,,Production,Debian,web,bastion-01,
+const templateCSV = `Name,Host,User,Password,Port,Group,OS,Tags,Bastion,Key file,Type,Domain
+"# Only Host is required; delete these example rows. Lines starting with # are skipped.",,,,,,,,,,,
+"# Host: a name or IP address (user@host:port works too). Port: 22 if empty (3389 for RDP). Tags: separated by spaces.",,,,,,,,,,,
+"# OS: e.g. Ubuntu, Debian, RHEL, AlmaLinux, Rocky, Fedora, CentOS, openSUSE, Arch, Alpine, FreeBSD, Windows.",,,,,,,,,,,
+"# Bastion: the Name of another row (or user@host:port) to connect through. Key file: a path like ~/.ssh/id_ed25519.",,,,,,,,,,,
+"# Password: saved encrypted in your system keyring if you allow it (Preferences > Security). 1Password references (op://...) always work.",,,,,,,,,,,
+"# Type: SSH (or empty) for a terminal, RDP for a remote desktop. Domain: the Windows domain of an RDP host.",,,,,,,,,,,
+bastion-01,203.0.113.10,admin,,22,Jump,Ubuntu,gateway,,~/.ssh/id_ed25519,,
+db-01,10.0.0.7,postgres,op://Servers/db-01/password,2222,Production,Rocky Linux,db primary,bastion-01,,,
+web-01,10.0.0.5,deploy,,,Production,Debian,web,bastion-01,,,
+win-01,10.0.5.4,Administrator,,,Windows,Windows,ad,bastion-01,,RDP,CORP
 `
 
 // SaveTemplate writes the CSV template to a file the user picks. It returns

@@ -35,6 +35,9 @@
     os: 'Operating system',
     identityFile: 'Key file',
     password: '1Password (op://)',
+    protocol: 'Type (SSH or RDP)',
+    domain: 'Windows domain',
+    rdpOptions: 'Remote desktop options',
   }
 
   const rows = $derived(preview.rows ?? [])
@@ -183,7 +186,7 @@
               <input type="checkbox" class="size-4 accent-accent" aria-label="Import line {r.line}" bind:checked={chosen[r.line]} disabled={!importable(r)} />
             </td>
             <td class="py-1.5 font-mono text-subtle">{r.line}</td>
-            <td class="max-w-40 py-1.5"><span class="flex items-center gap-2"><HostBadge name={r.host.name} os={r.host.os} size={20} /><span class="truncate">{r.host.name}</span></span></td>
+            <td class="max-w-40 py-1.5"><span class="flex items-center gap-2"><HostBadge name={r.host.name} os={r.host.os} size={20} /><span class="truncate">{r.host.name}</span>{#if r.host.protocol === 'rdp'}<span class="shrink-0 rounded bg-hop px-1.5 py-px text-[10px] font-semibold text-muted" title="Remote desktop">RDP</span>{/if}</span></td>
             <td class="max-w-48 truncate py-1.5 font-mono text-muted">{describe(r.host)}{r.host.proxyJump ? ` · via ${r.host.proxyJump}` : ''}</td>
             <td class="max-w-28 truncate py-1.5 text-muted">{r.host.group || group}</td>
             <td class="max-w-56 truncate py-1.5 {st.tone}" title={st.text}>{st.text}</td>

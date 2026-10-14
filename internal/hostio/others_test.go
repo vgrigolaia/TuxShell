@@ -63,6 +63,12 @@ func TestRemmina(t *testing.T) {
 	files := map[string]string{
 		"1.remmina": "[remmina]\nname=Jump box\ngroup=Infra\nprotocol=SSH\nserver=203.0.113.10:2200\nusername=ops\nssh_privatekey=/home/me/.ssh/id_ed25519\npassword=c2VjcmV0\n",
 		"2.remmina": "[remmina]\nname=Desktop\nprotocol=RDP\nserver=10.0.0.20\n",
+		// The keys and values Remmina 1.4 writes for an RDP connection.
+		"3.remmina": "[remmina]\nname=COPY 10.14.51.40-Khudadovi\ngroup=milesone-branches\nprotocol=RDP\nserver=10.14.51.40:3390\nusername=admin\ndomain=CORP\n" +
+			"password=.\nresolution_mode=0\nresolution_width=1920\nresolution_height=1080\nviewmode=4\nmultimon=1\ndisableclipboard=0\nsound=local\n" +
+			"quality=9\ncolordepth=99\ndrive=/home/me/Shared Stuff/\ngateway_server=gw.example.com:8443\ngateway_username=gwuser\n" +
+			"ssh_tunnel_enabled=1\nssh_tunnel_server=bastion.example.com:2222\nssh_tunnel_username=ops\n",
+		"4.remmina": "[remmina]\nname=VNC box\nprotocol=VNC\nserver=10.0.0.30\n",
 	}
 	for n, body := range files {
 		if err := os.WriteFile(filepath.Join(dir, n), []byte(body), 0o600); err != nil {
@@ -73,11 +79,24 @@ func TestRemmina(t *testing.T) {
 	if err != nil || found != dir {
 		t.Fatalf("found %q, err %v", found, err)
 	}
-	rows, _ := rowsOf(t, tb)
-	if len(rows) != 1 {
-		t.Fatalf("rows = %v", rows)
+	rows, plain := rowsOf(t, tb)
+	if len(rows) != 3 || plain != 0 {
+		t.Fatalf("rows = %v, plain = %d", rows, plain)
 	}
 	expect(t, rows["Jump box"], hosts.Host{Name: "Jump box", Hostname: "203.0.113.10", User: "ops", Port: 2200, Group: "Infra", IdentityFile: "/home/me/.ssh/id_ed25519", Tags: []string{}})
+
+	d := rows["Desktop"].Host
+	if d.Protocol != hosts.ProtocolRDP || d.Port != 3389 || d.RDP.Size != "fit" || !d.RDP.Clipboard || d.RDP.Sound != "off" {
+		t.Errorf("Desktop = %+v (%s)", d, rows["Desktop"].Error)
+	}
+	w := rows["COPY 10.14.51.40-Khudadovi"]
+	r := w.Host.RDP
+	if w.Error != "" || w.Host.Protocol != hosts.ProtocolRDP || w.Host.Hostname != "10.14.51.40" || w.Host.Port != 3390 || w.Host.Group != "milesone-branches" ||
+		r.Domain != "CORP" || r.Size != "fixed" || r.Width != 1920 || r.Window != "fullscreen" || !r.Multimon || r.Sound != "local" || r.Quality != "best" ||
+		len(r.Folders) != 1 || r.Folders[0].Name != "Shared Stuff" || r.Folders[0].Path != "/home/me/Shared Stuff" ||
+		r.Gateway.Host != "gw.example.com" || r.Gateway.Port != 8443 || r.Gateway.User != "gwuser" || w.Host.ProxyJump != "ops@bastion.example.com:2222" {
+		t.Errorf("RDP row = %+v (%s)", w.Host, w.Error)
+	}
 }
 
 func TestPuTTYDir(t *testing.T) {
