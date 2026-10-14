@@ -3,6 +3,17 @@
 All notable changes to TuxShell are listed here. Versions follow
 [Semantic Versioning](https://semver.org).
 
+## [1.1.8] - 2026-10-14
+
+### Added
+
+- File panel: a right-click menu on files and folders with rename, new folder, delete and
+  permissions. Ctrl+click selects several items. Deleting always asks first.
+- Edit a file in your desktop's default app; when you save it there, upload it from the panel.
+  TuxShell warns before overwriting a file that changed on the server, and keeps its permissions.
+- Follow the terminal: the file panel can move with `cd` in the focused terminal, using the
+  folder the server's prompt reports.
+
 ## [1.1.7] - 2026-10-14
 
 ### Added
@@ -136,6 +147,7 @@ First release.
 - Dark and light themes, or follow the system.
 - Packages for Fedora/RHEL (.rpm), Debian/Ubuntu (.deb) and an AppImage.
 
+[1.1.8]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.8
 [1.1.7]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.7
 [1.1.6]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.6
 [1.1.5]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.5
