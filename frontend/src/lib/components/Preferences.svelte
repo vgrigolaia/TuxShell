@@ -5,19 +5,25 @@
   import { theme } from '../theme.svelte'
   import Icon from './Icon.svelte'
   import { hostStatus } from '../status.svelte'
+  import { updates, VERSION } from '../updates.svelte'
+  import { Browser } from '@wailsio/runtime'
+  import Logo from './Logo.svelte'
+
+  const REPO = 'https://github.com/vgrigolaia/TuxShell'
 
   interface Props {
     onClose: () => void
   }
   let { onClose }: Props = $props()
 
-  type Section = 'text' | 'cursor' | 'colours' | 'behaviour' | 'shortcuts'
+  type Section = 'text' | 'cursor' | 'colours' | 'behaviour' | 'shortcuts' | 'about'
   const sections: { id: Section; label: string }[] = [
     { id: 'text', label: 'Text' },
     { id: 'cursor', label: 'Cursor' },
     { id: 'colours', label: 'Colours' },
     { id: 'behaviour', label: 'Behaviour' },
     { id: 'shortcuts', label: 'Shortcuts' },
+    { id: 'about', label: 'About' },
   ]
   let section = $state<Section>('text')
   let dialog: HTMLDialogElement
@@ -292,6 +298,48 @@
             {#if prefs.error?.field === 'shell'}<p role="alert" class="mt-1 text-xs text-warning">{prefs.error.message}</p>{/if}
           </div>
         </div>
+      {:else if section === 'about'}
+        <h3 class="sr-only">About</h3>
+        <div class="flex items-center gap-4">
+          <Logo size={56} />
+          <div>
+            <p class="font-display text-xl font-bold tracking-[-0.02em]">TuxShell</p>
+            <p class="text-[13px] text-muted">Version <span class="font-mono text-fg">{VERSION}</span></p>
+          </div>
+        </div>
+        <p class="mt-4 text-[13px] text-muted">A free, open-source SSH connection manager for Linux.</p>
+        <p class="mt-1 text-xs text-subtle">© vgrigolaia · GPL-3.0-or-later</p>
+
+        <div class="mt-5 flex flex-wrap gap-2">
+          {#each [['Source code', REPO], ['Releases', `${REPO}/releases`], ['Report a problem', `${REPO}/issues`]] as [name, url] (url)}
+            <button class="rounded-lg border border-line px-2.5 py-1.5 text-xs text-muted hover:bg-raised hover:text-fg" onclick={() => void Browser.OpenURL(url)}>{name}</button>
+          {/each}
+        </div>
+
+        <section class="mt-6 border-t border-line pt-5" aria-labelledby="{id}-updates">
+          <h4 id="{id}-updates" class={label}>Updates</h4>
+          <div class="flex flex-wrap items-center gap-3">
+            <button
+              class="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-on-accent hover:bg-accent/90 disabled:opacity-60"
+              disabled={updates.checking}
+              onclick={() => void updates.check()}>{updates.checking ? 'Checking…' : 'Check for updates'}</button
+            >
+            <span class="text-[13px]" aria-live="polite">
+              {#if updates.error}
+                <span class="text-warning">{updates.error}</span>
+              {:else if updates.result?.newer}
+                TuxShell <span class="font-mono">{updates.result.latest}</span> is available.
+                <button class="ml-1 text-accent underline-offset-2 hover:underline" onclick={() => void Browser.OpenURL(updates.result!.url)}>Download</button>
+              {:else if updates.result}
+                <span class="text-success">You're up to date.</span>
+              {/if}
+            </span>
+          </div>
+          <label class="{check} mt-4">
+            <input type="checkbox" class="mt-0.5 accent-accent" checked={prefs.value.updateCheck} onchange={(e) => prefs.setUpdateCheck(e.currentTarget.checked)} />
+            <span>Check for updates at startup<span class={hint}>Asks GitHub for the latest release once when TuxShell starts. Nothing is downloaded or installed.</span></span>
+          </label>
+        </section>
       {:else}
         <h3 class="sr-only">Shortcuts</h3>
         <table class="w-full text-[13px]">

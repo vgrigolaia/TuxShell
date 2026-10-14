@@ -28,6 +28,12 @@ export interface Settings {
      * HostStatus pings saved hosts in the background to show which are up.
      */
     "hostStatus": boolean;
+
+    /**
+     * UpdateCheck asks GitHub for a newer release at startup. Off by default:
+     * the app makes no requests of its own unless the user turns this on.
+     */
+    "updateCheck": boolean;
     "terminal": Terminal;
 }
 

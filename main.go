@@ -17,6 +17,7 @@ import (
 	"github.com/vgrigolaia/tuxshell/internal/status"
 	"github.com/vgrigolaia/tuxshell/internal/terminal"
 	"github.com/vgrigolaia/tuxshell/internal/tunnels"
+	"github.com/vgrigolaia/tuxshell/internal/updates"
 )
 
 // The built frontend is embedded into the binary.
@@ -111,6 +112,7 @@ func main() {
 			application.NewService(hostStatus),
 			application.NewService(hosts.NewSnippetService(store)),
 			application.NewService(forwards),
+			application.NewService(updates.NewService()),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
