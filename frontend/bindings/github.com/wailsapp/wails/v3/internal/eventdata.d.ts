@@ -24,6 +24,7 @@ declare module "@wailsio/runtime" {
             "app:confirm-close": number;
             "clipboard:changed": void;
             "files:dropped": files$0.DropEvent;
+            "files:edited": files$0.EditEvent;
             "hosts:status": status$0.Result[] | null;
             "login:done": string;
             "login:password": login$0.PasswordRequest;

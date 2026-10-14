@@ -8,6 +8,8 @@ export {
 
 export type {
     DropEvent,
+    Edit,
+    EditEvent,
     Entry,
     Listing,
     Location,
