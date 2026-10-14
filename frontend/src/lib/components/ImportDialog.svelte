@@ -14,12 +14,28 @@
   }
   let { start, onClose }: Props = $props()
 
-  /** Where hosts can come from. "sshconfig" is read in place; the others open a file. */
-  const sources: { id: string; title: string; detail: string }[] = [
-    { id: 'sshconfig', title: '~/.ssh/config', detail: 'Hosts from your OpenSSH config' },
-    { id: 'csv', title: 'CSV or TSV file', detail: 'A spreadsheet saved as CSV, from Excel, LibreOffice or another tool' },
-    { id: 'xlsx', title: 'Excel workbook (.xlsx)', detail: 'The first sheet, one host per row' },
-    { id: 'json', title: 'TuxShell export (.json)', detail: 'A file made with Export in Preferences → Hosts' },
+  /** Where hosts can come from. "sshconfig" is read in place; the others go through HostIO.Open. */
+  type Source = { id: string; title: string; detail: string }
+  const sections: { label: string; sources: Source[] }[] = [
+    {
+      label: 'Files',
+      sources: [
+        { id: 'sshconfig', title: '~/.ssh/config', detail: 'Hosts from your OpenSSH config' },
+        { id: 'csv', title: 'CSV or TSV file', detail: 'A spreadsheet saved as CSV, from Excel, LibreOffice or another tool' },
+        { id: 'xlsx', title: 'Excel workbook (.xlsx)', detail: 'The first sheet, one host per row' },
+        { id: 'json', title: 'TuxShell export (.json)', detail: 'A file made with Export in Preferences → Hosts' },
+      ],
+    },
+    {
+      label: 'Other apps',
+      sources: [
+        { id: 'mobaxterm', title: 'MobaXterm', detail: 'A session export (.mxtsessions): Settings → Export sessions' },
+        { id: 'remmina', title: 'Remmina', detail: 'SSH connections saved in Remmina on this computer' },
+        { id: 'putty', title: 'PuTTY', detail: 'Sessions saved by PuTTY on this computer (~/.putty)' },
+        { id: 'puttyreg', title: 'PuTTY on Windows', detail: 'A .reg export of the PuTTY Sessions registry key' },
+        { id: 'ansible', title: 'Ansible inventory', detail: 'An INI inventory file; groups and host variables are read' },
+      ],
+    },
   ]
 
   let dialog: HTMLDialogElement
@@ -93,20 +109,23 @@
       {#if error}
         <p role="alert" class="mb-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">{error}</p>
       {/if}
-      <ul class="flex flex-col gap-1">
-        {#each sources as s (s.id)}
-          <li>
-            <button class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-raised disabled:opacity-60" disabled={opening} onclick={() => void choose(s.id)}>
-              <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-raised text-muted"><Icon name={s.id === 'sshconfig' ? 'terminal' : 'file'} size={15} /></span>
-              <span class="min-w-0 flex-1">
-                <span class="block text-[13px] font-medium">{s.title}</span>
-                <span class="block truncate text-xs text-subtle">{s.detail}</span>
-              </span>
-              <Icon name="chevron" size={14} />
-            </button>
-          </li>
-        {/each}
-      </ul>
+      {#each sections as sec (sec.label)}
+        <h3 class="px-3 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-subtle uppercase">{sec.label}</h3>
+        <ul class="flex flex-col gap-0.5">
+          {#each sec.sources as s (s.id)}
+            <li>
+              <button class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-raised disabled:opacity-60" disabled={opening} onclick={() => void choose(s.id)}>
+                <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-raised text-muted"><Icon name={s.id === 'sshconfig' ? 'terminal' : sec.label === 'Files' ? 'file' : 'import'} size={15} /></span>
+                <span class="min-w-0 flex-1">
+                  <span class="block text-[13px] font-medium">{s.title}</span>
+                  <span class="block truncate text-xs text-subtle">{s.detail}</span>
+                </span>
+                <Icon name="chevron" size={14} />
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {/each}
       <p class="mt-3 px-3 text-xs text-subtle">Passwords in imported files are never stored. Only 1Password references (op://…) are kept.</p>
     </div>
   {/if}

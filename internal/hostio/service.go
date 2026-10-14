@@ -20,9 +20,14 @@ import (
 
 // Source ids the frontend can ask for.
 const (
-	SourceCSV  = "csv"
-	SourceJSON = "json"
-	SourceXLSX = "xlsx"
+	SourceCSV       = "csv"
+	SourceJSON      = "json"
+	SourceXLSX      = "xlsx"
+	SourceMobaXterm = "mobaxterm"
+	SourceRemmina   = "remmina"
+	SourcePuTTY     = "putty"
+	SourcePuTTYReg  = "puttyreg"
+	SourceAnsible   = "ansible"
 )
 
 // Duplicate modes for hosts that are already saved.
@@ -45,6 +50,8 @@ type source struct {
 	title   string
 	filters []Filter
 	read    func(data []byte) (*table, error)
+	// scan reads a folder the tool keeps, returning the table and the folder.
+	scan func() (*table, string, error)
 	// fixed sources know their columns, so the preview doesn't offer to change them.
 	fixed bool
 }
@@ -66,6 +73,27 @@ var sources = map[string]source{
 		read:    readTuxShellJSON,
 		fixed:   true,
 	},
+	SourceMobaXterm: {
+		title:   "Import MobaXterm sessions",
+		filters: []Filter{{"MobaXterm sessions (.mxtsessions)", "*.mxtsessions;*.MXTSESSIONS;*.ini;*.INI"}},
+		read:    readMobaXterm,
+		fixed:   true,
+	},
+	SourcePuTTYReg: {
+		title:   "Import PuTTY sessions from a Windows .reg export",
+		filters: []Filter{{"Registry export (.reg)", "*.reg;*.REG"}},
+		read:    readPuTTYReg,
+		fixed:   true,
+	},
+	SourceAnsible: {
+		title:   "Import an Ansible inventory",
+		filters: []Filter{{"Ansible INI inventory", "*.ini;*.INI;hosts;inventory;*.cfg;*"}},
+		read:    readAnsibleINI,
+		fixed:   true,
+	},
+	// These read the tool's own folder; there's no file to pick.
+	SourceRemmina: {scan: scanRemmina, fixed: true},
+	SourcePuTTY:   {scan: scanPuTTY, fixed: true},
 }
 
 // Column is one spreadsheet column and what it fills.
@@ -151,6 +179,13 @@ func (s *Service) Open(sourceID string) (*Preview, error) {
 	if !ok {
 		return nil, fmt.Errorf("unknown import source %q", sourceID)
 	}
+	if src.scan != nil {
+		t, dir, err := src.scan()
+		if err != nil {
+			return nil, err
+		}
+		return s.adopt(sourceID, dir, t)
+	}
 	path, err := s.pick(src.title, src.filters)
 	if err != nil || path == "" {
 		return nil, err
@@ -167,6 +202,10 @@ func (s *Service) load(sourceID, path string) (*Preview, error) {
 	if err != nil {
 		return nil, err
 	}
+	return s.adopt(sourceID, path, t)
+}
+
+func (s *Service) adopt(sourceID, path string, t *table) (*Preview, error) {
 	if len(t.rows) == 0 {
 		return nil, errors.New("this file has no rows")
 	}
