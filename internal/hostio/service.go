@@ -319,8 +319,17 @@ func buildRows(p *pending, existing []hosts.Host) ([]Row, int) {
 	if p.header {
 		start = 1
 	}
+	type parsed struct {
+		line int
+		host hosts.Host
+		err  error
+	}
+	var list []parsed
 	for i, cells := range p.table.rows[start:] {
-		r := Row{Line: start + i + 1}
+		// Lines starting with # are notes, like the ones in the template.
+		if len(cells) > 0 && strings.HasPrefix(cells[0], "#") {
+			continue
+		}
 		h, dropped, err := rowHost(cells, p.fields)
 		if dropped {
 			passwords++
@@ -328,6 +337,22 @@ func buildRows(p *pending, existing []hosts.Host) ([]Row, int) {
 		if h.Name == "" {
 			h.Name = h.Hostname
 		}
+		list = append(list, parsed{start + i + 1, h, err})
+	}
+	// A bastion may be given by name: a host in the file or one already saved.
+	byName := map[string]hosts.Host{}
+	for _, h := range existing {
+		byName[strings.ToLower(h.Name)] = h
+	}
+	for _, x := range list {
+		if x.err == nil && x.host.Name != "" {
+			byName[strings.ToLower(x.host.Name)] = x.host
+		}
+	}
+	for _, x := range list {
+		r := Row{Line: x.line}
+		h, err := x.host, x.err
+		h.ProxyJump = resolveJump(h.Name, h.ProxyJump, byName, 0)
 		h.Normalize()
 		if err == nil {
 			err = h.Validate()
@@ -353,6 +378,46 @@ func buildRows(p *pending, existing []hosts.Host) ([]Row, int) {
 		rows = append(rows, r)
 	}
 	return rows, passwords
+}
+
+// resolveJump replaces hops that name a known host with that host's address,
+// keeping the host's own jump hosts in front, so plain ssh can follow them.
+func resolveJump(self, jump string, byName map[string]hosts.Host, depth int) string {
+	if jump == "" || depth > 4 {
+		return jump
+	}
+	var hops []string
+	for _, hop := range strings.Split(jump, ",") {
+		hop = strings.TrimSpace(hop)
+		b, ok := byName[strings.ToLower(hop)]
+		if !ok || strings.EqualFold(hop, self) || (b.Hostname == "" && b.Alias == "") {
+			hops = append(hops, hop)
+			continue
+		}
+		if inner := resolveJump(b.Name, b.ProxyJump, byName, depth+1); inner != "" {
+			hops = append(hops, inner)
+		}
+		hops = append(hops, address(b))
+	}
+	return strings.Join(hops, ",")
+}
+
+// address is [user@]host[:port] for ssh -J, with IPv6 in brackets.
+func address(h hosts.Host) string {
+	host := h.Hostname
+	if host == "" {
+		host = h.Alias
+	}
+	if strings.Contains(host, ":") {
+		host = "[" + host + "]"
+	}
+	if h.User != "" {
+		host = h.User + "@" + host
+	}
+	if h.Port != 0 && h.Port != 22 {
+		host += ":" + strconv.Itoa(h.Port)
+	}
+	return host
 }
 
 // uniqueName returns name, or "name (2)" and so on when it's taken, and marks
@@ -475,6 +540,7 @@ func merge(old, h hosts.Host) hosts.Host {
 	set(&old.ProxyJump, h.ProxyJump)
 	set(&old.IdentityFile, h.IdentityFile)
 	set(&old.PasswordRef, h.PasswordRef)
+	set(&old.OS, h.OS)
 	seen := map[string]bool{}
 	for _, t := range old.Tags {
 		seen[t] = true

@@ -2,6 +2,7 @@
   import * as HostIO from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/hostio/service'
   import type { Preview, Result, Row } from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/hostio/models'
   import { describe, errorMessage, hostStore } from '../hosts.svelte'
+  import HostBadge from './HostBadge.svelte'
 
   interface Props {
     /** A preview just opened by HostIO.Open. */
@@ -31,6 +32,7 @@
     tags: 'Tags',
     proxyJump: 'Jump host',
     alias: 'SSH config alias',
+    os: 'Operating system',
     identityFile: 'Key file',
     password: '1Password (op://)',
   }
@@ -173,7 +175,7 @@
               <input type="checkbox" class="size-4 accent-accent" aria-label="Import line {r.line}" bind:checked={chosen[r.line]} disabled={!importable(r)} />
             </td>
             <td class="py-1.5 font-mono text-subtle">{r.line}</td>
-            <td class="max-w-40 truncate py-1.5">{r.host.name}</td>
+            <td class="max-w-40 py-1.5"><span class="flex items-center gap-2"><HostBadge name={r.host.name} os={r.host.os} size={20} /><span class="truncate">{r.host.name}</span></span></td>
             <td class="max-w-48 truncate py-1.5 font-mono text-muted">{describe(r.host)}{r.host.proxyJump ? ` · via ${r.host.proxyJump}` : ''}</td>
             <td class="max-w-28 truncate py-1.5 text-muted">{r.host.group || group}</td>
             <td class="max-w-56 truncate py-1.5 {st.tone}" title={st.text}>{st.text}</td>

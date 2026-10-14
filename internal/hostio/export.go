@@ -45,10 +45,11 @@ type exportHost struct {
 	IdentityFile string   `json:"identityFile,omitempty"`
 	PasswordRef  string   `json:"passwordRef,omitempty"`
 	Tags         []string `json:"tags,omitempty"`
+	OS           string   `json:"os,omitempty"`
 }
 
 // csvHeader is also read back by the CSV import (see headerNames).
-var csvHeader = []string{"Name", "Group", "Hostname", "User", "Port", "Tags", "ProxyJump", "IdentityFile", "PasswordRef", "Alias"}
+var csvHeader = []string{"Name", "Group", "Hostname", "User", "Port", "Tags", "ProxyJump", "IdentityFile", "PasswordRef", "Alias", "OS"}
 
 var formats = map[string]struct {
 	ext    string
@@ -115,7 +116,7 @@ func encode(format string, list []hosts.Host, now time.Time) ([]byte, error) {
 			if port == 22 {
 				port = 0
 			}
-			out.Hosts = append(out.Hosts, exportHost{h.Name, h.Group, h.Alias, h.Hostname, h.User, port, h.ProxyJump, h.IdentityFile, h.PasswordRef, h.Tags})
+			out.Hosts = append(out.Hosts, exportHost{h.Name, h.Group, h.Alias, h.Hostname, h.User, port, h.ProxyJump, h.IdentityFile, h.PasswordRef, h.Tags, h.OS})
 		}
 		b, err := json.MarshalIndent(out, "", "  ")
 		return append(b, '\n'), err
@@ -124,7 +125,7 @@ func encode(format string, list []hosts.Host, now time.Time) ([]byte, error) {
 		w := csv.NewWriter(&buf)
 		_ = w.Write(csvHeader)
 		for _, h := range list {
-			_ = w.Write([]string{h.Name, h.Group, h.Hostname, h.User, strconv.Itoa(h.Port), strings.Join(h.Tags, " "), h.ProxyJump, h.IdentityFile, h.PasswordRef, h.Alias})
+			_ = w.Write([]string{h.Name, h.Group, h.Hostname, h.User, strconv.Itoa(h.Port), strings.Join(h.Tags, " "), h.ProxyJump, h.IdentityFile, h.PasswordRef, h.Alias, h.OS})
 		}
 		w.Flush()
 		return buf.Bytes(), w.Error()
@@ -204,7 +205,34 @@ func readTuxShellJSON(data []byte) (*table, error) {
 		if h.Port != 0 {
 			port = strconv.Itoa(h.Port)
 		}
-		t.rows = append(t.rows, []string{h.Name, h.Group, h.Hostname, h.User, port, strings.Join(h.Tags, " "), h.ProxyJump, h.IdentityFile, h.PasswordRef, h.Alias})
+		t.rows = append(t.rows, []string{h.Name, h.Group, h.Hostname, h.User, port, strings.Join(h.Tags, " "), h.ProxyJump, h.IdentityFile, h.PasswordRef, h.Alias, h.OS})
 	}
 	return t, nil
+}
+
+// templateCSV is a starting point for people who keep hosts in a spreadsheet.
+// Its headers are all recognised by the import, and lines starting with # are
+// skipped, so the notes can stay in the file.
+const templateCSV = `Name,Host,User,Password,Port,Group,OS,Tags,Bastion,Key file
+"# Only Host is required; delete these example rows. Lines starting with # are skipped.",,,,,,,,,
+"# Host: a name or IP address (user@host:port works too). Port: 22 if empty. Tags: separated by spaces.",,,,,,,,,
+"# OS: e.g. Ubuntu, Debian, RHEL, AlmaLinux, Rocky, Fedora, CentOS, openSUSE, Arch, Alpine, FreeBSD, Windows.",,,,,,,,,
+"# Bastion: the Name of another row (or user@host:port) to connect through. Key file: a path like ~/.ssh/id_ed25519.",,,,,,,,,
+"# Password: only 1Password references (op://Vault/Item/password) are imported; TuxShell doesn't store plain passwords.",,,,,,,,,
+bastion-01,203.0.113.10,admin,,22,Jump,Ubuntu,gateway,,~/.ssh/id_ed25519
+db-01,10.0.0.7,postgres,op://Servers/db-01/password,2222,Production,Rocky Linux,db primary,bastion-01,
+web-01,10.0.0.5,deploy,,,Production,Debian,web,bastion-01,
+`
+
+// SaveTemplate writes the CSV template to a file the user picks. It returns
+// the path, or "" when the dialog was cancelled.
+func (s *Service) SaveTemplate() (string, error) {
+	path, err := s.save("Save the host list template", "tuxshell-hosts-template.csv", []Filter{{"CSV", "*.csv"}})
+	if err != nil || path == "" {
+		return "", err
+	}
+	if filepath.Ext(path) == "" {
+		path += ".csv"
+	}
+	return path, os.WriteFile(path, []byte(templateCSV), 0o644)
 }

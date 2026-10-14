@@ -171,3 +171,52 @@ func TestSniffDelimiter(t *testing.T) {
 		}
 	}
 }
+
+// The template imports cleanly: notes are skipped, every column is matched,
+// the OS is read and bastion names become addresses.
+func TestTemplate(t *testing.T) {
+	s, store := newService(t)
+	if _, err := store.Save(hosts.Host{Name: "old-gw", Hostname: "198.51.100.1", User: "ops", Port: 2200}); err != nil {
+		t.Fatal(err)
+	}
+	body := strings.Replace(templateCSV, "web-01,10.0.0.5,deploy,,,Production,Debian,web,bastion-01,", "web-01,10.0.0.5,deploy,,,Production,Debian,web,\"bastion-01,old-gw\",", 1) +
+		"inner,10.9.9.9,,,,,Solaris 11,,db-01,\n"
+	p, err := s.load(SourceCSV, writeFile(t, "t.csv", body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range p.Columns {
+		if c.Field == FieldIgnore {
+			t.Errorf("column %q not matched", c.Header)
+		}
+	}
+	if len(p.Rows) != 4 {
+		t.Fatalf("rows = %d, want 4 (notes skipped)", len(p.Rows))
+	}
+	got := map[string]hosts.Host{}
+	for _, r := range p.Rows {
+		if r.Error != "" {
+			t.Errorf("line %d: %s", r.Line, r.Error)
+		}
+		got[r.Host.Name] = r.Host
+	}
+	if got["bastion-01"].OS != "ubuntu" || got["db-01"].OS != "rocky" || got["web-01"].OS != "debian" {
+		t.Errorf("OS not read: %+v", got)
+	}
+	if j := got["db-01"].ProxyJump; j != "admin@203.0.113.10" {
+		t.Errorf("db-01 jump = %q", j)
+	}
+	if j := got["web-01"].ProxyJump; j != "admin@203.0.113.10,ops@198.51.100.1:2200" {
+		t.Errorf("web-01 jump = %q", j)
+	}
+	// A bastion that has its own bastion keeps both hops, outermost first.
+	if j := got["inner"].ProxyJump; j != "admin@203.0.113.10,postgres@10.0.0.7:2222" {
+		t.Errorf("inner jump = %q", j)
+	}
+	if h := got["inner"]; h.OS != "" || strings.Join(h.Tags, ",") != "solaris" {
+		t.Errorf("unknown OS should become a tag: %+v", h)
+	}
+	if got["db-01"].PasswordRef != "op://Servers/db-01/password" || p.Passwords != 0 {
+		t.Errorf("op:// reference lost: %+v (passwords %d)", got["db-01"], p.Passwords)
+	}
+}

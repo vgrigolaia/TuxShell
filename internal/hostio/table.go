@@ -27,12 +27,14 @@ const (
 	FieldTags         = "tags"
 	// FieldAlias is a ~/.ssh/config Host alias that ssh connects through.
 	FieldAlias = "alias"
+	// FieldOS is free text ("Ubuntu 24.04"); unrecognised values become a tag.
+	FieldOS = "os"
 	// FieldPassword keeps 1Password references (op://…). Plain passwords are dropped.
 	FieldPassword = "password"
 )
 
 // Fields lists the choices offered for each column, in display order.
-var Fields = []string{FieldIgnore, FieldName, FieldHostname, FieldUser, FieldPort, FieldGroup, FieldTags, FieldProxyJump, FieldIdentityFile, FieldAlias, FieldPassword}
+var Fields = []string{FieldIgnore, FieldName, FieldHostname, FieldUser, FieldPort, FieldGroup, FieldOS, FieldTags, FieldProxyJump, FieldIdentityFile, FieldAlias, FieldPassword}
 
 // headerNames maps normalized header text to a field. Normalized means lower
 // case with everything but letters and digits removed ("User Name" → "username").
@@ -61,6 +63,13 @@ var headerNames = map[string]string{
 	"privatekey": FieldIdentityFile, "sshkey": FieldIdentityFile, "identity": FieldIdentityFile,
 
 	"alias": FieldAlias, "sshalias": FieldAlias,
+
+	"os": FieldOS, "ostype": FieldOS, "operatingsystem": FieldOS, "system": FieldOS, "platform": FieldOS,
+	"distro": FieldOS, "distribution": FieldOS,
+
+	"keyfilepath": FieldIdentityFile, "sshkeyfile": FieldIdentityFile,
+	"jumpserver": FieldProxyJump, "bastionhost": FieldProxyJump,
+	"1password": FieldPassword, "1passwordreference": FieldPassword,
 
 	"password": FieldPassword, "pass": FieldPassword, "passwd": FieldPassword, "pwd": FieldPassword,
 	"secret": FieldPassword, "passwordref": FieldPassword,
@@ -214,6 +223,10 @@ func rowHost(cells []string, fields []string) (h hosts.Host, dropped bool, err e
 			h.Tags = append(h.Tags, splitTags(v)...)
 		case FieldAlias:
 			h.Alias = v
+		case FieldOS:
+			if h.OS = hosts.ParseOS(v); h.OS == "" {
+				h.Tags = append(h.Tags, strings.Fields(strings.ToLower(v))[0])
+			}
 		case FieldPassword:
 			if strings.HasPrefix(v, "op://") {
 				h.PasswordRef = v

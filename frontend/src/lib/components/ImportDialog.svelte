@@ -44,6 +44,7 @@
   let preview = $state<Preview | null>(null)
   let error = $state<string | null>(null)
   let opening = $state(false)
+  let templateSaved = $state('')
 
   const titles = { source: 'Import hosts', sshconfig: 'Import from ~/.ssh/config', file: 'Import hosts from a file' }
 
@@ -66,6 +67,16 @@
       error = errorMessage(e)
     } finally {
       opening = false
+    }
+  }
+
+  async function saveTemplate() {
+    error = null
+    try {
+      const path = await HostIO.SaveTemplate()
+      if (path) templateSaved = path
+    } catch (e) {
+      error = errorMessage(e)
     }
   }
 
@@ -126,6 +137,11 @@
           {/each}
         </ul>
       {/each}
+      <div class="mx-3 mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-line bg-ground px-3 py-2.5 text-xs">
+        <span class="min-w-0 flex-1 text-muted">Starting a host list from scratch? Fill in our CSV template in Excel or LibreOffice, then import it as a CSV file.</span>
+        <button class="shrink-0 rounded-md border border-strong px-2.5 py-1 font-medium hover:bg-raised" onclick={saveTemplate}>Download template</button>
+        {#if templateSaved}<p role="status" class="w-full truncate text-success" title={templateSaved}>Saved to {templateSaved}</p>{/if}
+      </div>
       <p class="mt-3 px-3 text-xs text-subtle">Passwords in imported files are never stored. Only 1Password references (op://…) are kept.</p>
     </div>
   {/if}

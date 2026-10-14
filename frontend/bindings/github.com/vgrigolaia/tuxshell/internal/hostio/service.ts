@@ -51,3 +51,11 @@ export function Open(sourceID: string): $CancellablePromise<$models.Preview | nu
 export function Remap(id: string, fields: string[] | null, header: boolean): $CancellablePromise<$models.Preview | null> {
     return $Call.ByID(4001294288, id, fields, header);
 }
+
+/**
+ * SaveTemplate writes the CSV template to a file the user picks. It returns
+ * the path, or "" when the dialog was cancelled.
+ */
+export function SaveTemplate(): $CancellablePromise<string> {
+    return $Call.ByID(2437099212);
+}

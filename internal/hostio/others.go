@@ -29,6 +29,7 @@ const (
 	colIdentityFile
 	colPassword
 	colAlias
+	colOS
 )
 
 func newFixedTable() *table { return &table{rows: [][]string{csvHeader}} }
