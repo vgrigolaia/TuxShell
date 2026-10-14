@@ -60,6 +60,14 @@ export function StartHostAs(hostID: number, user: string, cols: number, rows: nu
 }
 
 /**
+ * StartRecording records a session's output (never its input) to a new file
+ * and returns the file's name. title names the file and the recording.
+ */
+export function StartRecording(id: string, title: string): $CancellablePromise<string> {
+    return $Call.ByID(1165335454, id, title);
+}
+
+/**
  * StartShell starts the user's login shell and returns the session ID.
  */
 export function StartShell(cols: number, rows: number): $CancellablePromise<string> {
@@ -71,6 +79,13 @@ export function StartShell(cols: number, rows: number): $CancellablePromise<stri
  */
 export function StartTarget(target: string, cols: number, rows: number): $CancellablePromise<string> {
     return $Call.ByID(996645206, target, cols, rows);
+}
+
+/**
+ * StopRecording ends a session's recording.
+ */
+export function StopRecording(id: string): $CancellablePromise<void> {
+    return $Call.ByID(3701443144, id);
 }
 
 /**

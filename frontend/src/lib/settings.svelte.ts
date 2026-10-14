@@ -53,6 +53,7 @@ export const defaultProfile = (): Profile => ({
   keepShell: true,
   backspace: 'del',
   delete: 'escape',
+  record: false,
 })
 
 export const BUNDLED_FONT = 'JetBrains Mono'
@@ -65,6 +66,7 @@ const defaults = (): Settings => ({
   updateCheck: false,
   savePasswords: false,
   profiles: [],
+  history: { enabled: true, days: 90, max: 1000 },
   terminal: {
     ...defaultProfile(),
     confirmClose: true,
@@ -192,6 +194,12 @@ class Preferences {
 
   setSavePasswords(on: boolean) {
     this.value.savePasswords = on
+    this.queueSave()
+  }
+
+  /** Changes the connection history settings, e.g. setHistory({ days: 30 }). */
+  setHistory(patch: Partial<Settings['history']>) {
+    this.value.history = { ...(this.value.history ?? { enabled: true, days: 90, max: 1000 }), ...patch }
     this.queueSave()
   }
 

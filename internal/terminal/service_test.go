@@ -2,7 +2,9 @@ package terminal
 
 import (
 	"encoding/base64"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -47,7 +49,7 @@ func TestStartStreamsOutputAndExitCode(t *testing.T) {
 	rec := newRecorder()
 	svc := NewService(rec.emit, nil, nil)
 
-	id, err := svc.start(exec.Command("sh", "-c", "printf 'héllo'; exit 3"), 80, 24, 0)
+	id, err := svc.start(exec.Command("sh", "-c", "printf 'héllo'; exit 3"), 80, 24, visit{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +71,7 @@ func TestWriteResizeAndClose(t *testing.T) {
 	svc := NewService(rec.emit, nil, nil)
 
 	// `read` blocks until we write a line; stty reports the PTY size.
-	id, err := svc.start(exec.Command("sh", "-c", "read line; stty size; echo \"got:$line\"; sleep 30"), 80, 24, 0)
+	id, err := svc.start(exec.Command("sh", "-c", "read line; stty size; echo \"got:$line\"; sleep 30"), 80, 24, visit{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +151,7 @@ func TestAuthHooks(t *testing.T) {
 	auth := &fakeAuth{}
 	SetAuth(svc, auth)
 	cmd := exec.Command("sh", "-c", "printf \"$TUXSHELL_TEST_AUTH\"")
-	if _, err := svc.start(cmd, 80, 24, 7); err != nil {
+	if _, err := svc.start(cmd, 80, 24, visit{hostID: 7}); err != nil {
 		t.Fatal(err)
 	}
 	rec.waitExit(t)
@@ -158,5 +160,65 @@ func TestAuthHooks(t *testing.T) {
 	}
 	if auth.host != 7 || auth.pid != cmd.Process.Pid || !auth.ended {
 		t.Errorf("hooks = %+v, want host 7, pid %d, ended", auth, cmd.Process.Pid)
+	}
+}
+
+type fakeHistory struct {
+	begun []visit
+	codes chan int
+}
+
+func (f *fakeHistory) Begin(hostID int64, user, target string) func(code int) {
+	f.begun = append(f.begun, visit{hostID, user, target})
+	return func(code int) { f.codes <- code }
+}
+
+func TestHistoryRecordsSessions(t *testing.T) {
+	rec := newRecorder()
+	svc := NewService(rec.emit, nil, nil)
+	h := &fakeHistory{codes: make(chan int, 2)}
+	SetHistory(svc, h)
+
+	// Local shells aren't recorded; ssh sessions are, with their exit code.
+	if _, err := svc.start(exec.Command("sh", "-c", "exit 0"), 80, 24, visit{}); err != nil {
+		t.Fatal(err)
+	}
+	rec.waitExit(t)
+	if _, err := svc.start(exec.Command("sh", "-c", "exit 255"), 80, 24, visit{hostID: 4, user: "root"}); err != nil {
+		t.Fatal(err)
+	}
+	rec.waitExit(t)
+	select {
+	case code := <-h.codes:
+		if code != 255 {
+			t.Errorf("code = %d", code)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("end not recorded")
+	}
+	if len(h.begun) != 1 || h.begun[0] != (visit{4, "root", ""}) {
+		t.Errorf("begun = %+v", h.begun)
+	}
+}
+
+func TestRecording(t *testing.T) {
+	rec := newRecorder()
+	svc := NewService(rec.emit, nil, nil)
+	dir := t.TempDir()
+	SetRecordings(svc, dir)
+	id, err := svc.start(exec.Command("sh", "-c", "read x; echo out:$x; sleep 0.2"), 80, 24, visit{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	name, err := svc.StartRecording(id, "local")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = svc.Write(id, "secret-typed\n")
+	rec.waitExit(t)
+	data, _ := os.ReadFile(filepath.Join(dir, name))
+	// Output is recorded (the shell echoes the line back), the keystrokes themselves are not a separate stream.
+	if !strings.Contains(string(data), "out:secret-typed") || strings.Contains(string(data), `"i"`) {
+		t.Errorf("recording = %s", data)
 	}
 }
