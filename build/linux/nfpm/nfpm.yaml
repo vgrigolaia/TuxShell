@@ -13,10 +13,11 @@ maintainer: "vgrigolaia <vgrigolaia@outlook.com>"
 # The first line is the package summary.
 description: |
   SSH connection manager for Linux
-  Saved hosts, ~/.ssh/config import, split panes, broadcast typing,
-  a file browser and encrypted clipboard history.
+  Saved hosts with groups and jump hosts, import from ~/.ssh/config, CSV,
+  Excel and other tools, split panes, broadcast typing, tunnels, a file
+  browser and encrypted clipboard history.
 vendor: "vgrigolaia"
-homepage: "https://github.com/vgrigolaia/tuxshell"
+homepage: "https://github.com/vgrigolaia/TuxShell"
 license: "GPL-3.0-or-later"
 release: "1"
 
@@ -27,6 +28,17 @@ contents:
     dst: "/usr/share/icons/hicolor/scalable/apps/tuxshell.svg"
   - src: "./build/linux/tuxshell.desktop"
     dst: "/usr/share/applications/io.github.vgrigolaia.TuxShell.desktop"
+  - src: "./build/linux/icons/tuxshell-64.png"
+    dst: "/usr/share/icons/hicolor/64x64/apps/tuxshell.png"
+  - src: "./build/linux/icons/tuxshell-128.png"
+    dst: "/usr/share/icons/hicolor/128x128/apps/tuxshell.png"
+  - src: "./build/linux/icons/tuxshell-256.png"
+    dst: "/usr/share/icons/hicolor/256x256/apps/tuxshell.png"
+  - src: "./build/linux/icons/tuxshell-512.png"
+    dst: "/usr/share/icons/hicolor/512x512/apps/tuxshell.png"
+  # AppStream: name, icon, description and releases in GNOME Software / KDE Discover.
+  - src: "./build/linux/io.github.vgrigolaia.TuxShell.metainfo.xml"
+    dst: "/usr/share/metainfo/io.github.vgrigolaia.TuxShell.metainfo.xml"
   - src: "./LICENSE"
     dst: "/usr/share/licenses/tuxshell/LICENSE"
 
