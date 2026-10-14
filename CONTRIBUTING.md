@@ -34,12 +34,14 @@ your contribution and can use it however you like.
 See [Build from source](README.md#build-from-source) for the requirements, then:
 
 ```sh
+task tools   # once: installs the pinned golangci-lint and gitleaks
 task dev     # run the app
-task lint    # Go vet, gofmt, svelte-check and a frontend build
+task lint    # golangci-lint, secret scan, svelte-check and a frontend build
 task test    # Go tests
 ```
 
-Both `task lint` and `task test` must pass.
+Both `task lint` and `task test` must pass. If gitleaks flags a fake secret in a test, end
+that line with a `// gitleaks:allow` comment.
 
 Some ground rules for the code:
 
