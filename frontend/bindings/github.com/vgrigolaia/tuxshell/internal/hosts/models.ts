@@ -33,6 +33,12 @@ export interface Host {
      * keyring. Only Store.SetPasswordSaved changes it; Save leaves it alone.
      */
     "passwordSaved": boolean;
+
+    /**
+     * Profile is the terminal profile's ID, or "" for the default profile. A
+     * profile that no longer exists also means the default.
+     */
+    "profile": string;
 }
 
 /**

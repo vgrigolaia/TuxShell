@@ -11,6 +11,130 @@ export interface Loaded {
 }
 
 /**
+ * NamedProfile is a profile the user created, chosen per host.
+ */
+export interface NamedProfile {
+    /**
+     * ID is what hosts refer to; it never changes when the profile is renamed.
+     */
+    "id": string;
+    "name": string;
+    "profile": Profile;
+}
+
+/**
+ * Palette is a custom colour scheme: 16 ANSI colours (normal then bright)
+ * plus the special colours. All are "#rrggbb".
+ */
+export interface Palette {
+    "background": string;
+    "foreground": string;
+    "cursor": string;
+    "selection": string;
+    "colors": string[] | null;
+}
+
+/**
+ * Profile is the look and behaviour of a terminal pane. The default profile
+ * is Terminal.Profile; hosts can pick a NamedProfile instead.
+ */
+export interface Profile {
+    /**
+     * FontFamily is a font family name; empty means the bundled JetBrains Mono.
+     */
+    "fontFamily": string;
+    "fontSize": number;
+    "lineHeight": number;
+    "letterSpacing": number;
+    "fontWeight": number;
+    "fontWeightBold": number;
+
+    /**
+     * CursorStyle is "block", "bar" or "underline".
+     */
+    "cursorStyle": string;
+    "cursorBlink": boolean;
+
+    /**
+     * ColorScheme is a scheme id; "auto" follows the app theme, "custom" uses Palette.
+     */
+    "colorScheme": string;
+    "palette": Palette;
+
+    /**
+     * Background is an image in the backgrounds folder (see Backgrounds), or "".
+     */
+    "background": string;
+
+    /**
+     * BackgroundShade is how much of the colour scheme's background covers
+     * the image, 0–100.
+     */
+    "backgroundShade": number;
+
+    /**
+     * HeaderColor tints the pane header: "" (none) or "#rrggbb".
+     */
+    "headerColor": string;
+    "scrollback": number;
+
+    /**
+     * Scrollbar is whether new panes show a scrollbar.
+     */
+    "scrollbar": boolean;
+
+    /**
+     * ScrollOnOutput jumps to the bottom when new output arrives.
+     */
+    "scrollOnOutput": boolean;
+
+    /**
+     * ScrollOnKeypress jumps to the bottom when typing.
+     */
+    "scrollOnKeypress": boolean;
+
+    /**
+     * ScrollSpeed multiplies mouse wheel scrolling, 1–10.
+     */
+    "scrollSpeed": number;
+
+    /**
+     * Bell is "off" or "visual" (flash the pane).
+     */
+    "bell": string;
+
+    /**
+     * BellIcon marks the pane and tab with a bell until it's looked at.
+     */
+    "bellIcon": boolean;
+
+    /**
+     * BellSound plays a short beep.
+     */
+    "bellSound": boolean;
+
+    /**
+     * Command runs on SSH hosts after login instead of only a shell.
+     */
+    "command": string;
+
+    /**
+     * KeepShell starts the login shell after Command ends.
+     */
+    "keepShell": boolean;
+
+    /**
+     * Backspace sends "del" (^?) or "ctrl-h" (^H).
+     */
+    "backspace": string;
+
+    /**
+     * Delete sends "escape" (ESC [3~), "del" or "ctrl-h".
+     */
+    "delete": string;
+}
+
+/**
  * Settings are the app-wide preferences.
  */
 export interface Settings {
@@ -41,10 +165,17 @@ export interface Settings {
      */
     "savePasswords": boolean;
     "terminal": Terminal;
+
+    /**
+     * Profiles are the user's named terminal profiles.
+     */
+    "profiles": NamedProfile[] | null;
 }
 
 /**
- * Terminal holds the look and behaviour of terminal panes.
+ * Terminal holds the default profile plus the settings that apply to every
+ * terminal. The default profile's fields sit at the top level (embedded), so
+ * settings files from before profiles still load.
  */
 export interface Terminal {
     /**
@@ -64,10 +195,82 @@ export interface Terminal {
     "cursorBlink": boolean;
 
     /**
-     * ColorScheme is a scheme id; "auto" follows the app theme.
+     * ColorScheme is a scheme id; "auto" follows the app theme, "custom" uses Palette.
      */
     "colorScheme": string;
+    "palette": Palette;
+
+    /**
+     * Background is an image in the backgrounds folder (see Backgrounds), or "".
+     */
+    "background": string;
+
+    /**
+     * BackgroundShade is how much of the colour scheme's background covers
+     * the image, 0–100.
+     */
+    "backgroundShade": number;
+
+    /**
+     * HeaderColor tints the pane header: "" (none) or "#rrggbb".
+     */
+    "headerColor": string;
     "scrollback": number;
+
+    /**
+     * Scrollbar is whether new panes show a scrollbar.
+     */
+    "scrollbar": boolean;
+
+    /**
+     * ScrollOnOutput jumps to the bottom when new output arrives.
+     */
+    "scrollOnOutput": boolean;
+
+    /**
+     * ScrollOnKeypress jumps to the bottom when typing.
+     */
+    "scrollOnKeypress": boolean;
+
+    /**
+     * ScrollSpeed multiplies mouse wheel scrolling, 1–10.
+     */
+    "scrollSpeed": number;
+
+    /**
+     * Bell is "off" or "visual" (flash the pane).
+     */
+    "bell": string;
+
+    /**
+     * BellIcon marks the pane and tab with a bell until it's looked at.
+     */
+    "bellIcon": boolean;
+
+    /**
+     * BellSound plays a short beep.
+     */
+    "bellSound": boolean;
+
+    /**
+     * Command runs on SSH hosts after login instead of only a shell.
+     */
+    "command": string;
+
+    /**
+     * KeepShell starts the login shell after Command ends.
+     */
+    "keepShell": boolean;
+
+    /**
+     * Backspace sends "del" (^?) or "ctrl-h" (^H).
+     */
+    "backspace": string;
+
+    /**
+     * Delete sends "escape" (ESC [3~), "del" or "ctrl-h".
+     */
+    "delete": string;
     "copyOnSelect": boolean;
     "rightClickPaste": boolean;
 
@@ -75,11 +278,6 @@ export interface Terminal {
      * CtrlWheelZoom zooms terminal text with Ctrl+mouse wheel.
      */
     "ctrlWheelZoom": boolean;
-
-    /**
-     * Bell is "off" or "visual".
-     */
-    "bell": string;
 
     /**
      * ConfirmClose asks before closing tabs or the window with live sessions.
