@@ -111,9 +111,15 @@ task test      # Go tests
 
 If the window stays blank on Wayland, try `WEBKIT_DISABLE_DMABUF_RENDERER=1 task dev`.
 
+## Contributing
+
+Bug reports and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md); pull
+requests need a one-time [Contributor License Agreement](CLA.md).
+
 ## License
 
 TuxShell is free software under the [GNU General Public License v3.0 or later](LICENSE).
 
 Operating system logos are from [Simple Icons](https://simpleicons.org) (CC0 1.0). They are
-trademarks of their owners and are used only to identify each system.
+trademarks of their owners and are used only to identify each system. The TuxShell name and
+logo are covered by [TRADEMARKS.md](TRADEMARKS.md).
