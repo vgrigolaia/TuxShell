@@ -47,7 +47,7 @@ func TestStartStreamsOutputAndExitCode(t *testing.T) {
 	rec := newRecorder()
 	svc := NewService(rec.emit, nil, nil)
 
-	id, err := svc.start(exec.Command("sh", "-c", "printf 'héllo'; exit 3"), 80, 24)
+	id, err := svc.start(exec.Command("sh", "-c", "printf 'héllo'; exit 3"), 80, 24, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +69,7 @@ func TestWriteResizeAndClose(t *testing.T) {
 	svc := NewService(rec.emit, nil, nil)
 
 	// `read` blocks until we write a line; stty reports the PTY size.
-	id, err := svc.start(exec.Command("sh", "-c", "read line; stty size; echo \"got:$line\"; sleep 30"), 80, 24)
+	id, err := svc.start(exec.Command("sh", "-c", "read line; stty size; echo \"got:$line\"; sleep 30"), 80, 24, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,5 +127,36 @@ func TestConfiguredShellAndLiveCount(t *testing.T) {
 	}
 	if ev := rec.waitExit(t); ev.ID != id {
 		t.Fatalf("exit event = %+v, want id %s", ev, id)
+	}
+}
+
+type fakeAuth struct {
+	host  int64
+	pid   int
+	ended bool
+}
+
+func (a *fakeAuth) Begin(_ string, hostID int64) ([]string, func(int), func()) {
+	a.host = hostID
+	return []string{"TUXSHELL_TEST_AUTH=on"}, func(pid int) { a.pid = pid }, func() { a.ended = true }
+}
+
+// Sessions for saved hosts get the auth environment; the hooks see ssh's PID
+// and the end of the session.
+func TestAuthHooks(t *testing.T) {
+	rec := newRecorder()
+	svc := NewService(rec.emit, nil, nil)
+	auth := &fakeAuth{}
+	SetAuth(svc, auth)
+	cmd := exec.Command("sh", "-c", "printf \"$TUXSHELL_TEST_AUTH\"")
+	if _, err := svc.start(cmd, 80, 24, 7); err != nil {
+		t.Fatal(err)
+	}
+	rec.waitExit(t)
+	if got := rec.output.String(); got != "on" {
+		t.Errorf("env not passed: %q", got)
+	}
+	if auth.host != 7 || auth.pid != cmd.Process.Pid || !auth.ended {
+		t.Errorf("hooks = %+v, want host 7, pid %d, ended", auth, cmd.Process.Pid)
 	}
 }
