@@ -25,17 +25,19 @@
   let missing = $state('')
   const id = $props.id()
 
-  // A saved password (while saving is on) connects without asking; tabs
-  // always ask, since a saved password never leaves Go.
+  // A saved password (while saving is on) is used in its own window; tabs
+  // always ask, since a saved password never leaves Go. Nothing starts until
+  // Connect is pressed, so the window/tab choice comes first.
   const inTab = $derived(remoteDesktops.mode === 'tab')
   const useSaved = $derived(host.passwordSaved && prefs.value.savePasswords && !inTab)
   const target = $derived(`${host.user ? host.user + '@' : ''}${host.hostname}${host.port !== 3389 ? ':' + host.port : ''}`)
+  let connectButton = $state<HTMLButtonElement>()
 
   onMount(() => {
     dialog.showModal()
     void remoteDesktops.checkClient().then((c) => {
       if (c && !c.installed && !inTab) missing = c.hint
-      else if (useSaved) void connect()
+      else if (useSaved) connectButton?.focus()
       else passwordInput?.focus()
     })
   })
@@ -149,7 +151,7 @@
         {/if}
       </dl>
     {:else if useSaved}
-      <p class="text-[13px] text-muted">{busy ? 'Connecting with the saved password…' : 'Using the password saved in your keyring.'}</p>
+      <p class="text-[13px] text-muted">{busy ? 'Connecting with the saved password…' : 'Uses the password saved in your keyring. Press Connect to start.'}</p>
     {:else}
       <form
         onsubmit={(e) => {
@@ -196,7 +198,7 @@
         onclick={() => connect(cert!.cert.fingerprint)}>{busy ? 'Connecting…' : cert.kind === 'changed' ? 'Trust the new certificate' : 'Trust and connect'}</button
       >
     {:else}
-      <button class="rounded-lg bg-accent px-3 py-1.5 text-[13px] font-medium text-on-accent hover:bg-accent/90 disabled:opacity-60" disabled={busy} onclick={() => connect()}>
+      <button bind:this={connectButton} class="rounded-lg bg-accent px-3 py-1.5 text-[13px] font-medium text-on-accent hover:bg-accent/90 disabled:opacity-60" disabled={busy} onclick={() => connect()}>
         {busy ? 'Connecting…' : error ? 'Try again' : 'Connect'}
       </button>
     {/if}
