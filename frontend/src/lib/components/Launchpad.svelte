@@ -89,7 +89,7 @@
   function auth(h: Host) {
     if (h.proxyJump) return `via ${h.proxyJump}`
     if (h.passwordRef) return '1Password ref'
-    return h.identityFile ? 'key file' : 'default keys'
+    return h.passwordSaved ? 'password saved' : h.identityFile ? 'key file' : 'default keys'
   }
 
   const chip = 'flex h-[34px] items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold'
@@ -117,7 +117,7 @@
       <div class="flex items-center gap-2 text-[13px] font-bold">
         <span class="text-subtle"><Icon name="shield" size={14} /></span>1Password
       </div>
-      <p class="text-xs leading-relaxed text-subtle">Vault references and the SSH agent arrive in a later version. Secrets are never written to disk.</p>
+      <p class="text-xs leading-relaxed text-subtle">Vault references and the SSH agent arrive in a later version. TuxShell never stores 1Password secrets.</p>
     </div>
   </nav>
 

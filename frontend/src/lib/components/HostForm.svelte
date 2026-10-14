@@ -5,6 +5,9 @@
   import HostBadge from './HostBadge.svelte'
   import { OSES } from '../os'
   import Icon from './Icon.svelte'
+  import * as Login from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/login/service'
+  import { logins } from '../logins.svelte'
+  import { prefs } from '../settings.svelte'
 
   interface Props {
     host: Host
@@ -22,6 +25,12 @@
   let error = $state<SaveError | null>(null)
   let saving = $state(false)
   let confirmDelete = $state(false)
+  // A new password to save with the host; never read back from Go.
+  let password = $state('')
+  let showPassword = $state(false)
+  // svelte-ignore state_referenced_locally
+  let passwordSaved = $state(host.passwordSaved)
+  let changingPassword = $state(false)
   let nameInput: HTMLInputElement
   let formEl: HTMLFormElement
 
@@ -64,6 +73,19 @@
     draft.port = Number(draft.port) || 0
     try {
       const saved = await hostStore.save(draft)
+      if (password) {
+        try {
+          await Login.SetPassword(saved.id, password)
+          password = ''
+          passwordSaved = true
+          changingPassword = false
+          void hostStore.load()
+          void logins.refresh()
+        } catch (e) {
+          error = { message: `Host saved, but the password wasn't: ${errorMessage(e)}` }
+          return
+        }
+      }
       onSaved(saved)
       if (connect) onConnect?.(saved)
     } catch (e) {
@@ -71,6 +93,17 @@
       if (error.field) document.getElementById(`host-${error.field}`)?.focus()
     } finally {
       saving = false
+    }
+  }
+
+  async function removePassword() {
+    try {
+      await Login.ClearPassword(draft.id)
+      passwordSaved = false
+      void hostStore.load()
+      void logins.refresh()
+    } catch (e) {
+      error = { message: errorMessage(e) }
     }
   }
 
@@ -199,6 +232,37 @@
           Only the reference is stored, never the value. Signing in with it arrives with 1Password support in a later version.
         </p>
       </fieldset>
+
+      {#if prefs.value.savePasswords}
+        <fieldset class="flex flex-col gap-2 rounded-2xl border border-line bg-ground/60 p-4">
+          <legend class="sr-only">Saved password</legend>
+          <p class="flex items-center gap-2 text-[13px] font-bold" aria-hidden="true">
+            <span class="text-muted"><Icon name="lock" size={14} /></span>Saved password <span class="font-normal text-subtle">(optional)</span>
+          </p>
+          {#if passwordSaved && !changingPassword}
+            <div class="flex items-center gap-2 text-[13px]">
+              <span class="text-success">✓ Saved in your keyring</span>
+              <span class="flex-1"></span>
+              <button type="button" class="rounded-lg px-2 py-1 text-xs text-muted hover:bg-raised hover:text-fg" onclick={() => (changingPassword = true)}>Change</button>
+              <button type="button" class="rounded-lg px-2 py-1 text-xs text-muted hover:bg-raised hover:text-fg" onclick={removePassword}>Remove</button>
+            </div>
+          {:else}
+            <label class="sr-only" for="host-password">Password</label>
+            <div class="relative">
+              <input id="host-password" class="{input} pr-10 font-mono text-xs" type={showPassword ? 'text' : 'password'} bind:value={password}
+                placeholder={passwordSaved ? 'New password' : 'Leave empty to type it when connecting'} autocomplete="new-password" spellcheck="false"
+                aria-describedby="host-password-hint" />
+              <button type="button" class="absolute top-1/2 right-2 grid size-7 -translate-y-1/2 place-items-center rounded-md text-subtle hover:text-fg"
+                aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} onclick={() => (showPassword = !showPassword)}>
+                <Icon name={showPassword ? 'eyeOff' : 'eye'} size={14} />
+              </button>
+            </div>
+          {/if}
+          <p id="host-password-hint" class="text-[11.5px] leading-normal text-subtle">
+            Stored encrypted in your system keyring, saved with the host. Keys or 1Password are safer.
+          </p>
+        </fieldset>
+      {/if}
 
       {#if tested}
         <p role="status" class="rounded-xl border px-3 py-2 text-xs {tested.ok ? 'border-success/40 bg-success/10 text-success' : 'border-warning/40 bg-warning/10 text-warning'}">

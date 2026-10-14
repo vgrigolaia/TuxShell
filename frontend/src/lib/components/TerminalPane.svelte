@@ -13,6 +13,8 @@
   import type { PaneActions, Source } from '../tabs'
   import { errorMessage, hostStore } from '../hosts.svelte'
   import LoginPrompt from './LoginPrompt.svelte'
+  import PasswordPrompt from './PasswordPrompt.svelte'
+  import { logins } from '../logins.svelte'
   import ContextMenu, { type MenuItem } from './ContextMenu.svelte'
   import { clipboardHistory } from '../clipboard.svelte'
   import { theme } from '../theme.svelte'
@@ -96,6 +98,10 @@
     term?.paste(text)
     term?.focus()
   }
+
+  // The running session, for password boxes ssh asks for.
+  let liveSession = $state<string | undefined>()
+  const passwordRequest = $derived(logins.forSession(liveSession))
 
   onMount(() => {
     let sessionId: string | undefined
@@ -260,10 +266,12 @@
       }
       onStart?.()
       const id = sessionId
+      liveSession = id
       claim(id, {
         data: (bytes) => term?.write(bytes),
         exit: (code) => {
           if (sessionId === id) sessionId = undefined
+          if (liveSession === id) liveSession = undefined
           exited = code
           onExit?.(code)
         },
@@ -401,7 +409,9 @@
       }}
     />
   {/if}
-  {#if asking && source.kind === 'host'}
+  {#if passwordRequest}
+    {#key passwordRequest.requestId}<PasswordPrompt request={passwordRequest} />{/key}
+  {:else if asking && source.kind === 'host'}
     <LoginPrompt
       hostId={source.hostId}
       {hostName}
