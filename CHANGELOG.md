@@ -3,6 +3,18 @@
 All notable changes to TuxShell are listed here. Versions follow
 [Semantic Versioning](https://semver.org).
 
+## [1.1.3] - 2026-10-14
+
+### Added
+
+- About page in Preferences with the version, license and project links.
+- Check for updates: asks GitHub for the latest release and links to it. An optional check at
+  startup (off by default) shows an Update button in the title bar when a newer version is out.
+
+### Fixed
+
+- The dock and app switcher showed a generic icon instead of the TuxShell icon.
+
 ## [1.1.1] - 2026-10-13
 
 ### Changed
@@ -57,6 +69,7 @@ First release.
 - Dark and light themes, or follow the system.
 - Packages for Fedora/RHEL (.rpm), Debian/Ubuntu (.deb) and an AppImage.
 
+[1.1.3]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.3
 [1.1.1]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.1
 [1.1.0]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.0
 [1.0.0]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.0.0
