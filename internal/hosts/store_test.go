@@ -282,3 +282,23 @@ func TestPasswordSaved(t *testing.T) {
 		t.Errorf("OnDelete got %v", deleted)
 	}
 }
+
+func TestProfileField(t *testing.T) {
+	s := openTemp(t)
+	h, err := s.Save(Host{Name: "p", Hostname: "p.example", Profile: "prod", Tags: []string{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := s.Get(h.ID); got.Profile != "prod" {
+		t.Errorf("profile = %q", got.Profile)
+	}
+	h.Profile = "default"
+	if h, _ = s.Save(h); h.Profile != "" {
+		t.Errorf("default profile stored as %q", h.Profile)
+	}
+	h.Profile = "-oEvil"
+	var ve *ValidationError
+	if _, err := s.Save(h); !errors.As(err, &ve) || ve.Field != "profile" {
+		t.Errorf("bad profile: %v", err)
+	}
+}

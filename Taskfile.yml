@@ -12,8 +12,9 @@ vars:
   # App packages only; build/ holds generated platform helpers we don't vet or test.
   GO_PKGS:
     sh: go list -e ./... | grep -v /build/ | tr '\n' ' '
-  GO_FILES:
-    sh: find . -name '*.go' -not -path './build/*' -not -path './frontend/*' | tr '\n' ' '
+  # Developer tools (task tools installs them into $(go env GOPATH)/bin).
+  GOLANGCI_LINT_VERSION: v2.14.0
+  GITLEAKS_VERSION: v8.30.1
 
 includes:
   common: ./build/Taskfile.yml
@@ -54,14 +55,27 @@ tasks:
       - sed 's#^Exec=tuxshell#Exec={{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}#' build/linux/tuxshell.desktop > "{{.APPS}}/applications/io.github.vgrigolaia.TuxShell.desktop"
 
   lint:
-    summary: Runs Go vet, gofmt check and Svelte/TypeScript checks
+    summary: Runs golangci-lint, a secret scan (gitleaks) and Svelte/TypeScript checks
+    preconditions:
+      - sh: command -v golangci-lint && command -v gitleaks
+        msg: "golangci-lint or gitleaks is missing: run 'task tools'"
     # main.go embeds frontend/dist, so the frontend must be built before Go tooling runs.
     deps:
       - task: common:build:frontend
     cmds:
-      - go vet {{.GO_PKGS}}
-      - 'test -z "$(gofmt -l {{.GO_FILES}})" || { gofmt -l {{.GO_FILES}}; echo "gofmt - files need formatting"; exit 1; }'
+      # go vet, staticcheck, errcheck, gofmt and more (see .golangci.yml).
+      - golangci-lint run ./...
+      # Secrets in uncommitted and staged changes, then in the whole history.
+      - gitleaks git --pre-commit --no-banner --redact .
+      - gitleaks git --pre-commit --staged --no-banner --redact .
+      - gitleaks git --no-banner --redact --log-level warn .
       - npm --prefix frontend run check
+
+  tools:
+    summary: Installs the pinned golangci-lint and gitleaks into $(go env GOPATH)/bin
+    cmds:
+      - go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{.GOLANGCI_LINT_VERSION}}
+      - go install github.com/zricethezav/gitleaks/v8@{{.GITLEAKS_VERSION}}
 
   test:
     summary: Runs Go tests

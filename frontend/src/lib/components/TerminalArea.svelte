@@ -6,9 +6,9 @@
   import { hostStore } from '../hosts.svelte'
   import type { PaneActions } from '../tabs'
   import { isTerminalReport } from '../broadcast'
-  import { prefs } from '../settings.svelte'
   import { closer } from '../close.svelte'
-  import { schemeBackground } from '../schemes'
+  import { profileBackground } from '../schemes'
+  import { backgroundImages, paneProfile } from '../profiles.svelte'
 
   interface Props {
     /** Registered so clipboard history can paste into the focused pane. */
@@ -20,8 +20,14 @@
 
   let area: HTMLDivElement
   const tileBtn = 'grid size-6 place-items-center rounded-md text-subtle hover:bg-hop hover:text-fg aria-pressed:text-accent-text'
-  // A chosen colour scheme paints the gap around the terminal too.
-  const paneBackground = $derived(schemeBackground(prefs.value.terminal.colorScheme))
+  // The bell icon clears once the pane is looked at.
+  $effect(() => {
+    for (const pane of workspace.panes) {
+      if (!pane.bell) continue
+      const at = placement(pane)
+      if (at?.visible && at.focused) workspace.updatePane(pane.id, { bell: false })
+    }
+  })
 
   // Every pane is rendered exactly once, keyed by id; tabs only decide where
   // it sits. Merging or splitting tabs therefore never restarts a session.
@@ -92,6 +98,9 @@
     {#if at}
       {@const host = pane.source.kind === 'host' ? hostStore.get(pane.source.hostId) : undefined}
       {@const jumps = host?.proxyJump ? host.proxyJump.split(',').map((j) => j.trim()).filter(Boolean) : []}
+      {@const profile = paneProfile(pane.source)}
+      {@const image = backgroundImages.url(profile.background)}
+      {@const paneBackground = profileBackground(profile)}
       <!-- Focus follows clicks and keyboard focus inside the pane. -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
@@ -113,7 +122,12 @@
               ? 'border-accent-line'
               : 'border-line'} {at.excluded ? 'opacity-70' : ''}"
         >
-          <header class="flex min-h-9 shrink-0 flex-wrap items-center gap-2 border-b border-line px-3 py-1.5 text-xs">
+          <!-- A profile's header colour tints the header and marks its left edge. -->
+          <header
+            class="flex min-h-9 shrink-0 flex-wrap items-center gap-2 border-b border-line px-3 py-1.5 text-xs"
+            style:background={profile.headerColor ? `color-mix(in srgb, ${profile.headerColor} 18%, transparent)` : undefined}
+            style:box-shadow={profile.headerColor ? `inset 3px 0 0 ${profile.headerColor}` : undefined}
+          >
             <span class="size-2 shrink-0 rounded-full {pane.exited ? 'border-2 border-warning' : 'bg-success'}" aria-hidden="true"></span>
             <span class="truncate font-semibold {at.focused ? 'text-fg' : 'text-text'}">
               {#if at.maximized}<span class="font-normal text-accent-text">{at.tab.paneIds.length - 1} hidden · </span>{/if}{pane.source.kind === 'shell' && !pane.customTitle ? 'Local shell' : pane.title}
@@ -130,6 +144,7 @@
             {:else if pane.termTitle}
               <span class="ml-1.5 truncate font-mono text-[11px] text-subtle">{pane.termTitle}</span>
             {/if}
+            {#if pane.bell}<span class="shrink-0 text-warning" role="img" aria-label="bell rang"><Icon name="bell" size={12} /></span>{/if}
             <span class="flex-1"></span>
             {#if at.broadcasting || at.excluded}
               <button
@@ -182,7 +197,17 @@
           </header>
           <!-- A chosen colour scheme paints the terminal body only, so the header
                keeps theme colours and stays readable. -->
-          <div class="min-h-0 flex-1 py-2 pl-3" style:background={paneBackground}>
+          <div class="relative min-h-0 flex-1 py-2 pl-3" style:background={paneBackground}>
+            {#if image}
+              <!-- Background image, covered by the scheme's colour at the profile's shade. -->
+              <div class="pointer-events-none absolute inset-0 bg-cover bg-center" style:background-image="url({image})" aria-hidden="true"></div>
+              <div
+                class="pointer-events-none absolute inset-0 {paneBackground ? '' : 'bg-field'}"
+                style:background={paneBackground}
+                style:opacity={profile.backgroundShade / 100}
+                aria-hidden="true"
+              ></div>
+            {/if}
             <TerminalPane
               bind:this={refs[pane.id]}
               source={pane.source}
@@ -195,6 +220,9 @@
                 workspace.updatePane(pane.id, pane.source.kind === 'shell' && !pane.customTitle ? { title, termTitle: title } : { termTitle: title })}
               onSize={(cols, rows) => workspace.updatePane(pane.id, { size: `${cols}×${rows}` })}
               onExit={() => workspace.updatePane(pane.id, { exited: true })}
+              onBell={() => {
+                if (!(at.visible && at.focused)) workspace.updatePane(pane.id, { bell: true })
+              }}
               readOnly={pane.readOnly}
               showScrollbar={pane.showScrollbar}
               split={at.split}

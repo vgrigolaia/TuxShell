@@ -10,6 +10,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/events"
 
 	"github.com/vgrigolaia/tuxshell/internal/askpass"
+	"github.com/vgrigolaia/tuxshell/internal/backgrounds"
 	"github.com/vgrigolaia/tuxshell/internal/cliphist"
 	"github.com/vgrigolaia/tuxshell/internal/files"
 	"github.com/vgrigolaia/tuxshell/internal/hostio"
@@ -81,7 +82,9 @@ func main() {
 		log.Printf("ssh connection sharing disabled: %v", err)
 		controlDir = ""
 	}
-	resolver := sshcmd.Resolver{Store: store, ControlDir: controlDir}
+	resolver := sshcmd.Resolver{Store: store, ControlDir: controlDir, RemoteCommand: func(h hosts.Host) string {
+		return prefs.Get().Settings.ProfileFor(h.Profile).RemoteCommand()
+	}}
 
 	var app *application.App
 	fileBrowser, recordDrop := files.NewService(resolver, func() ([]string, error) {
@@ -106,6 +109,21 @@ func main() {
 		d := app.Dialog.SaveFile()
 		d.SetOptions(opts)
 		return d.PromptForSingleSelection()
+	})
+	backgroundDir, err := backgrounds.DefaultDir()
+	if err != nil {
+		log.Fatal(err)
+	}
+	images := backgrounds.NewService(backgroundDir, func() (string, error) {
+		return app.Dialog.OpenFile().CanChooseFiles(true).SetTitle("Background image").SetButtonText("Choose").
+			AddFilter("Images", "*.png;*.jpg;*.jpeg;*.webp").PromptForSingleSelection()
+	}, func() []string {
+		cur := prefs.Get().Settings
+		used := []string{cur.Terminal.Background}
+		for _, p := range cur.Profiles {
+			used = append(used, p.Profile.Background)
+		}
+		return used
 	})
 	clips := cliphist.NewService(
 		filepath.Join(filepath.Dir(dbPath), "clipboard.db"),
@@ -159,6 +177,7 @@ func main() {
 			application.NewService(hosts.NewSnippetService(store)),
 			application.NewService(forwards),
 			application.NewService(updates.NewService()),
+			application.NewService(images),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

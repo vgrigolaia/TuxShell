@@ -8,6 +8,9 @@ export {
 
 export type {
     Loaded,
+    NamedProfile,
+    Palette,
+    Profile,
     Settings,
     Terminal
 } from "./models.js";

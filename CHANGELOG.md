@@ -3,6 +3,24 @@
 All notable changes to TuxShell are listed here. Versions follow
 [Semantic Versioning](https://semver.org).
 
+## [1.1.7] - 2026-10-14
+
+### Added
+
+- Terminal profiles: named sets of terminal settings, made in Preferences → Profiles and
+  chosen per host in the host form. Local tabs and hosts without one use Default.
+- Custom colour schemes (all 16 colours plus background, text, cursor and selection).
+- A background image per profile, with a shade to keep text readable.
+- A pane header colour per profile, for example red for production servers.
+- Scrolling options: scroll on output or when typing, mouse wheel speed, scrollbar for new panes.
+- Bell options: flash, a bell icon on the pane and tab, and a short sound.
+- Run on connect: a command the server runs after login, optionally keeping a shell open.
+- What the Backspace and Delete keys send, for older servers.
+
+### Changed
+
+- Preferences are grouped into terminal profile settings and app settings.
+
 ## [1.1.6] - 2026-10-14
 
 ### Added
@@ -118,6 +136,7 @@ First release.
 - Dark and light themes, or follow the system.
 - Packages for Fedora/RHEL (.rpm), Debian/Ubuntu (.deb) and an AppImage.
 
+[1.1.7]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.7
 [1.1.6]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.6
 [1.1.5]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.5
 [1.1.4]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.4

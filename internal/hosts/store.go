@@ -56,6 +56,7 @@ var migrations = []string{
 	)`,
 	`ALTER TABLE hosts ADD COLUMN os TEXT NOT NULL DEFAULT ''`,
 	`ALTER TABLE hosts ADD COLUMN password_saved INTEGER NOT NULL DEFAULT 0`,
+	`ALTER TABLE hosts ADD COLUMN profile TEXT NOT NULL DEFAULT ''`,
 }
 
 // DefaultPath returns $XDG_DATA_HOME/tuxshell/hosts.db.
@@ -134,7 +135,7 @@ func migrate(db *sql.DB) error {
 // Close closes the database.
 func (s *Store) Close() error { return s.db.Close() }
 
-const columns = `id, name, grp, alias, hostname, user, port, proxy_jump, identity_file, password_ref, tags, os, password_saved`
+const columns = `id, name, grp, alias, hostname, user, port, proxy_jump, identity_file, password_ref, tags, os, password_saved, profile`
 
 type scanner interface{ Scan(...any) error }
 
@@ -142,7 +143,7 @@ func scanHost(row scanner) (Host, error) {
 	var h Host
 	var tags string
 	err := row.Scan(&h.ID, &h.Name, &h.Group, &h.Alias, &h.Hostname, &h.User, &h.Port,
-		&h.ProxyJump, &h.IdentityFile, &h.PasswordRef, &tags, &h.OS, &h.PasswordSaved)
+		&h.ProxyJump, &h.IdentityFile, &h.PasswordRef, &tags, &h.OS, &h.PasswordSaved, &h.Profile)
 	if err != nil {
 		return h, err
 	}
@@ -189,17 +190,17 @@ func (s *Store) Save(h Host) (Host, error) {
 	var err error
 	if h.ID == 0 {
 		var res sql.Result
-		res, err = s.db.Exec(`INSERT INTO hosts (name, grp, alias, hostname, user, port, proxy_jump, identity_file, password_ref, tags, os)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			h.Name, h.Group, h.Alias, h.Hostname, h.User, h.Port, h.ProxyJump, h.IdentityFile, h.PasswordRef, string(tags), h.OS)
+		res, err = s.db.Exec(`INSERT INTO hosts (name, grp, alias, hostname, user, port, proxy_jump, identity_file, password_ref, tags, os, profile)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			h.Name, h.Group, h.Alias, h.Hostname, h.User, h.Port, h.ProxyJump, h.IdentityFile, h.PasswordRef, string(tags), h.OS, h.Profile)
 		if err == nil {
 			h.ID, err = res.LastInsertId()
 		}
 	} else {
 		var res sql.Result
 		res, err = s.db.Exec(`UPDATE hosts SET name = ?, grp = ?, alias = ?, hostname = ?, user = ?, port = ?,
-			proxy_jump = ?, identity_file = ?, password_ref = ?, tags = ?, os = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-			h.Name, h.Group, h.Alias, h.Hostname, h.User, h.Port, h.ProxyJump, h.IdentityFile, h.PasswordRef, string(tags), h.OS, h.ID)
+			proxy_jump = ?, identity_file = ?, password_ref = ?, tags = ?, os = ?, profile = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+			h.Name, h.Group, h.Alias, h.Hostname, h.User, h.Port, h.ProxyJump, h.IdentityFile, h.PasswordRef, string(tags), h.OS, h.Profile, h.ID)
 		if err == nil {
 			if n, _ := res.RowsAffected(); n == 0 {
 				return h, ErrNotFound
