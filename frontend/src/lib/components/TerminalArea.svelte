@@ -220,6 +220,7 @@
                 workspace.updatePane(pane.id, pane.source.kind === 'shell' && !pane.customTitle ? { title, termTitle: title } : { termTitle: title })}
               onSize={(cols, rows) => workspace.updatePane(pane.id, { size: `${cols}×${rows}` })}
               onExit={() => workspace.updatePane(pane.id, { exited: true })}
+              onCwd={(cwd) => cwd !== pane.cwd && workspace.updatePane(pane.id, { cwd })}
               onBell={() => {
                 if (!(at.visible && at.focused)) workspace.updatePane(pane.id, { bell: true })
               }}

@@ -21,6 +21,8 @@ export interface Pane {
   showScrollbar: boolean
   /** The terminal rang its bell while the pane wasn't being looked at. */
   bell: boolean
+  /** The shell's folder as its prompt reports it ("" if it doesn't), e.g. "~/app". */
+  cwd: string
   /** When the current session started (ms), or 0 before it connects. */
   startedAt: number
 }
@@ -74,7 +76,7 @@ class Workspace {
   }
 
   private makePane(source: Source, title: string): Pane {
-    const pane: Pane = { id: this.nextPane++, title, termTitle: '', source, exited: false, size: '', loginUser: '', customTitle: false, readOnly: false, showScrollbar: paneProfile(source).scrollbar, bell: false, startedAt: 0 }
+    const pane: Pane = { id: this.nextPane++, title, termTitle: '', source, exited: false, size: '', loginUser: '', customTitle: false, readOnly: false, showScrollbar: paneProfile(source).scrollbar, bell: false, cwd: '', startedAt: 0 }
     this.panes.push(pane)
     return pane
   }
