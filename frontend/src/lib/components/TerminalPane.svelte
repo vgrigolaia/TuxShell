@@ -161,13 +161,7 @@
         return true
       })
       term.open(host)
-      try {
-        const webgl = new WebglAddon()
-        webgl.onContextLoss(() => webgl.dispose())
-        term.loadAddon(webgl)
-      } catch {
-        // No WebGL: xterm falls back to its DOM renderer.
-      }
+      opened = true
       fit.fit()
 
       sendToSession = (data) => {
@@ -403,6 +397,31 @@
       // Unknown font: xterm uses the fallback in the list.
     }
   }
+
+  // The GPU renderer, except behind a background image: WebKitGTK's WebGL
+  // draws no text on a see-through terminal, so xterm's DOM renderer is used.
+  let opened = $state(false)
+  let webgl: WebglAddon | undefined
+  $effect(() => {
+    const wanted = opened && !profile.background
+    if (!term || wanted === !!webgl) return
+    if (wanted) {
+      try {
+        const addon = new WebglAddon()
+        addon.onContextLoss(() => {
+          addon.dispose()
+          if (webgl === addon) webgl = undefined
+        })
+        term.loadAddon(addon)
+        webgl = addon
+      } catch {
+        // No WebGL: xterm falls back to its DOM renderer.
+      }
+    } else {
+      webgl?.dispose()
+      webgl = undefined
+    }
+  })
 
   // Apply preference changes to the live terminal.
   $effect(() => {
