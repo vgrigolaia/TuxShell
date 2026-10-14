@@ -8,6 +8,9 @@
   import HostBadge from './HostBadge.svelte'
   import Icon from './Icon.svelte'
   import ConfirmDialog from './ConfirmDialog.svelte'
+  import RecordingPlayer from './RecordingPlayer.svelte'
+  import * as Recordings from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/recordings/service'
+  import type { Recording } from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/recordings/models'
 
   interface Props {
     onConnect: (host: Host) => void
@@ -22,6 +25,23 @@
   let error = $state<string | null>(null)
   let query = $state('')
   let confirmClear = $state(false)
+  let tab = $state<'connections' | 'recordings'>('connections')
+  let recordings = $state<Recording[]>([])
+  let playing = $state<Recording | null>(null)
+  let confirmDeleteRec = $state<Recording | null>(null)
+
+  async function loadRecordings() {
+    try {
+      recordings = (await Recordings.List()) ?? []
+    } catch (e) {
+      error = errorMessage(e)
+    }
+  }
+
+  function mb(n: number) {
+    return n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`
+  }
+
   // Re-renders "open" durations.
   let now = $state(Date.now())
 
@@ -38,10 +58,13 @@
 
   onMount(() => {
     void load()
+    void loadRecordings()
     const off = Events.On('history:changed', () => void load())
+    const offRec = Events.On('terminal:recording', () => void loadRecordings())
     const tick = setInterval(() => (now = Date.now()), 30_000)
     return () => {
       off()
+      offRec()
       clearInterval(tick)
     }
   })
@@ -102,13 +125,67 @@
 <main class="flex min-w-0 flex-1 flex-col gap-5 overflow-y-auto rounded-panel border border-line bg-ground px-7 py-6">
   <header class="flex flex-wrap items-center gap-3.5">
     <h1 class="font-display text-3xl font-bold tracking-[-0.03em]">History</h1>
-    <span class="text-sm text-subtle">{visits.length} connection{visits.length === 1 ? '' : 's'}</span>
+    <div class="flex gap-1 rounded-full bg-panel p-1 shadow-[inset_0_0_0_1px_var(--color-line)]" role="tablist" aria-label="History">
+      {#each [['connections', `Connections ${visits.length || ''}`], ['recordings', `Recordings ${recordings.length || ''}`]] as const as [t, name] (t)}
+        <button
+          role="tab"
+          aria-selected={tab === t}
+          class="h-8 rounded-full px-3.5 text-[13px] font-semibold {tab === t ? 'bg-raised text-fg' : 'text-muted hover:text-fg'}"
+          onclick={() => (tab = t)}>{name.trim()}</button
+        >
+      {/each}
+    </div>
+    {#if tab === 'recordings'}
+      <button class="ml-auto h-[42px] rounded-[13px] border border-strong bg-panel px-4 text-sm font-semibold hover:bg-raised" onclick={() => void Recordings.OpenFolder()}>Open folder</button>
+    {:else}
     <button
       class="ml-auto h-[42px] rounded-[13px] border border-strong bg-panel px-4 text-sm font-semibold hover:bg-raised disabled:opacity-50"
       disabled={!visits.length && !query}
       onclick={() => (confirmClear = true)}>Clear history</button
     >
+    {/if}
   </header>
+
+  {#if tab === 'recordings'}
+    <p class="-mt-2 max-w-2xl text-sm text-subtle">
+      Terminal output you recorded (right-click a terminal → Start recording, or turn on "Record sessions automatically" in a profile). Only what was on screen is saved, never your keystrokes.
+      The files are standard asciinema recordings.
+    </p>
+    {#if !recordings.length}
+      <div class="flex flex-col items-center gap-3 rounded-[20px] bg-panel px-6 py-14 text-center shadow-[inset_0_0_0_1px_var(--color-line)]">
+        <span class="grid size-12 place-items-center rounded-2xl bg-raised text-subtle"><Icon name="record" size={22} /></span>
+        <p class="text-[15px] font-semibold">No recordings yet</p>
+        <p class="max-w-sm text-sm text-subtle">Right-click a terminal and choose Start recording.</p>
+      </div>
+    {:else}
+      <ul class="divide-y divide-line overflow-hidden rounded-[14px] border border-line bg-panel">
+        {#each recordings as r (r.name)}
+          <li class="group flex items-center gap-3.5 px-4 py-3">
+            <span class="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-danger/15 text-danger-text"><Icon name="record" size={16} /></span>
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm font-semibold">{r.title || r.name}</p>
+              <p class="truncate font-mono text-xs text-subtle">{r.name}</p>
+            </div>
+            <div class="shrink-0 text-right text-xs">
+              <p class="text-text">{dayLabel(r.started)} · {timeFmt.format(new Date(r.started))}</p>
+              <p class="text-subtle">{duration(r.duration * 1000)} · {mb(r.size)}</p>
+            </div>
+            <button class="flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-strong px-3 text-xs font-semibold hover:bg-raised" onclick={() => (playing = r)} aria-label="Play {r.title || r.name}">
+              <Icon name="play" size={11} />Play
+            </button>
+            <button
+              class="grid size-8 shrink-0 place-items-center rounded-lg text-subtle opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-raised hover:text-danger-text"
+              aria-label="Delete recording {r.name}"
+              title="Delete recording"
+              onclick={() => (confirmDeleteRec = r)}
+            >
+              <Icon name="trash" size={13} />
+            </button>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  {:else}
   <p class="-mt-2 max-w-2xl text-sm text-subtle">
     Which host you connected to, when, for how long and whether it worked. TuxShell never keeps what you typed or what was on screen.
     <button class="underline-offset-2 hover:text-fg hover:underline" onclick={onPreferences}>Settings</button>
@@ -178,7 +255,25 @@
       </ul>
     </section>
   {/each}
+  {/if}
 </main>
+
+{#if playing}
+  <RecordingPlayer name={playing.name} title={playing.title} onClose={() => (playing = null)} />
+{/if}
+{#if confirmDeleteRec}
+  {@const r = confirmDeleteRec}
+  <ConfirmDialog
+    title="Delete recording"
+    message="Delete “{r.title || r.name}” ({mb(r.size)})? This can't be undone."
+    confirmLabel="Delete"
+    onConfirm={async () => {
+      await Recordings.Delete(r.name)
+      await loadRecordings()
+    }}
+    onClose={() => (confirmDeleteRec = null)}
+  />
+{/if}
 
 {#if confirmClear}
   <ConfirmDialog

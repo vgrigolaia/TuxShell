@@ -532,6 +532,15 @@
             <span>Keep a shell open after the command ends<span class={hint}>Off: the session closes when the command finishes.</span></span>
           </label>
 
+          <label class={check}>
+            <input type="checkbox" class="mt-0.5 accent-accent" checked={t.record} onchange={(e) => setP({ record: e.currentTarget.checked })} />
+            <span
+              >Record sessions automatically<span class={hint}
+                >Saves what the terminal shows (never your keystrokes) to ~/.local/share/tuxshell/recordings, readable only by you. Watch them under Home → History → Recordings. Anything shown on screen, such as a password printed by a command, ends up in the file.</span
+              ></span
+            >
+          </label>
+
           <fieldset class="mt-2 border-t border-line pt-4">
             <legend class="{label} pt-4">Compatibility</legend>
             <div class="grid grid-cols-2 gap-4">
