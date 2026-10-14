@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -53,13 +54,15 @@ type Service struct {
 	mu      sync.Mutex
 	drops   map[string][]string
 	dropSeq atomic.Uint64
+
+	edit *editor
 }
 
 // NewService browses through remotes; pick opens the upload file picker.
 // It also returns the function the window's drop handler calls. That stays
 // in Go: it isn't a bound method, so the page can never register paths.
 func NewService(remotes Remotes, pick func() ([]string, error)) (*Service, func(paths []string) DropEvent) {
-	s := &Service{remotes: remotes, pick: pick, drops: map[string][]string{}}
+	s := &Service{remotes: remotes, pick: pick, drops: map[string][]string{}, edit: newEditor()}
 	return s, s.dropped
 }
 
@@ -92,6 +95,67 @@ func (s *Service) List(ctx context.Context, loc Location, dir string) (Listing, 
 	ctx, cancel := context.WithTimeout(ctx, listTimeout)
 	defer cancel()
 	return b.list(ctx, dir)
+}
+
+// Rename renames dir/from to dir/to; it never replaces an existing item.
+func (s *Service) Rename(ctx context.Context, loc Location, dir, from, to string) error {
+	if err := checkName(from); err != nil {
+		return err
+	}
+	if err := checkName(to); err != nil {
+		return err
+	}
+	return s.do(ctx, loc, dir, func(ctx context.Context, b backend) error { return b.rename(ctx, dir, from, to) })
+}
+
+// MakeDir creates the folder dir/name.
+func (s *Service) MakeDir(ctx context.Context, loc Location, dir, name string) error {
+	if err := checkName(name); err != nil {
+		return err
+	}
+	return s.do(ctx, loc, dir, func(ctx context.Context, b backend) error { return b.mkdir(ctx, dir, name) })
+}
+
+// Delete removes items in dir, folders with everything in them.
+func (s *Service) Delete(ctx context.Context, loc Location, dir string, names []string) error {
+	if len(names) == 0 {
+		return nil
+	}
+	for _, n := range names {
+		if err := checkName(n); err != nil {
+			return err
+		}
+	}
+	return s.do(ctx, loc, dir, func(ctx context.Context, b backend) error { return b.remove(ctx, dir, names) })
+}
+
+// Chmod sets dir/name's permissions (octal, e.g. "755"), and with recursive
+// everything inside a folder too.
+func (s *Service) Chmod(ctx context.Context, loc Location, dir, name, mode string, recursive bool) error {
+	if err := checkName(name); err != nil {
+		return err
+	}
+	m, err := parseMode(mode)
+	if err != nil {
+		return err
+	}
+	return s.do(ctx, loc, dir, func(ctx context.Context, b backend) error { return b.chmod(ctx, dir, name, m, recursive) })
+}
+
+// do runs one change with the transfer timeout (a recursive delete may be slow).
+func (s *Service) do(ctx context.Context, loc Location, dir string, fn func(context.Context, backend) error) error {
+	// Changes happen in a folder the panel listed, never relative to
+	// wherever the app or the ssh login happens to start.
+	if !strings.HasPrefix(dir, "/") || strings.ContainsRune(dir, 0) {
+		return errors.New("not a folder path")
+	}
+	b, err := s.backend(loc)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(ctx, transferTimeout)
+	defer cancel()
+	return fn(ctx, b)
 }
 
 // Download saves a file into the Downloads folder and returns its local path.

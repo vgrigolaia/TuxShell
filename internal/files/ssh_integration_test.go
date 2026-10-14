@@ -50,4 +50,31 @@ func TestOverRealSSH(t *testing.T) {
 	if home, err := b.list(ctx, ""); err != nil || home.Path == "" {
 		t.Fatalf("home listing = %+v, %v", home, err)
 	}
+
+	// Changes and editing over the same connection.
+	if err := b.rename(ctx, dir, "it's quoted", "renamed it's"); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.mkdir(ctx, dir, "made here"); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.chmod(ctx, dir, "renamed it's", 0o600, false); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(dir, "renamed it's")
+	if st, err := b.stat(ctx, file); err != nil || st.Mode != "600" {
+		t.Fatalf("stat = %+v, %v", st, err)
+	}
+	if err := b.replace(ctx, file, strings.NewReader("edited")); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := os.ReadFile(file); string(got) != "edited" {
+		t.Fatalf("replaced = %q", got)
+	}
+	if err := b.remove(ctx, dir, []string{"made here", "renamed it's"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(file); !os.IsNotExist(err) {
+		t.Fatal("not removed")
+	}
 }

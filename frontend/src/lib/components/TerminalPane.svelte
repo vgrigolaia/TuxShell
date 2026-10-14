@@ -36,6 +36,8 @@
     onTitle?: (title: string) => void
     onSize?: (cols: number, rows: number) => void
     onExit?: (code: number) => void
+    /** The shell reported its folder (OSC 7, or a "user@host:path" title). */
+    onCwd?: (path: string) => void
     /** The bell rang and the profile marks it with an icon. */
     onBell?: () => void
     /** Typing and pasting are blocked. */
@@ -48,7 +50,7 @@
     actions?: PaneActions
   }
 
-  let { source, visible, focused, onStart, onInput, onLogin, onTitle, onSize, onExit, onBell, readOnly = false, showScrollbar = true, split = false, maximized = false, actions }: Props = $props()
+  let { source, visible, focused, onStart, onInput, onLogin, onTitle, onSize, onExit, onBell, onCwd, readOnly = false, showScrollbar = true, split = false, maximized = false, actions }: Props = $props()
 
   let host: HTMLDivElement
   let term: Terminal | undefined
@@ -178,7 +180,22 @@
         onSize?.(cols, rows)
         if (sessionId) void Terminals.Resize(sessionId, cols, rows)
       })
-      const title = term.onTitleChange((t) => onTitle?.(t))
+      // The prompt's folder, for the file panel's "follow terminal". A shell
+      // that sends OSC 7 is trusted over titles, which programs also set.
+      let osc7 = false
+      const cwdReport = term.parser.registerOscHandler(7, (data) => {
+        const p = cwdFromOsc7(data)
+        if (p) {
+          osc7 = true
+          onCwd?.(p)
+        }
+        return true
+      })
+      const title = term.onTitleChange((t) => {
+        onTitle?.(t)
+        const p = osc7 ? '' : cwdFromTitle(t)
+        if (p) onCwd?.(p)
+      })
       let bellTimer: ReturnType<typeof setTimeout> | undefined
       const ring = term.onBell(() => {
         if (profile.bellSound) beep()
@@ -222,6 +239,7 @@
         input.dispose()
         resize.dispose()
         title.dispose()
+        cwdReport.dispose()
         ring.dispose()
         clearTimeout(bellTimer)
         host.removeEventListener('mouseup', onMouseUp)
@@ -360,6 +378,22 @@
       { label: 'Preferences…', icon: 'gear', hint: 'Ctrl+,', separator: true, run: a.preferences },
     )
     return items
+  }
+
+  /** "file://host/path" (percent-encoded) to "/path". */
+  function cwdFromOsc7(data: string): string {
+    try {
+      const u = new URL(data)
+      return u.protocol === 'file:' ? decodeURIComponent(u.pathname) : ''
+    } catch {
+      return ''
+    }
+  }
+
+  /** The folder in titles like "user@host: ~/app" or "user@host:/etc" (bash's defaults). */
+  function cwdFromTitle(t: string): string {
+    const m = /^[^\s@]+@[^\s:]+: ?([~/].*)$/.exec(t.trim())
+    return m ? m[1] : ''
   }
 
   function eraseCode(v: string): string {

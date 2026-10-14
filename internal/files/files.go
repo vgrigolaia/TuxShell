@@ -49,6 +49,13 @@ type backend interface {
 	download(ctx context.Context, file string, w io.Writer) error
 	// upload creates dir/name from r, refusing to overwrite.
 	upload(ctx context.Context, dir, name string, r io.Reader) error
+	rename(ctx context.Context, dir, from, to string) error
+	mkdir(ctx context.Context, dir, name string) error
+	remove(ctx context.Context, dir string, names []string) error
+	chmod(ctx context.Context, dir, name string, mode uint32, recursive bool) error
+	stat(ctx context.Context, file string) (Stat, error)
+	// replace overwrites a regular file with r, keeping its permissions.
+	replace(ctx context.Context, file string, r io.Reader) error
 }
 
 // ErrNotConnected means no shared ssh connection exists and the host
@@ -110,7 +117,12 @@ func lastLine(s string) string {
 // record per entry. It needs GNU find (all supported server distros have it).
 func listScript(dir string) string {
 	cd := "cd"
-	if dir != "" {
+	switch {
+	case dir == "" || dir == "~":
+	case strings.HasPrefix(dir, "~/"):
+		// A path from the terminal's prompt, relative to the home folder.
+		cd = `cd -- "$HOME"/` + quote(dir[2:])
+	default:
 		cd = "cd -- " + quote(dir)
 	}
 	return cd + ` || exit 2
@@ -211,12 +223,12 @@ exec cat > `+quote(name), r, nil)
 type local struct{}
 
 func (local) list(_ context.Context, dir string) (Listing, error) {
-	if dir == "" {
+	if dir == "" || dir == "~" || strings.HasPrefix(dir, "~/") {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return Listing{}, err
 		}
-		dir = home
+		dir = filepath.Join(home, strings.TrimPrefix(strings.TrimPrefix(dir, "~"), "/"))
 	}
 	abs, err := filepath.Abs(dir)
 	if err != nil {
