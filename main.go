@@ -16,6 +16,7 @@ import (
 	"github.com/vgrigolaia/tuxshell/internal/hostio"
 	"github.com/vgrigolaia/tuxshell/internal/hosts"
 	"github.com/vgrigolaia/tuxshell/internal/login"
+	"github.com/vgrigolaia/tuxshell/internal/rdp"
 	"github.com/vgrigolaia/tuxshell/internal/recordings"
 	"github.com/vgrigolaia/tuxshell/internal/secrets"
 	"github.com/vgrigolaia/tuxshell/internal/settings"
@@ -44,6 +45,7 @@ func init() {
 	application.RegisterEvent[[]status.Result](status.EventChanged)
 	application.RegisterEvent[application.Void](tunnels.EventChanged)
 	application.RegisterEvent[application.Void](hosts.EventHistoryChanged)
+	application.RegisterEvent[application.Void](rdp.EventChanged)
 	application.RegisterEvent[login.PasswordRequest](login.EventPassword)
 	application.RegisterEvent[string](login.EventDone)
 }
@@ -142,7 +144,8 @@ func main() {
 	forwards := tunnels.NewService(store, resolver, func() { app.Event.Emit(tunnels.EventChanged) })
 	// Saved passwords answer ssh's prompts through a private socket next to
 	// the control sockets; without that directory they stay in the terminal.
-	logins := login.New(store, secrets.New(),
+	keyring := secrets.New()
+	logins := login.New(store, keyring,
 		func() bool { return prefs.Get().Settings.SavePasswords },
 		func(name string, data any) { app.Event.Emit(name, data) },
 	)
@@ -153,6 +156,13 @@ func main() {
 	} else if err := logins.Start(controlDir, exe); err != nil {
 		log.Printf("saved passwords unavailable: %v", err)
 	}
+
+	// Remote desktops open in FreeRDP's own window; saved passwords come from
+	// the keyring like ssh's.
+	remoteDesktops := rdp.NewService(store, resolver, rdpPasswords{store: store, keyring: keyring, logins: logins,
+		enabled: func() bool { return prefs.Get().Settings.SavePasswords }},
+		func() string { return prefs.Get().Settings.RDPClient },
+		func(name string, data any) { app.Event.Emit(name, data) })
 
 	terminals := terminal.NewService(func(name string, data any) {
 		app.Event.Emit(name, data)
@@ -203,6 +213,7 @@ func main() {
 			application.NewService(forwards),
 			application.NewService(updates.NewService()),
 			application.NewService(images),
+			application.NewService(remoteDesktops),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -252,4 +263,32 @@ func main() {
 	if err := app.Run(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// rdpPasswords gives remote desktops the saved passwords, while "Allow saving
+// passwords" is on.
+type rdpPasswords struct {
+	store   *hosts.Store
+	keyring *secrets.Store
+	logins  *login.Manager
+	enabled func() bool
+}
+
+func (p rdpPasswords) Saved(id int64) (string, bool) {
+	if !p.enabled() {
+		return "", false
+	}
+	h, err := p.store.Get(id)
+	if err != nil || !h.PasswordSaved {
+		return "", false
+	}
+	pw, err := p.keyring.Get(id)
+	return pw, err == nil && pw != ""
+}
+
+func (p rdpPasswords) Save(id int64, password string) error {
+	if !p.enabled() {
+		return login.ErrDisabled
+	}
+	return p.logins.SavePassword(id, password)
 }

@@ -33,6 +33,8 @@ type Settings struct {
 	Profiles []NamedProfile `json:"profiles"`
 	// History keeps a list of connections: host, time and duration only.
 	History History `json:"history"`
+	// RDPClient picks the FreeRDP program: "auto", "x11" or "sdl".
+	RDPClient string `json:"rdpClient"`
 }
 
 // History says whether and how long connections are remembered.
@@ -176,8 +178,9 @@ func Defaults() Settings {
 			ConfirmClose:  true,
 			CtrlWheelZoom: true,
 		},
-		Profiles: []NamedProfile{},
-		History:  History{Enabled: true, Days: 90, Max: 1000},
+		Profiles:  []NamedProfile{},
+		History:   History{Enabled: true, Days: 90, Max: 1000},
+		RDPClient: "auto",
 	}
 }
 
@@ -249,6 +252,7 @@ func (s *Settings) normalize() {
 	d := Defaults()
 	oneOf(&s.Theme, d.Theme, "dark", "light", "system")
 	s.Terminal.Profile.normalize()
+	oneOf(&s.RDPClient, d.RDPClient, "auto", "x11", "sdl")
 	if s.History.Days == 0 {
 		s.History.Days = d.History.Days
 	}

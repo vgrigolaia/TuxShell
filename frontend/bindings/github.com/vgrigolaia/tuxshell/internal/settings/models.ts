@@ -197,6 +197,11 @@ export interface Settings {
      * History keeps a list of connections: host, time and duration only.
      */
     "history": History;
+
+    /**
+     * RDPClient picks the FreeRDP program: "auto", "x11" or "sdl".
+     */
+    "rdpClient": string;
 }
 
 /**

@@ -29,6 +29,7 @@ declare module "@wailsio/runtime" {
             "hosts:status": status$0.Result[] | null;
             "login:done": string;
             "login:password": login$0.PasswordRequest;
+            "rdp:changed": void;
             "terminal:data": terminal$0.DataEvent;
             "terminal:exit": terminal$0.ExitEvent;
             "terminal:recording": terminal$0.RecordingEvent;

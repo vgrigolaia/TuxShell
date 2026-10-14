@@ -67,6 +67,7 @@ const defaults = (): Settings => ({
   savePasswords: false,
   profiles: [],
   history: { enabled: true, days: 90, max: 1000 },
+  rdpClient: 'auto',
   terminal: {
     ...defaultProfile(),
     confirmClose: true,

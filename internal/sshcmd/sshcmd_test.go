@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/vgrigolaia/tuxshell/internal/hosts"
@@ -158,5 +159,27 @@ func TestHostCommandAs(t *testing.T) {
 	// The override is per-connection; the stored host is unchanged.
 	if got, _ := store.Get(h.ID); got.User != "" {
 		t.Fatalf("stored user = %q, want empty", got.User)
+	}
+}
+
+func TestJumpTunnelCommand(t *testing.T) {
+	bin := t.TempDir()
+	fake := filepath.Join(bin, "ssh")
+	_ = os.WriteFile(fake, []byte("#!/bin/sh\n"), 0o755)
+	t.Setenv("PATH", bin)
+	cmd, err := Resolver{}.JumpTunnelCommand("ops@edge:2200,admin@bastion", LocalForward(40000, "10.0.5.4", 3389))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := strings.Join(cmd.Args, " ")
+	for _, want := range []string{"-L 127.0.0.1:40000:10.0.5.4:3389", "-l admin", "-J ops@edge:2200", "-- bastion", "BatchMode=yes"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in %q", want, got)
+		}
+	}
+	for _, bad := range []string{"", "-oProxyCommand=x", "a,,"} {
+		if _, err := (Resolver{}).JumpTunnelCommand(bad, LocalForward(1, "x", 1)); err == nil {
+			t.Errorf("jump %q accepted", bad)
+		}
 	}
 }
