@@ -15,6 +15,13 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 import * as $models from "./models.js";
 
 /**
+ * ChooseFolder asks for a local folder to share ("" if cancelled).
+ */
+export function ChooseFolder(): $CancellablePromise<string> {
+    return $Call.ByID(1909628226);
+}
+
+/**
  * Client reports the FreeRDP client that would be used.
  */
 export function Client(): $CancellablePromise<$models.ClientInfo> {

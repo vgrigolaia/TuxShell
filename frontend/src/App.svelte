@@ -17,6 +17,8 @@
   import { updates } from './lib/updates.svelte'
   import { logins } from './lib/logins.svelte'
   import { edits } from './lib/edits.svelte'
+  import { remoteDesktops } from './lib/rdp.svelte'
+  import RdpConnect from './lib/components/RdpConnect.svelte'
   import PromptDialog from './lib/components/PromptDialog.svelte'
   import { prefs } from './lib/settings.svelte'
   import { closer } from './lib/close.svelte'
@@ -134,6 +136,7 @@
     const offTunnels = tunnels.start()
     const offLogins = logins.start()
     const offEdits = edits.start()
+    const offRdp = remoteDesktops.start()
     void snippets.load()
     void Terminals.DisplayServer().then((d) => (displayServer = d), () => {})
     const clock = setInterval(() => (now = Date.now()), 30000)
@@ -199,6 +202,7 @@
       offTunnels()
       offLogins()
       offEdits()
+      offRdp()
       clearInterval(clock)
       offClose()
       window.removeEventListener('keydown', onKey, { capture: true })
@@ -221,11 +225,15 @@
   }
 
   // Hosts without a saved user ask for one in the pane before connecting.
-  const connect = (host: Host) => open({ kind: 'host', hostId: host.id, askUser: !host.user }, host.name)
-  const connectAs = (host: Host) => open({ kind: 'host', hostId: host.id, askUser: true }, host.name)
+  // Remote desktop hosts open their own window instead of a terminal.
+  const connect = (host: Host) => (host.protocol === 'rdp' ? (remoteDesktops.connecting = host) : open({ kind: 'host', hostId: host.id, askUser: !host.user }, host.name))
+  const connectAs = (host: Host) => (host.protocol === 'rdp' ? (remoteDesktops.connecting = host) : open({ kind: 'host', hostId: host.id, askUser: true }, host.name))
 
   // Opens hosts as the panes of one new tab (quick connect's "Open all in split").
-  function openSplit(hosts: Host[]) {
+  function openSplit(all: Host[]) {
+    for (const h of all) if (h.protocol === 'rdp') remoteDesktops.connecting = h
+    const hosts = all.filter((h) => h.protocol !== 'rdp')
+    if (!hosts.length) return
     const [first, ...rest] = hosts
     workspace.openTab({ kind: 'host', hostId: first.id, askUser: !first.user }, first.name)
     const key = workspace.activeKey
@@ -463,6 +471,11 @@
   />
 {/if}
 
+{#if remoteDesktops.connecting}
+  {#key remoteDesktops.connecting.id}
+    <RdpConnect host={remoteDesktops.connecting} onClose={() => (remoteDesktops.connecting = null)} />
+  {/key}
+{/if}
 {#if prefsOpen}
   <Preferences onClose={() => (prefsOpen = false)} onImport={() => openImport()} />
 {/if}

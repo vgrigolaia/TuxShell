@@ -85,6 +85,8 @@ type Service struct {
 	prefer    func() string
 	emit      func(name string, data any)
 
+	pickFolder func() (string, error)
+
 	seq      atomic.Uint64
 	mu       sync.Mutex
 	sessions map[string]*running
@@ -105,6 +107,18 @@ type ClientInfo struct {
 	Installed bool   `json:"installed"`
 	Client    Client `json:"client"`
 	Hint      string `json:"hint"`
+}
+
+// UseFolderPicker sets the dialog that chooses folders to share. A function,
+// so it isn't bound.
+func UseFolderPicker(s *Service, pick func() (string, error)) { s.pickFolder = pick }
+
+// ChooseFolder asks for a local folder to share ("" if cancelled).
+func (s *Service) ChooseFolder() (string, error) {
+	if s.pickFolder == nil {
+		return "", errors.New("folder picker unavailable")
+	}
+	return s.pickFolder()
 }
 
 // Client reports the FreeRDP client that would be used.
@@ -138,6 +152,14 @@ func (s *Service) Connect(ctx context.Context, hostID int64, opts ConnectOptions
 	server, port := h.Hostname, h.Port
 	var tunnel *exec.Cmd
 	if h.ProxyJump != "" {
+		// A hop may name a saved SSH host rather than an ssh_config alias.
+		if list, err := s.store.List(); err == nil {
+			byName := map[string]hosts.Host{}
+			for _, x := range list {
+				byName[strings.ToLower(x.Name)] = x
+			}
+			h.ProxyJump = hosts.ResolveJump(h.Name, h.ProxyJump, byName)
+		}
 		local, err := freePort()
 		if err != nil {
 			return Session{}, err

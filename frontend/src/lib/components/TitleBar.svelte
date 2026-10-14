@@ -10,6 +10,9 @@
   import { prefs } from '../settings.svelte'
   import { updates } from '../updates.svelte'
   import { edits } from '../edits.svelte'
+  import { remoteDesktops } from '../rdp.svelte'
+  import { hostStore } from '../hosts.svelte'
+  import RdpSessions from './RdpSessions.svelte'
   import type { Orientation } from '../layout'
   import { MAX_PANES } from '../layout'
 
@@ -38,6 +41,8 @@
   }
 
   let { tabs, activeKey, clipboardOpen, hostsOpen, onToggleHosts, filesOpen, onToggleFiles, onSelect, onClose, onCloseMany, onMerge, onSplit, onUnsplit, onRename, onNew, onSearch, onToggleClipboard, onPreferences, homeActive, onHome }: Props = $props()
+
+  let rdpOpen = $state(false)
 
   let maximised = $state(false)
   let strip: HTMLDivElement
@@ -240,6 +245,21 @@
         <Icon name="download" size={13} />
         Update {updates.result.latest}
       </button>
+    {/if}
+    {#if remoteDesktops.sessions.length || hostStore.list.some((h) => h.protocol === 'rdp')}
+      <span class="relative">
+        <button
+          class="relative {wc} {rdpOpen ? 'bg-accent-chip text-accent-ink' : ''}"
+          aria-label="Remote desktops{remoteDesktops.open ? ` (${remoteDesktops.open} open)` : ''}"
+          aria-expanded={rdpOpen}
+          title="Remote desktops"
+          onclick={() => (rdpOpen = !rdpOpen)}
+        >
+          <Icon name="monitor" size={14} />
+          {#if remoteDesktops.open}<span class="absolute -top-0.5 -right-0.5 grid min-w-3.5 place-items-center rounded-full bg-success px-1 text-[9px] leading-3.5 font-bold text-ground">{remoteDesktops.open}</span>{/if}
+        </button>
+        {#if rdpOpen}<RdpSessions onClose={() => (rdpOpen = false)} />{/if}
+      </span>
     {/if}
     <button
       class="{wc} {clipboardOpen ? 'bg-accent-chip text-accent-ink' : ''}"

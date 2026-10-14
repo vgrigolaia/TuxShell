@@ -374,7 +374,7 @@ func buildRows(p *pending, existing []hosts.Host) (rows []Row, plain map[int]str
 	for _, x := range list {
 		r := Row{Line: x.line}
 		h, err := x.host, x.err
-		h.ProxyJump = resolveJump(h.Name, h.ProxyJump, byName, 0)
+		h.ProxyJump = hosts.ResolveJump(h.Name, h.ProxyJump, byName)
 		h.Normalize()
 		if err == nil {
 			err = h.Validate()
@@ -400,46 +400,6 @@ func buildRows(p *pending, existing []hosts.Host) (rows []Row, plain map[int]str
 		rows = append(rows, r)
 	}
 	return rows, plain
-}
-
-// resolveJump replaces hops that name a known host with that host's address,
-// keeping the host's own jump hosts in front, so plain ssh can follow them.
-func resolveJump(self, jump string, byName map[string]hosts.Host, depth int) string {
-	if jump == "" || depth > 4 {
-		return jump
-	}
-	var hops []string
-	for _, hop := range strings.Split(jump, ",") {
-		hop = strings.TrimSpace(hop)
-		b, ok := byName[strings.ToLower(hop)]
-		if !ok || strings.EqualFold(hop, self) || (b.Hostname == "" && b.Alias == "") {
-			hops = append(hops, hop)
-			continue
-		}
-		if inner := resolveJump(b.Name, b.ProxyJump, byName, depth+1); inner != "" {
-			hops = append(hops, inner)
-		}
-		hops = append(hops, address(b))
-	}
-	return strings.Join(hops, ",")
-}
-
-// address is [user@]host[:port] for ssh -J, with IPv6 in brackets.
-func address(h hosts.Host) string {
-	host := h.Hostname
-	if host == "" {
-		host = h.Alias
-	}
-	if strings.Contains(host, ":") {
-		host = "[" + host + "]"
-	}
-	if h.User != "" {
-		host = h.User + "@" + host
-	}
-	if h.Port != 0 && h.Port != 22 {
-		host += ":" + strconv.Itoa(h.Port)
-	}
-	return host
 }
 
 // uniqueName returns name, or "name (2)" and so on when it's taken, and marks

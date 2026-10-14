@@ -92,6 +92,7 @@
   function auth(h: Host) {
     if (h.proxyJump) return `via ${h.proxyJump}`
     if (h.passwordRef) return '1Password ref'
+    if (h.protocol === 'rdp') return h.passwordSaved ? 'remote desktop · password saved' : 'remote desktop'
     return h.passwordSaved ? 'password saved' : h.identityFile ? 'key file' : 'default keys'
   }
 

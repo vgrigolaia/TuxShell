@@ -164,6 +164,11 @@ func main() {
 		func() string { return prefs.Get().Settings.RDPClient },
 		func(name string, data any) { app.Event.Emit(name, data) })
 
+	rdp.UseFolderPicker(remoteDesktops, func() (string, error) {
+		return app.Dialog.OpenFile().CanChooseDirectories(true).CanChooseFiles(false).
+			SetTitle("Folder to share with the remote desktop").SetButtonText("Share").PromptForSingleSelection()
+	})
+
 	terminals := terminal.NewService(func(name string, data any) {
 		app.Event.Emit(name, data)
 	}, resolver, prefs.Shell)
