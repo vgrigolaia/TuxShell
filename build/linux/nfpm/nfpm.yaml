@@ -12,10 +12,19 @@ priority: "extra"
 maintainer: "vgrigolaia <vgrigolaia@outlook.com>"
 # The first line is the package summary.
 description: |
-  SSH connection manager for Linux
-  Saved hosts with groups and jump hosts, import from ~/.ssh/config, CSV,
-  Excel and other tools, split panes, broadcast typing, tunnels, a file
-  browser and encrypted clipboard history.
+  Manage and connect to your SSH hosts
+  TuxShell is a free, open-source SSH connection manager for Linux, in the
+  spirit of Termius and MobaXterm. It connects with your system ssh, so your
+  ~/.ssh/config, keys, agents and jump hosts work as they already do.
+
+  - Saved hosts with groups, tags, jump hosts and operating system logos
+  - Import from ~/.ssh/config, CSV, Excel, MobaXterm, Remmina, PuTTY, Ansible
+  - Split view with up to four panes, and typing to several servers at once
+  - A file browser that reuses your open SSH connection
+  - Snippets, port forwards and SOCKS tunnels
+  - Encrypted clipboard history, dark and light themes
+
+  No account and no cloud: your hosts stay on your computer.
 vendor: "vgrigolaia"
 homepage: "https://github.com/vgrigolaia/TuxShell"
 license: "GPL-3.0-or-later"
@@ -41,6 +50,10 @@ contents:
     dst: "/usr/share/metainfo/io.github.vgrigolaia.TuxShell.metainfo.xml"
   - src: "./LICENSE"
     dst: "/usr/share/licenses/tuxshell/LICENSE"
+  # Debian keeps a package's license here (machine-readable copyright format).
+  - src: "./build/linux/copyright"
+    dst: "/usr/share/doc/tuxshell/copyright"
+    packager: deb
 
 # Default dependencies for the GTK4 + WebKitGTK 6.0 stack (Ubuntu 24.04+ / Debian 13+)
 # TuxShell runs the system ssh, and lists fonts with fontconfig.
