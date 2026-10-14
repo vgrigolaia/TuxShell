@@ -38,6 +38,9 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
 - **Terminal menu** (right-click): copy, paste, set title, split, open in new tab, read
   only, scrollbar, zoom. Ctrl+mouse wheel zooms text.
 - **Dark and light themes**, or follow the system.
+- **About and updates** (Preferences → About): the version and project links. Check for
+  updates on request, or at startup if you turn it on (off by default). TuxShell only
+  links to the new release; it never downloads or installs anything itself.
 
 All shortcuts are listed in Preferences → Shortcuts.
 
@@ -48,17 +51,17 @@ Download the package for your distribution from the
 
 ```sh
 # Fedora, RHEL, AlmaLinux, Rocky Linux
-sudo dnf install ./tuxshell-1.1.1-1.x86_64.rpm
+sudo dnf install ./tuxshell-1.1.3-1.x86_64.rpm
 
 # Debian, Ubuntu
-sudo apt install ./tuxshell_1.1.1-1_amd64.deb
+sudo apt install ./tuxshell_1.1.3-1_amd64.deb
 ```
 
 Or run the AppImage on any distribution:
 
 ```sh
-chmod +x TuxShell-1.1.1-x86_64.AppImage
-./TuxShell-1.1.1-x86_64.AppImage
+chmod +x TuxShell-1.1.3-x86_64.AppImage
+./TuxShell-1.1.3-x86_64.AppImage
 ```
 
 Supported: Fedora 39+, RHEL/Alma/Rocky 10, Debian 13+ and Ubuntu 24.04+. TuxShell needs

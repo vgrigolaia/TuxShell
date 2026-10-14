@@ -6,7 +6,7 @@
 name: "tuxshell"
 arch: ${GOARCH}
 platform: "linux"
-version: "1.1.1"
+version: "1.1.3"
 section: "net"
 priority: "extra"
 maintainer: "vgrigolaia <vgrigolaia@outlook.com>"
