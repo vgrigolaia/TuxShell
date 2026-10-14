@@ -68,3 +68,39 @@ export interface Tunnel {
     "targetHost": string;
     "targetPort": number;
 }
+
+/**
+ * Visit is one connection in the history. Only which host, as whom, when and
+ * for how long are kept: never commands or anything shown in the terminal.
+ */
+export interface Visit {
+    "id": number;
+
+    /**
+     * HostID is the saved host, or 0 for an ad-hoc target. The host may have
+     * been deleted since; Name keeps what it was called.
+     */
+    "hostId": number;
+    "name": string;
+
+    /**
+     * Target is what ssh connected to: user@host[:port].
+     */
+    "target": string;
+
+    /**
+     * Unix milliseconds
+     */
+    "started": number;
+
+    /**
+     * Ended is 0 while the session is open.
+     */
+    "ended": number;
+
+    /**
+     * Result is "open", "ok" (ended normally) or "failed" (ssh ended with an
+     * error: it couldn't connect or log in, or the connection dropped).
+     */
+    "result": string;
+}

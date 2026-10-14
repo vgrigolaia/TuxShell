@@ -7,6 +7,7 @@ export {
 };
 
 export type {
+    History,
     Loaded,
     NamedProfile,
     Palette,

@@ -41,6 +41,7 @@ func init() {
 	application.RegisterEvent[int](eventConfirmClose)
 	application.RegisterEvent[[]status.Result](status.EventChanged)
 	application.RegisterEvent[application.Void](tunnels.EventChanged)
+	application.RegisterEvent[application.Void](hosts.EventHistoryChanged)
 	application.RegisterEvent[login.PasswordRequest](login.EventPassword)
 	application.RegisterEvent[string](login.EventDone)
 }
@@ -155,6 +156,19 @@ func main() {
 		app.Event.Emit(name, data)
 	}, resolver, prefs.Shell)
 	terminal.SetAuth(terminals, logins)
+	// Connection history: which host, when and for how long, never what was typed or shown.
+	if err := store.CloseOpenVisits(); err != nil {
+		log.Printf("history: %v", err)
+	}
+	terminal.SetHistory(terminals, hosts.Recorder{
+		Store:   store,
+		Enabled: func() bool { return prefs.Get().Settings.History.Enabled },
+		Limits: func() hosts.HistoryLimits {
+			h := prefs.Get().Settings.History
+			return hosts.HistoryLimits{Days: h.Days, Max: h.Max}
+		},
+		Changed: func() { app.Event.Emit(hosts.EventHistoryChanged) },
+	})
 
 	app = application.New(application.Options{
 		Name:        "TuxShell",
@@ -177,6 +191,7 @@ func main() {
 			application.NewService(prefs),
 			application.NewService(hostStatus),
 			application.NewService(hosts.NewSnippetService(store)),
+			application.NewService(hosts.NewHistoryService(store)),
 			application.NewService(forwards),
 			application.NewService(updates.NewService()),
 			application.NewService(images),
