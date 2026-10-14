@@ -8,20 +8,25 @@
   import { updates, VERSION } from '../updates.svelte'
   import { Browser } from '@wailsio/runtime'
   import Logo from './Logo.svelte'
+  import ExportHosts from './ExportHosts.svelte'
+  import * as HostIO from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/hostio/service'
 
   const REPO = 'https://github.com/vgrigolaia/TuxShell'
 
   interface Props {
     onClose: () => void
+    /** Opens the import window (it stacks over Preferences). */
+    onImport: () => void
   }
-  let { onClose }: Props = $props()
+  let { onClose, onImport }: Props = $props()
 
-  type Section = 'text' | 'cursor' | 'colours' | 'behaviour' | 'shortcuts' | 'about'
+  type Section = 'text' | 'cursor' | 'colours' | 'behaviour' | 'hosts' | 'shortcuts' | 'about'
   const sections: { id: Section; label: string }[] = [
     { id: 'text', label: 'Text' },
     { id: 'cursor', label: 'Cursor' },
     { id: 'colours', label: 'Colours' },
     { id: 'behaviour', label: 'Behaviour' },
+    { id: 'hosts', label: 'Hosts' },
     { id: 'shortcuts', label: 'Shortcuts' },
     { id: 'about', label: 'About' },
   ]
@@ -30,6 +35,7 @@
   let fonts = $state<string[] | null>(null)
   let shells = $state<string[]>([])
   let confirmReset = $state(false)
+  let templateSaved = $state('')
   const id = $props.id()
 
   const t = $derived(prefs.value.terminal)
@@ -298,6 +304,22 @@
             {#if prefs.error?.field === 'shell'}<p role="alert" class="mt-1 text-xs text-warning">{prefs.error.message}</p>{/if}
           </div>
         </div>
+      {:else if section === 'hosts'}
+        <h3 class="sr-only">Hosts</h3>
+        <section aria-labelledby="{id}-import">
+          <h4 id="{id}-import" class="text-[13px] font-medium">Import hosts</h4>
+          <p class={hint}>From ~/.ssh/config, CSV/TSV, Excel (.xlsx), a TuxShell export, MobaXterm, Remmina, PuTTY or an Ansible inventory. You see every host before it's saved. Passwords are never imported.</p>
+          <button class="mt-3 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-on-accent hover:bg-accent/90" onclick={onImport}>Import hosts…</button>
+          <button
+            class="mt-3 ml-2 rounded-lg border border-line px-3 py-1.5 text-xs text-muted hover:bg-raised hover:text-fg"
+            onclick={async () => {
+              const path = await HostIO.SaveTemplate().catch(() => '')
+              if (path) templateSaved = path
+            }}>Download CSV template</button
+          >
+          {#if templateSaved}<p role="status" class="mt-2 truncate text-xs text-success" title={templateSaved}>Template saved to {templateSaved}</p>{/if}
+        </section>
+        <ExportHosts />
       {:else if section === 'about'}
         <h3 class="sr-only">About</h3>
         <div class="flex items-center gap-4">

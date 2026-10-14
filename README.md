@@ -10,7 +10,8 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
 - **Home**: a start page with your hosts, snippets and tunnels. Double-click Hosts to
   open the host list next to your sessions.
 - **Hosts**: saved hosts with groups, tags, jump hosts (ProxyJump) and identity files.
-  Filter, bulk select and delete. Import from `~/.ssh/config` (usernames optional).
+  Filter, bulk select and delete. Optional operating system per host, shown with its logo
+  (Ubuntu, Debian, RHEL, AlmaLinux, Rocky, Fedora and more).
   Hosts without a saved user ask for one when you connect, with an option to save it.
 - **Host status**: a dot shows which hosts answer ping (up, slow or down). Checked with
   ICMP, never by opening SSH connections; can be turned off. Test a host's login from its form.
@@ -28,6 +29,11 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
   connection, so you log in once.
 - **File browser** (Ctrl+Shift+E): browse the focused pane's host, download, upload with a
   file picker or drag-and-drop. Never overwrites files on either side.
+- **Import and export**: import from `~/.ssh/config` (usernames optional), CSV/TSV, Excel
+  (.xlsx), MobaXterm, Remmina, PuTTY (Linux or a Windows .reg export) and Ansible INI
+  inventories, with a preview of every host before it's saved. A ready-to-fill CSV template
+  is included. Export as TuxShell JSON, CSV or ssh_config (Preferences → Hosts). Passwords are
+  never imported or exported; only 1Password references (`op://…`) are kept.
 - **Clipboard history** (Ctrl+Shift+H): encrypted at rest with a key in your keyring.
   Skips password- and token-looking text. Pin and edit clips, choose how long they're kept.
   Each clip shows which host it was copied from.
@@ -51,17 +57,17 @@ Download the package for your distribution from the
 
 ```sh
 # Fedora, RHEL, AlmaLinux, Rocky Linux
-sudo dnf install ./tuxshell-1.1.3-1.x86_64.rpm
+sudo dnf install ./tuxshell-1.1.4-1.x86_64.rpm
 
 # Debian, Ubuntu
-sudo apt install ./tuxshell_1.1.3-1_amd64.deb
+sudo apt install ./tuxshell_1.1.4-1_amd64.deb
 ```
 
 Or run the AppImage on any distribution:
 
 ```sh
-chmod +x TuxShell-1.1.3-x86_64.AppImage
-./TuxShell-1.1.3-x86_64.AppImage
+chmod +x TuxShell-1.1.4-x86_64.AppImage
+./TuxShell-1.1.4-x86_64.AppImage
 ```
 
 Supported: Fedora 39+, RHEL/Alma/Rocky 10, Debian 13+ and Ubuntu 24.04+. TuxShell needs
@@ -108,3 +114,6 @@ If the window stays blank on Wayland, try `WEBKIT_DISABLE_DMABUF_RENDERER=1 task
 ## License
 
 TuxShell is free software under the [GNU General Public License v3.0 or later](LICENSE).
+
+Operating system logos are from [Simple Icons](https://simpleicons.org) (CC0 1.0). They are
+trademarks of their owners and are used only to identify each system.

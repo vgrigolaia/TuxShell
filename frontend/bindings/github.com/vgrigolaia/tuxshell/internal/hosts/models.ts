@@ -22,6 +22,11 @@ export interface Host {
     "identityFile": string;
     "passwordRef": string;
     "tags": string[] | null;
+
+    /**
+     * OS is one of OSes, or "" when not set. It only picks the logo shown.
+     */
+    "os": string;
 }
 
 /**

@@ -24,6 +24,8 @@ type Host struct {
 	IdentityFile string   `json:"identityFile"`
 	PasswordRef  string   `json:"passwordRef"`
 	Tags         []string `json:"tags"`
+	// OS is one of OSes, or "" when not set. It only picks the logo shown.
+	OS string `json:"os"`
 }
 
 // ValidationError reports a problem with one field, so the form can show it inline.
@@ -54,6 +56,7 @@ func (h *Host) Normalize() {
 	h.ProxyJump = strings.TrimSpace(h.ProxyJump)
 	h.IdentityFile = strings.TrimSpace(h.IdentityFile)
 	h.PasswordRef = strings.TrimSpace(h.PasswordRef)
+	h.OS = strings.ToLower(strings.TrimSpace(h.OS))
 	if h.Port == 0 {
 		h.Port = 22
 	}
@@ -95,6 +98,8 @@ func (h *Host) Validate() error {
 		return invalid("identityFile", "Not a valid file path")
 	case h.PasswordRef != "" && !strings.HasPrefix(h.PasswordRef, "op://"):
 		return invalid("passwordRef", "Use a 1Password reference like op://Vault/Item/field")
+	case h.OS != "" && !knownOS(h.OS):
+		return invalid("os", "Unknown operating system")
 	}
 	for _, t := range h.Tags {
 		if !tagRe.MatchString(t) {

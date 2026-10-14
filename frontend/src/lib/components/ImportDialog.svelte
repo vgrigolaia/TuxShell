@@ -1,144 +1,148 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import * as SSHConfig from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/sshconfig/service'
-  import type { Candidate } from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/sshconfig/models'
-  import { errorMessage, hostStore } from '../hosts.svelte'
+  import * as HostIO from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/hostio/service'
+  import type { Preview } from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/hostio/models'
+  import { errorMessage } from '../hosts.svelte'
   import Icon from './Icon.svelte'
+  import ImportSshConfig from './ImportSshConfig.svelte'
+  import ImportFile from './ImportFile.svelte'
 
   interface Props {
+    /** Opens straight at the ~/.ssh/config list instead of the source list. */
+    start?: 'sshconfig'
     onClose: () => void
   }
-  let { onClose }: Props = $props()
+  let { start, onClose }: Props = $props()
+
+  /** Where hosts can come from. "sshconfig" is read in place; the others go through HostIO.Open. */
+  type Source = { id: string; title: string; detail: string }
+  const sections: { label: string; sources: Source[] }[] = [
+    {
+      label: 'Files',
+      sources: [
+        { id: 'sshconfig', title: '~/.ssh/config', detail: 'Hosts from your OpenSSH config' },
+        { id: 'csv', title: 'CSV or TSV file', detail: 'A spreadsheet saved as CSV, from Excel, LibreOffice or another tool' },
+        { id: 'xlsx', title: 'Excel workbook (.xlsx)', detail: 'The first sheet, one host per row' },
+        { id: 'json', title: 'TuxShell export (.json)', detail: 'A file made with Export in Preferences → Hosts' },
+      ],
+    },
+    {
+      label: 'Other apps',
+      sources: [
+        { id: 'mobaxterm', title: 'MobaXterm', detail: 'A session export (.mxtsessions): Settings → Export sessions' },
+        { id: 'remmina', title: 'Remmina', detail: 'SSH connections saved in Remmina on this computer' },
+        { id: 'putty', title: 'PuTTY', detail: 'Sessions saved by PuTTY on this computer (~/.putty)' },
+        { id: 'puttyreg', title: 'PuTTY on Windows', detail: 'A .reg export of the PuTTY Sessions registry key' },
+        { id: 'ansible', title: 'Ansible inventory', detail: 'An INI inventory file; groups and host variables are read' },
+      ],
+    },
+  ]
 
   let dialog: HTMLDialogElement
-  let candidates = $state<Candidate[] | null>(null)
-  let chosen = $state<Record<string, boolean>>({})
+  // svelte-ignore state_referenced_locally
+  let step = $state<'source' | 'sshconfig' | 'file'>(start ?? 'source')
+  let preview = $state<Preview | null>(null)
   let error = $state<string | null>(null)
-  let busy = $state(false)
-  let withUsers = $state(false)
-  let result = $state<{ imported: number; skipped: string[] } | null>(null)
+  let opening = $state(false)
+  let templateSaved = $state('')
 
-  const importable = $derived((candidates ?? []).filter((c) => !c.imported && !c.error))
-  const selected = $derived(importable.filter((c) => chosen[c.alias]))
-  const allChosen = $derived(importable.length > 0 && selected.length === importable.length)
+  const titles = { source: 'Import hosts', sshconfig: 'Import from ~/.ssh/config', file: 'Import hosts from a file' }
 
-  onMount(() => {
-    dialog.showModal()
-    void scan()
-  })
+  onMount(() => dialog.showModal())
 
-  async function scan() {
-    try {
-      candidates = (await SSHConfig.Scan()) ?? []
-      chosen = Object.fromEntries(candidates.filter((c) => !c.imported && !c.error).map((c) => [c.alias, true]))
-    } catch (e) {
-      error = errorMessage(e)
-    }
-  }
-
-  async function run() {
-    busy = true
+  async function choose(id: string) {
     error = null
+    if (id === 'sshconfig') {
+      step = 'sshconfig'
+      return
+    }
+    opening = true
     try {
-      const res = await SSHConfig.Import(selected.map((c) => c.alias), withUsers)
-      result = { imported: res.imported, skipped: res.skipped ?? [] }
-      await hostStore.load()
+      const p = await HostIO.Open(id)
+      if (p) {
+        preview = p
+        step = 'file'
+      }
     } catch (e) {
       error = errorMessage(e)
     } finally {
-      busy = false
+      opening = false
     }
   }
 
-  function toggleAll() {
-    const next = !allChosen
-    for (const c of importable) chosen[c.alias] = next
+  async function saveTemplate() {
+    error = null
+    try {
+      const path = await HostIO.SaveTemplate()
+      if (path) templateSaved = path
+    } catch (e) {
+      error = errorMessage(e)
+    }
   }
 
-  function describe(c: Candidate) {
-    const user = withUsers && c.user ? `${c.user}@` : ''
-    const port = c.port && c.port !== 22 ? `:${c.port}` : ''
-    const via = c.proxyJump ? ` · via ${c.proxyJump}` : ''
-    return `${user}${c.hostname}${port}${via}`
+  function back() {
+    void HostIO.Cancel()
+    preview = null
+    error = null
+    step = 'source'
   }
 </script>
 
 <dialog
   bind:this={dialog}
   aria-labelledby="import-title"
-  class="m-auto flex max-h-[80vh] w-[560px] flex-col overflow-hidden rounded-2xl border border-line bg-panel p-0 text-fg shadow-2xl backdrop:bg-black/60"
-  onclose={onClose}
+  class="m-auto flex max-h-[85vh] flex-col overflow-hidden rounded-2xl border border-line bg-panel p-0 text-fg shadow-2xl backdrop:bg-black/60 {step === 'file' ? 'w-[820px]' : 'w-[560px]'} max-w-[calc(100vw-32px)]"
+  onclose={() => {
+    void HostIO.Cancel()
+    onClose()
+  }}
 >
   <div class="flex items-center gap-3 border-b border-line px-5 py-4">
-    <span class="grid size-8 place-items-center rounded-lg bg-accent/15 text-accent"><Icon name="import" size={16} /></span>
-    <div class="flex-1">
-      <h2 id="import-title" class="font-display text-[15px] font-semibold">Import from ~/.ssh/config</h2>
-      <p class="text-xs text-subtle">Hosts connect through their alias, so the rest of your config still applies.</p>
-    </div>
+    {#if step !== 'source'}
+      <button class="grid size-7 place-items-center rounded-lg text-muted hover:bg-raised hover:text-fg" aria-label="Back to import sources" onclick={back}>
+        <span class="rotate-180"><Icon name="chevron" size={14} /></span>
+      </button>
+    {:else}
+      <span class="grid size-8 place-items-center rounded-lg bg-accent/15 text-accent"><Icon name="import" size={16} /></span>
+    {/if}
+    <h2 id="import-title" class="flex-1 font-display text-[15px] font-semibold">{titles[step]}</h2>
     <button class="grid size-7 place-items-center rounded-lg text-muted hover:bg-raised hover:text-fg" aria-label="Close" onclick={() => dialog.close()}>
       <Icon name="x" size={14} />
     </button>
   </div>
 
-  <div class="min-h-0 flex-1 overflow-y-auto px-2 py-2">
-    {#if error}
-      <p role="alert" class="m-3 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">{error}</p>
-    {/if}
-
-    {#if result}
-      <div role="status" class="space-y-2 px-3 py-4 text-[13px]">
-        <p><span class="text-success">Imported {result.imported} {result.imported === 1 ? 'host' : 'hosts'}</span> into the "SSH config" group.</p>
-        {#if result.skipped.length}
-          <p class="text-muted">Skipped:</p>
-          <ul class="list-inside list-disc font-mono text-xs text-subtle">
-            {#each result.skipped as s (s)}<li>{s}</li>{/each}
-          </ul>
-        {/if}
+  {#if step === 'sshconfig'}
+    <ImportSshConfig close={() => dialog.close()} />
+  {:else if step === 'file' && preview}
+    <ImportFile {preview} close={() => dialog.close()} />
+  {:else}
+    <div class="min-h-0 flex-1 overflow-y-auto p-3">
+      {#if error}
+        <p role="alert" class="mb-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">{error}</p>
+      {/if}
+      {#each sections as sec (sec.label)}
+        <h3 class="px-3 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-subtle uppercase">{sec.label}</h3>
+        <ul class="flex flex-col gap-0.5">
+          {#each sec.sources as s (s.id)}
+            <li>
+              <button class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-raised disabled:opacity-60" disabled={opening} onclick={() => void choose(s.id)}>
+                <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-raised text-muted"><Icon name={s.id === 'sshconfig' ? 'terminal' : sec.label === 'Files' ? 'file' : 'import'} size={15} /></span>
+                <span class="min-w-0 flex-1">
+                  <span class="block text-[13px] font-medium">{s.title}</span>
+                  <span class="block truncate text-xs text-subtle">{s.detail}</span>
+                </span>
+                <Icon name="chevron" size={14} />
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {/each}
+      <div class="mx-3 mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-line bg-ground px-3 py-2.5 text-xs">
+        <span class="min-w-0 flex-1 text-muted">Starting a host list from scratch? Fill in our CSV template in Excel or LibreOffice, then import it as a CSV file.</span>
+        <button class="shrink-0 rounded-md border border-strong px-2.5 py-1 font-medium hover:bg-raised" onclick={saveTemplate}>Download template</button>
+        {#if templateSaved}<p role="status" class="w-full truncate text-success" title={templateSaved}>Saved to {templateSaved}</p>{/if}
       </div>
-    {:else if candidates === null && !error}
-      <p class="px-3 py-6 text-center text-[13px] text-muted">Reading your ssh config…</p>
-    {:else if candidates && candidates.length === 0}
-      <p class="px-3 py-6 text-center text-[13px] text-muted">No Host entries found in ~/.ssh/config.</p>
-    {:else if candidates}
-      <fieldset>
-        <legend class="sr-only">Hosts to import</legend>
-        <label class="flex items-center gap-3 rounded-lg px-3 py-2 text-xs text-muted hover:bg-raised">
-          <input type="checkbox" class="size-4 accent-accent" checked={allChosen} disabled={importable.length === 0} onchange={toggleAll} />
-          Select all ({importable.length} new)
-        </label>
-        {#each candidates as c (c.alias)}
-          <label class="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-raised" class:opacity-60={c.imported || !!c.error}>
-            <input type="checkbox" class="size-4 accent-accent" bind:checked={chosen[c.alias]} disabled={c.imported || !!c.error} />
-            <span class="min-w-0 flex-1">
-              <span class="block truncate text-[13px]">{c.alias}</span>
-              <span class="block truncate font-mono text-[11px] {c.error ? 'text-warning' : 'text-subtle'}">{c.error || describe(c)}</span>
-            </span>
-            {#if c.imported}<span class="shrink-0 rounded-md bg-raised px-2 py-0.5 text-[11px] text-muted">added</span>{/if}
-          </label>
-        {/each}
-      </fieldset>
-    {/if}
-  </div>
-
-  <div class="flex items-center justify-end gap-2 border-t border-line px-5 py-3">
-    {#if !result}
-      <label class="mr-auto flex items-center gap-2 text-xs text-muted">
-        <input type="checkbox" class="size-4 accent-accent" bind:checked={withUsers} aria-describedby="import-users-hint" />
-        Import usernames from config
-        <span id="import-users-hint" class="sr-only">Off: ssh picks the login name when you connect.</span>
-      </label>
-    {/if}
-    {#if result}
-      <button class="rounded-lg bg-accent px-3 py-1.5 text-[13px] font-medium text-on-accent hover:bg-accent/90" onclick={() => dialog.close()}>Done</button>
-    {:else}
-      <button class="rounded-lg px-3 py-1.5 text-[13px] text-muted hover:bg-raised hover:text-fg" onclick={() => dialog.close()}>Cancel</button>
-      <button
-        class="rounded-lg bg-accent px-3 py-1.5 text-[13px] font-medium text-on-accent hover:bg-accent/90 disabled:opacity-50"
-        disabled={busy || selected.length === 0}
-        onclick={run}
-      >
-        {busy ? 'Importing…' : `Import ${selected.length || ''}`}
-      </button>
-    {/if}
-  </div>
+      <p class="mt-3 px-3 text-xs text-subtle">Passwords in imported files are never stored. Only 1Password references (op://…) are kept.</p>
+    </div>
+  {/if}
 </dialog>

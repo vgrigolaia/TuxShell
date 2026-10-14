@@ -3,6 +3,25 @@
 All notable changes to TuxShell are listed here. Versions follow
 [Semantic Versioning](https://semver.org).
 
+## [1.1.4] - 2026-10-14
+
+### Added
+
+- Import hosts from CSV/TSV and Excel (.xlsx) files. Columns are matched from the header row
+  and can be changed; every row is previewed, with problems and already-saved hosts shown.
+- Import from MobaXterm, Remmina, PuTTY (~/.putty or a Windows .reg export) and Ansible INI
+  inventories.
+- A CSV template to fill in and import, from the import window or Preferences → Hosts.
+- Export hosts as TuxShell JSON, CSV or ssh_config, in Preferences → Hosts. Exports never
+  contain passwords and are readable only by you.
+- Optional operating system per host, shown as its logo on host badges.
+- A bastion in an imported file can be the name of another host; it's saved as its address.
+
+### Changed
+
+- The import window starts with a choice of source. ~/.ssh/config import works as before.
+- Preferences has a new Hosts section.
+
 ## [1.1.3] - 2026-10-14
 
 ### Added
@@ -69,6 +88,7 @@ First release.
 - Dark and light themes, or follow the system.
 - Packages for Fedora/RHEL (.rpm), Debian/Ubuntu (.deb) and an AppImage.
 
+[1.1.4]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.4
 [1.1.3]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.3
 [1.1.1]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.1
 [1.1.0]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.0

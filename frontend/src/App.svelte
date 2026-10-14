@@ -31,6 +31,11 @@
 
   let panel = $state<Panel>({ kind: 'none' })
   let importOpen = $state(false)
+  let importStart = $state<'sshconfig' | undefined>()
+  function openImport(start?: 'sshconfig') {
+    importStart = start
+    importOpen = true
+  }
   let quickOpen = $state(false)
   // When set, the next connection from quick connect splits this tab instead of opening a new one.
   let splitInto = $state<{ key: number; orientation: Orientation } | null>(null)
@@ -312,7 +317,7 @@
         onDuplicate={duplicate}
         onDelete={(host) => (deleting = host)}
         onNew={() => (panel = { kind: 'host', host: emptyHost() })}
-        onImport={() => (importOpen = true)}
+        onImport={() => openImport()}
         onOpenTiles={openSplit}
       />
 {/snippet}
@@ -352,7 +357,7 @@
         onConnect={connect}
         onConnectTarget={(target) => open({ kind: 'target', target }, target)}
         onNew={() => (panel = { kind: 'host', host: emptyHost() })}
-        onImport={() => (importOpen = true)}
+        onImport={openImport}
         onOpenHostList={openHostList}
       >
         {#snippet editor()}
@@ -429,7 +434,7 @@
 </div>
 
 {#if importOpen}
-  <ImportDialog onClose={() => (importOpen = false)} />
+  <ImportDialog start={importStart} onClose={() => (importOpen = false)} />
 {/if}
 
 {#if quickOpen}
@@ -444,14 +449,14 @@
     onConnectTarget={(target) => open({ kind: 'target', target }, target)}
     onNewShell={() => open({ kind: 'shell' }, 'Local shell')}
     onNewHost={() => (panel = { kind: 'host', host: emptyHost() })}
-    onImport={() => (importOpen = true)}
+    onImport={() => openImport()}
     onOpenSplit={splitInto ? undefined : openSplit}
     onSnippet={!home && active ? pasteSnippet : undefined}
   />
 {/if}
 
 {#if prefsOpen}
-  <Preferences onClose={() => (prefsOpen = false)} />
+  <Preferences onClose={() => (prefsOpen = false)} onImport={() => openImport()} />
 {/if}
 
 {#if renaming}

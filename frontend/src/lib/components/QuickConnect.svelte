@@ -73,7 +73,7 @@
     const actions: Item[] = [
       { kind: 'action', id: 'shell', label: 'New local shell', icon: 'terminal', run: onNewShell },
       { kind: 'action', id: 'new', label: 'New host…', icon: 'plus', run: onNewHost },
-      { kind: 'action', id: 'import', label: 'Import from ~/.ssh/config…', icon: 'import', run: onImport },
+      { kind: 'action', id: 'import', label: 'Import hosts…', icon: 'import', run: onImport },
     ]
     for (const a of actions) if (a.kind === 'action' && best(q, [a.label]) > 0) out.push(a)
     return out
@@ -177,7 +177,7 @@
         onclick={() => choose(item)}
       >
         {#if item.kind === 'host'}
-          <HostBadge name={item.host.name} size={32} />
+          <HostBadge name={item.host.name} os={item.host.os} size={32} />
           <span class="min-w-0 flex-1">
             <span class="block truncate text-[14px]">{item.host.name}</span>
             <span class="block truncate font-mono text-xs text-subtle">

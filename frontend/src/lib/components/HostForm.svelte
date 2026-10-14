@@ -3,6 +3,7 @@
   import { errorMessage, hostStore, type Host, type SaveError } from '../hosts.svelte'
   import * as Status from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/status/service'
   import HostBadge from './HostBadge.svelte'
+  import { OSES } from '../os'
   import Icon from './Icon.svelte'
 
   interface Props {
@@ -103,7 +104,7 @@
     novalidate
   >
     <div class="flex items-center gap-3 px-6 pt-6 pb-2">
-      <HostBadge name={draft.name} size={44} />
+      <HostBadge name={draft.name} os={draft.os} size={44} />
       <div class="min-w-0 flex-1">
         <h2 class="truncate font-display text-lg font-bold">{isNew ? 'New host' : host.name}</h2>
         <p class="truncate text-xs text-subtle">
@@ -172,6 +173,14 @@
           <input id="host-tags" class={input} bind:value={tagText} placeholder="patroni, leader"
             aria-invalid={!!fieldError('tags')} aria-describedby="host-tags-error" autocomplete="off" />
           {@render field('tags')}
+        </div>
+        <div class="col-span-3">
+          <label class={label} for="host-os">Operating system <span class="font-normal text-subtle">(optional)</span></label>
+          <select id="host-os" class={input} bind:value={draft.os} aria-invalid={!!fieldError('os')} aria-describedby="host-os-error">
+            <option value="">Not set</option>
+            {#each Object.entries(OSES) as [value, o] (value)}<option {value}>{o.label}</option>{/each}
+          </select>
+          {@render field('os')}
         </div>
       </div>
 
