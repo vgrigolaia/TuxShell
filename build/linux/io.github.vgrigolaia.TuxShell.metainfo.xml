@@ -23,6 +23,8 @@
       <li>Tabs and split view with up to four panes, and typing broadcast to several panes</li>
       <li>A file browser that reuses the open SSH connection</li>
       <li>Snippets, local port forwards and SOCKS tunnels</li>
+      <li>Remote desktops (RDP) in their own window or inside a tab</li>
+      <li>Passwords from 1Password references or the system keyring, and the 1Password SSH agent</li>
       <li>Encrypted clipboard history</li>
       <li>Dark and light themes</li>
     </ul>
