@@ -176,6 +176,12 @@ export interface Settings {
     "tabsPosition": string;
 
     /**
+     * GroupOrder is the order of host groups chosen by dragging; groups not
+     * listed follow in their usual order.
+     */
+    "groupOrder": string[] | null;
+
+    /**
      * HostStatus pings saved hosts in the background to show which are up.
      */
     "hostStatus": boolean;

@@ -1,5 +1,6 @@
 import * as HostService from '../../bindings/github.com/vgrigolaia/tuxshell/internal/hosts/service'
 import type { Host } from '../../bindings/github.com/vgrigolaia/tuxshell/internal/hosts/models'
+import { prefs } from './settings.svelte'
 
 export type { Host }
 
@@ -82,8 +83,20 @@ class HostStore {
       if (!byName.has(key)) byName.set(key, [])
       byName.get(key)!.push(h)
     }
-    return [...byName].map(([name, hosts]) => ({ name, hosts }))
+    // The order the user dragged them into; groups not in it keep their place after those.
+    const order = new Map((prefs.value.groupOrder ?? []).map((g, i) => [g, i]))
+    return [...byName]
+      .map(([name, hosts], i) => ({ name, hosts, rank: order.get(name) ?? order.size + i }))
+      .sort((a, b) => a.rank - b.rank)
+      .map(({ name, hosts }) => ({ name, hosts }))
   })
+
+  /** Moves group name to position index among the groups and saves the order. */
+  moveGroup(name: string, index: number) {
+    const names = this.groups.map((g) => g.name).filter((g) => g !== name)
+    names.splice(Math.max(0, Math.min(index, names.length)), 0, name)
+    prefs.setGroupOrder(names)
+  }
 
   groupNames = $derived([...new Set(this.list.map((h) => h.group).filter(Boolean))])
 
