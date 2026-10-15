@@ -1,6 +1,6 @@
 # TuxShell
 
-A free, open-source SSH connection manager for Linux.
+A free, open-source SSH connection manager for Linux, now also for macOS (beta).
 
 TuxShell keeps your hosts in one place and connects with the system `ssh`, so your
 `~/.ssh/config`, keys, agents and jump hosts work as they already do.
@@ -111,6 +111,23 @@ Remote desktops in their own window use FreeRDP 3 (`freerdp` on Fedora, `freerdp
 Debian and Ubuntu), which the packages recommend and install where available. Remote desktops
 in a tab need nothing extra.
 
+### macOS (beta)
+
+Download `TuxShell-<version>-universal.dmg` (Apple silicon and Intel, macOS 12 or newer), open
+it and drag TuxShell to Applications.
+
+The app isn't notarized by Apple yet, so the first start is blocked. Open it once, then go to
+System Settings → Privacy & Security and click **Open Anyway**. Or, in Terminal:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/TuxShell.app
+```
+
+TuxShell uses the `ssh` that comes with macOS. Optional, with [Homebrew](https://brew.sh):
+`brew install freerdp` for remote desktops in their own window, and the 1Password CLI for
+1Password references. On macOS the app's shortcuts use ⌘ (⌘K quick connect, ⌘C/⌘V copy and
+paste in the terminal), so Ctrl keeps working inside the terminal.
+
 ## Where your data lives
 
 | What | Where |
@@ -121,6 +138,9 @@ in a tab need nothing extra.
 | Preferences | `~/.config/tuxshell/settings.json` |
 | Terminal background images | `~/.local/share/tuxshell/backgrounds/` |
 | Session recordings (only if you record) | `~/.local/share/tuxshell/recordings/` |
+
+On macOS the files are in `~/Library/Application Support/TuxShell/` and the keyring is the
+macOS Keychain.
 
 Saved passwords, if you allow them, are in your desktop keyring too (see below). TuxShell
 never writes passwords to its own files.

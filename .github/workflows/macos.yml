@@ -1,0 +1,61 @@
+# Builds the macOS app (one universal .dmg for Apple silicon and Intel) and
+# runs the Go tests on macOS. The .dmg is ad-hoc signed, not notarized.
+name: macOS
+
+on:
+  push:
+    tags: ["v*"]
+    branches: [feature/macos]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+
+      - name: Install Task and the Wails CLI
+        run: |
+          go install github.com/go-task/task/v3/cmd/task@v3.54.0
+          go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.28
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Install frontend packages
+        run: npm ci --prefix frontend
+
+      - name: Test
+        run: task test
+
+      - name: Build the universal app and .dmg
+        run: |
+          task darwin:package:universal
+          # Mac users see the bundle name; the program inside stays "tuxshell".
+          mv bin/tuxshell.app bin/TuxShell.app
+          task darwin:create:dmg APP_NAME=TuxShell
+
+      - name: Name the .dmg after the version
+        run: |
+          version=$(node -p "require('./frontend/package.json').version")
+          mv bin/TuxShell.dmg "bin/TuxShell-${version}-universal.dmg"
+          (cd bin && shasum -a 256 "TuxShell-${version}-universal.dmg" > "TuxShell-${version}-universal.dmg.sha256")
+          ls -l bin
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: TuxShell-macos
+          path: |
+            bin/TuxShell-*-universal.dmg
+            bin/TuxShell-*-universal.dmg.sha256
+          if-no-files-found: error
