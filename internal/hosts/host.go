@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/vgrigolaia/tuxshell/internal/onepassword"
 )
 
 // Host is a saved SSH connection. Secret fields hold only op:// references;
@@ -125,7 +127,7 @@ func (h *Host) Validate() error {
 		return invalid("proxyJump", "Use [user@]host[:port], comma-separated for several hops")
 	case strings.HasPrefix(h.IdentityFile, "-") || strings.ContainsAny(h.IdentityFile, "\n\r"):
 		return invalid("identityFile", "Not a valid file path")
-	case h.PasswordRef != "" && !strings.HasPrefix(h.PasswordRef, "op://"):
+	case h.PasswordRef != "" && !onepassword.ValidRef(h.PasswordRef):
 		return invalid("passwordRef", "Use a 1Password reference like op://Vault/Item/field")
 	case h.OS != "" && !knownOS(h.OS):
 		return invalid("os", "Unknown operating system")

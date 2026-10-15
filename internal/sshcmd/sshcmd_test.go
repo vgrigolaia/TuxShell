@@ -183,3 +183,33 @@ func TestJumpTunnelCommand(t *testing.T) {
 		}
 	}
 }
+
+func TestAgentOnlyWhereConfigPicksNone(t *testing.T) {
+	// A fake ssh whose -G says the config picks an agent for "pinned" only.
+	bin := t.TempDir()
+	script := "#!/bin/sh\n[ \"$1\" = -G ] || exit 0\nfor a; do [ \"$a\" = pinned ] && echo 'identityagent SSH_AUTH_SOCK'; done\necho 'user me'\n"
+	_ = os.WriteFile(filepath.Join(bin, "ssh"), []byte(script), 0o755)
+	t.Setenv("PATH", bin)
+	f := LocalForward(40000, "10.0.5.4", 3389)
+	r := Resolver{Agent: func() string { return "/home/me/.1password/agent.sock" }}
+
+	cmd, err := r.JumpTunnelCommand("admin@bastion", f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cmd.Env) == 0 || cmd.Env[len(cmd.Env)-1] != "SSH_AUTH_SOCK=/home/me/.1password/agent.sock" {
+		t.Fatalf("no agent for a host the config leaves alone: %v", cmd.Env)
+	}
+	if slices.ContainsFunc(cmd.Args, func(a string) bool { return strings.Contains(a, "IdentityAgent") }) {
+		t.Fatalf("args override ~/.ssh/config: %v", cmd.Args)
+	}
+	if cmd, _ := r.JumpTunnelCommand("admin@pinned", f); cmd.Env != nil {
+		t.Fatalf("agent forced on a host whose config picks one: %v", cmd.Env)
+	}
+	for _, agent := range []func() string{nil, func() string { return "" }} {
+		cmd, _ := Resolver{Agent: agent}.JumpTunnelCommand("admin@bastion", f)
+		if cmd.Env != nil {
+			t.Fatalf("env set without an agent: %v", cmd.Env)
+		}
+	}
+}

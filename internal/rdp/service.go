@@ -64,9 +64,10 @@ type ConnectOptions struct {
 	Trust string `json:"trust"`
 }
 
-// Passwords reads and saves host passwords (the saved-passwords feature).
+// Passwords reads and saves host passwords: from 1Password or the keyring.
 type Passwords interface {
-	Saved(hostID int64) (string, bool)
+	// Saved returns the host's password, or "" when it has none.
+	Saved(hostID int64) (string, error)
 	Save(hostID int64, password string) error
 }
 
@@ -236,9 +237,12 @@ func (s *Service) Connect(ctx context.Context, hostID int64, opts ConnectOptions
 
 	password := opts.Password
 	if password == "" {
-		if saved, ok := s.passwords.Saved(h.ID); ok {
-			password = saved
+		saved, err := s.passwords.Saved(h.ID)
+		if err != nil {
+			stop()
+			return Session{}, err
 		}
+		password = saved
 	} else if opts.Remember {
 		if err := s.passwords.Save(h.ID, password); err != nil {
 			stop()

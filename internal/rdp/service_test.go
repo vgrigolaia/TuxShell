@@ -16,8 +16,8 @@ import (
 
 type memPasswords map[int64]string
 
-func (m memPasswords) Saved(id int64) (string, bool) { p, ok := m[id]; return p, ok }
-func (m memPasswords) Save(id int64, p string) error { m[id] = p; return nil }
+func (m memPasswords) Saved(id int64) (string, error) { return m[id], nil }
+func (m memPasswords) Save(id int64, p string) error  { m[id] = p; return nil }
 
 // fakeClient puts an "xfreerdp" on PATH that records its arguments and stdin.
 func fakeClient(t *testing.T, exit int) (argvFile, stdinFile string) {

@@ -88,6 +88,46 @@ type Resolver struct {
 	// RemoteCommand, when set, returns a command for interactive sessions to
 	// run on the server (from the host's terminal profile), or "".
 	RemoteCommand func(h hosts.Host) string
+	// Agent, when set, returns an SSH agent socket for ssh to use ("" for
+	// the usual one). It is passed as SSH_AUTH_SOCK (so jump hosts use it
+	// too), and only to hosts whose ~/.ssh/config doesn't pick an agent:
+	// "IdentityAgent SSH_AUTH_SOCK" means the desktop's agent, not ours.
+	Agent func() string
+}
+
+// env returns the environment for ssh with args (nil: inherit TuxShell's).
+func (r Resolver) env(ssh string, args []string) []string {
+	if r.Agent == nil {
+		return nil
+	}
+	sock := r.Agent()
+	if sock == "" || configPicksAgent(ssh, args) {
+		return nil
+	}
+	return append(os.Environ(), "SSH_AUTH_SOCK="+sock)
+}
+
+// configPicksAgent asks ssh (-G: print the settings, connect to nothing)
+// whether the user's config sets IdentityAgent for this connection. If ssh
+// can't say, the config is left in charge.
+func configPicksAgent(ssh string, args []string) bool {
+	out, err := exec.Command(ssh, append([]string{"-G"}, args...)...).Output()
+	if err != nil {
+		return true
+	}
+	for line := range strings.Lines(string(out)) {
+		if strings.HasPrefix(strings.ToLower(line), "identityagent ") {
+			return true
+		}
+	}
+	return false
+}
+
+// command returns ssh with args and the resolver's environment.
+func (r Resolver) command(ssh string, args ...string) *exec.Cmd {
+	cmd := exec.Command(ssh, args...)
+	cmd.Env = r.env(ssh, args)
+	return cmd
 }
 
 // host loads and re-validates a saved host (the database may have been edited
@@ -196,7 +236,7 @@ func (r Resolver) TunnelCommand(id int64, f Forward) (*exec.Cmd, error) {
 		return nil, err
 	}
 	args := append(tunnelOptions(), f[0], f[1])
-	return exec.Command(ssh, append(args, Args(h)...)...), nil
+	return r.command(ssh, append(args, Args(h)...)...), nil
 }
 
 // JumpTunnelCommand returns a forward-only ssh through jump, a ProxyJump
@@ -221,7 +261,7 @@ func (r Resolver) JumpTunnelCommand(jump string, f Forward) (*exec.Cmd, error) {
 		return nil, err
 	}
 	args := append(tunnelOptions(), f[0], f[1])
-	return exec.Command(ssh, append(args, Args(h)...)...), nil
+	return r.command(ssh, append(args, Args(h)...)...), nil
 }
 
 // ControlCommand asks the host's shared connection (an open terminal) to
@@ -247,7 +287,7 @@ func (r Resolver) ControlCommand(id int64, op string, f Forward) (*exec.Cmd, err
 	if op != "check" {
 		args = append(args, f[0], f[1])
 	}
-	return exec.Command(ssh, append(args, Args(h)...)...), nil
+	return r.command(ssh, append(args, Args(h)...)...), nil
 }
 
 // TargetRemote returns a batch runner for an ad-hoc target.
@@ -270,12 +310,12 @@ func (r Resolver) session(h hosts.Host) (*exec.Cmd, error) {
 		command = r.RemoteCommand(h)
 	}
 	if command == "" {
-		return exec.Command(ssh, append(args, Args(h)...)...), nil
+		return r.command(ssh, append(args, Args(h)...)...), nil
 	}
 	// A remote command gets no terminal unless asked for. It goes after the
 	// destination as one argument; the server's shell runs it.
 	args = append(append(args, "-t"), Args(h)...)
-	return exec.Command(ssh, append(args, command)...), nil
+	return r.command(ssh, append(args, command)...), nil
 }
 
 func (r Resolver) remote(h hosts.Host) (Remote, error) {
@@ -283,7 +323,8 @@ func (r Resolver) remote(h hosts.Host) (Remote, error) {
 	if err != nil {
 		return Remote{}, err
 	}
-	return Remote{ssh: ssh, args: append(batchOptions(r.ControlDir), Args(h)...)}, nil
+	args := append(batchOptions(r.ControlDir), Args(h)...)
+	return Remote{ssh: ssh, args: args, env: r.env(ssh, args)}, nil
 }
 
 func sshPath() (string, error) {

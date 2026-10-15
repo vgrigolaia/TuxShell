@@ -182,6 +182,12 @@ export interface Settings {
     "groupOrder": string[] | null;
 
     /**
+     * HiddenSSHConfigHosts are ~/.ssh/config aliases the user chose not to be
+     * reminded about on Home; a new alias brings the reminder back.
+     */
+    "hiddenSshConfigHosts": string[] | null;
+
+    /**
      * HostStatus pings saved hosts in the background to show which are up.
      */
     "hostStatus": boolean;
@@ -198,6 +204,13 @@ export interface Settings {
      * file. Keys, the ssh agent or 1Password stay the safer choice.
      */
     "savePasswords": boolean;
+
+    /**
+     * OnePasswordAgent makes TuxShell's ssh use the 1Password SSH agent
+     * (~/.1password/agent.sock) for keys. An IdentityAgent in ~/.ssh/config
+     * still wins for its hosts.
+     */
+    "onePasswordAgent": boolean;
     "terminal": Terminal;
 
     /**

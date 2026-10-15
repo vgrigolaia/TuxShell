@@ -25,6 +25,9 @@ type Settings struct {
 	// GroupOrder is the order of host groups chosen by dragging; groups not
 	// listed follow in their usual order.
 	GroupOrder []string `json:"groupOrder"`
+	// HiddenSSHConfigHosts are ~/.ssh/config aliases the user chose not to be
+	// reminded about on Home; a new alias brings the reminder back.
+	HiddenSSHConfigHosts []string `json:"hiddenSshConfigHosts"`
 	// HostStatus pings saved hosts in the background to show which are up.
 	HostStatus bool `json:"hostStatus"`
 	// UpdateCheck asks GitHub for a newer release at startup (on by default;
@@ -33,8 +36,12 @@ type Settings struct {
 	// SavePasswords allows saving host passwords in the system keyring (on by
 	// default): typed into a host, ticked "Remember", or found in an imported
 	// file. Keys, the ssh agent or 1Password stay the safer choice.
-	SavePasswords bool     `json:"savePasswords"`
-	Terminal      Terminal `json:"terminal"`
+	SavePasswords bool `json:"savePasswords"`
+	// OnePasswordAgent makes TuxShell's ssh use the 1Password SSH agent
+	// (~/.1password/agent.sock) for keys. An IdentityAgent in ~/.ssh/config
+	// still wins for its hosts.
+	OnePasswordAgent bool     `json:"onePasswordAgent"`
+	Terminal         Terminal `json:"terminal"`
 	// Profiles are the user's named terminal profiles.
 	Profiles []NamedProfile `json:"profiles"`
 	// History keeps a list of connections: host, time and duration only.
@@ -187,10 +194,11 @@ func Defaults() Settings {
 			ConfirmClose:  true,
 			CtrlWheelZoom: true,
 		},
-		Profiles:   []NamedProfile{},
-		GroupOrder: []string{},
-		History:    History{Enabled: true, Days: 90, Max: 1000},
-		RDPClient:  "auto",
+		Profiles:             []NamedProfile{},
+		GroupOrder:           []string{},
+		HiddenSSHConfigHosts: []string{},
+		History:              History{Enabled: true, Days: 90, Max: 1000},
+		RDPClient:            "auto",
 	}
 }
 
@@ -265,6 +273,7 @@ func (s *Settings) normalize() {
 	oneOf(&s.RDPClient, d.RDPClient, "auto", "x11", "sdl")
 	oneOf(&s.TabsPosition, d.TabsPosition, "left", "top")
 	s.GroupOrder = cleanGroupOrder(s.GroupOrder)
+	s.HiddenSSHConfigHosts = cleanGroupOrder(s.HiddenSSHConfigHosts)
 	if s.History.Days == 0 {
 		s.History.Days = d.History.Days
 	}
@@ -368,13 +377,13 @@ func oneOf(v *string, def string, allowed ...string) {
 	*v = def
 }
 
-// Limits for GroupOrder, so a hand-edited file stays small.
+// Limits for GroupOrder and HiddenSSHConfigHosts, so a hand-edited file stays small.
 const (
 	maxGroups      = 1000
 	maxGroupLength = 200
 )
 
-// cleanGroupOrder drops blank, overlong and repeated names.
+// cleanGroupOrder drops blank, overlong and repeated names (group names or aliases).
 func cleanGroupOrder(in []string) []string {
 	out := []string{}
 	seen := map[string]bool{}

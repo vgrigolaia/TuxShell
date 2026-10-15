@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"log"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"github.com/vgrigolaia/tuxshell/internal/hostio"
 	"github.com/vgrigolaia/tuxshell/internal/hosts"
 	"github.com/vgrigolaia/tuxshell/internal/login"
+	"github.com/vgrigolaia/tuxshell/internal/onepassword"
 	"github.com/vgrigolaia/tuxshell/internal/rdp"
 	"github.com/vgrigolaia/tuxshell/internal/recordings"
 	"github.com/vgrigolaia/tuxshell/internal/secrets"
@@ -92,6 +94,14 @@ func main() {
 	}
 	resolver := sshcmd.Resolver{Store: store, ControlDir: controlDir, RemoteCommand: func(h hosts.Host) string {
 		return prefs.Get().Settings.ProfileFor(h.Profile).RemoteCommand()
+	}, Agent: func() string {
+		if !prefs.Get().Settings.OnePasswordAgent {
+			return ""
+		}
+		if sock := onepassword.AgentSocket(); onepassword.AgentRunning(sock) {
+			return sock
+		}
+		return ""
 	}}
 
 	var app *application.App
@@ -151,6 +161,7 @@ func main() {
 		func() bool { return prefs.Get().Settings.SavePasswords },
 		func(name string, data any) { app.Event.Emit(name, data) },
 	)
+	login.UseVault(logins, onepassword.Client{})
 	store.OnDelete = logins.HostsDeleted
 	hostio.UsePasswords(hostFiles, func() bool { return prefs.Get().Settings.SavePasswords }, logins.SavePassword)
 	if exe, err := os.Executable(); err != nil || controlDir == "" {
@@ -231,6 +242,7 @@ func main() {
 			application.NewService(updates.NewService()),
 			application.NewService(images),
 			application.NewService(remoteDesktops),
+			application.NewService(&onepassword.Service{}),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -298,8 +310,8 @@ func main() {
 	}
 }
 
-// rdpPasswords gives remote desktops the saved passwords, while "Allow saving
-// passwords" is on.
+// rdpPasswords gives remote desktops their password: from 1Password when the
+// host has a reference, else the saved one while "Allow saving passwords" is on.
 type rdpPasswords struct {
 	store   *hosts.Store
 	keyring *secrets.Store
@@ -307,16 +319,21 @@ type rdpPasswords struct {
 	enabled func() bool
 }
 
-func (p rdpPasswords) Saved(id int64) (string, bool) {
-	if !p.enabled() {
-		return "", false
-	}
+func (p rdpPasswords) Saved(id int64) (string, error) {
 	h, err := p.store.Get(id)
-	if err != nil || !h.PasswordSaved {
-		return "", false
+	if err != nil {
+		return "", err
 	}
-	pw, err := p.keyring.Get(id)
-	return pw, err == nil && pw != ""
+	if h.PasswordRef != "" {
+		return onepassword.Client{}.Read(context.Background(), h.PasswordRef)
+	}
+	if !p.enabled() || !h.PasswordSaved {
+		return "", nil
+	}
+	if pw, err := p.keyring.Get(id); err == nil {
+		return pw, nil
+	}
+	return "", nil
 }
 
 func (p rdpPasswords) Save(id int64, password string) error {

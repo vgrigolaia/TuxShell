@@ -64,9 +64,11 @@ const defaults = (): Settings => ({
   hostsSidebar: true,
   tabsPosition: 'left',
   groupOrder: [],
+  hiddenSshConfigHosts: [],
   hostStatus: true,
   updateCheck: true,
   savePasswords: true,
+  onePasswordAgent: false,
   profiles: [],
   history: { enabled: true, days: 90, max: 1000 },
   rdpClient: 'auto',
@@ -200,6 +202,11 @@ class Preferences {
     this.queueSave()
   }
 
+  setOnePasswordAgent(on: boolean) {
+    this.value.onePasswordAgent = on
+    this.queueSave()
+  }
+
   /** Changes the connection history settings, e.g. setHistory({ days: 30 }). */
   setHistory(patch: Partial<Settings['history']>) {
     this.value.history = { ...(this.value.history ?? { enabled: true, days: 90, max: 1000 }), ...patch }
@@ -213,6 +220,12 @@ class Preferences {
 
   setGroupOrder(order: string[]) {
     this.value.groupOrder = order
+    this.queueSave()
+  }
+
+  /** Stops Home reminding about these ~/.ssh/config aliases. */
+  hideSshConfigHosts(aliases: string[]) {
+    this.value.hiddenSshConfigHosts = [...new Set([...(this.value.hiddenSshConfigHosts ?? []), ...aliases])]
     this.queueSave()
   }
 

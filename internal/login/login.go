@@ -1,9 +1,11 @@
 // Package login answers ssh's password prompts for terminal sessions, with
-// passwords saved in the system keyring when the user allows it.
+// a 1Password reference or a password saved in the system keyring.
 //
 // The rules:
-//   - Only sessions for saved hosts take part, and only while "Allow saving
-//     passwords" is on. Otherwise ssh asks in the terminal as before.
+//   - Only sessions for saved hosts take part: hosts with a 1Password
+//     reference always, others while "Allow saving passwords" is on.
+//     Otherwise ssh asks in the terminal as before.
+//   - The first answer comes from 1Password, else from the keyring.
 //   - Only a password prompt from the session's own ssh process is answered.
 //     Jump hosts run their own ssh, so their prompts go to the terminal and
 //     never receive the target's password. So do host key questions and key
@@ -13,6 +15,7 @@
 package login
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -42,6 +45,11 @@ type PasswordRequest struct {
 	Prompt    string `json:"prompt"`
 	// SavedFailed is true when the saved password was just tried and refused.
 	SavedFailed bool `json:"savedFailed"`
+	// VaultFailed is true when the password from 1Password was just refused.
+	VaultFailed bool `json:"vaultFailed"`
+	// VaultError says why 1Password couldn't give the password ("" if it did
+	// or the host has no reference).
+	VaultError string `json:"vaultError"`
 	// CanSave is true when the password may be remembered.
 	CanSave bool `json:"canSave"`
 }
@@ -74,7 +82,7 @@ type session struct {
 
 	mu       sync.Mutex
 	attempts int
-	// last says where the previous answer came from: "saved", "typed+saved" or "typed".
+	// last says where the previous answer came from: "vault", "saved", "typed+saved" or "typed".
 	last string
 }
 
@@ -88,11 +96,21 @@ type Manager struct {
 	emit    func(name string, data any)
 	exe     string
 	server  *askpass.Server
+	vault   Vault
 
 	mu       sync.Mutex
 	sessions map[string]*session // by token
 	pending  map[string]chan answer
 }
+
+// Vault reads 1Password references (see internal/onepassword).
+type Vault interface {
+	Read(ctx context.Context, ref string) (string, error)
+}
+
+// UseVault answers prompts for hosts with a 1Password reference from v.
+// A function, so it isn't bound.
+func UseVault(m *Manager, v Vault) { m.vault = v }
 
 // New returns a manager. Start must be called before sessions use it.
 func New(store *hosts.Store, sec *secrets.Store, enabled func() bool, emit func(string, any)) *Manager {
@@ -138,7 +156,7 @@ func (s *Service) ServiceShutdown() error { return s.m.Close() }
 // with ssh's PID once it runs, and one to call when the session ends.
 func (s *Manager) Begin(sessionID string, hostID int64) (env []string, started func(pid int), end func()) {
 	noop := func() {}
-	if s.server == nil || !s.enabled() {
+	if s.server == nil || !s.takesPart(hostID) {
 		return nil, func(int) {}, noop
 	}
 	token := randomID()
@@ -159,6 +177,15 @@ func (s *Manager) Begin(sessionID string, hostID int64) (env []string, started f
 		}
 }
 
+// takesPart reports whether a host's prompts are answered here.
+func (s *Manager) takesPart(hostID int64) bool {
+	if s.enabled() {
+		return true
+	}
+	h, err := s.hosts.Get(hostID)
+	return err == nil && h.PasswordRef != "" && s.vault != nil
+}
+
 // isPassword reports whether ssh is asking for a login password, as opposed
 // to a key passphrase, a host key question or a new password.
 func isPassword(prompt string) bool {
@@ -173,7 +200,7 @@ func (s *Manager) handle(req askpass.Request) askpass.Reply {
 	s.mu.Lock()
 	sess := s.sessions[req.Token]
 	s.mu.Unlock()
-	if sess == nil || !s.enabled() || !isPassword(req.Prompt) {
+	if sess == nil || !isPassword(req.Prompt) {
 		return tty
 	}
 	// Only the session's own ssh: a jump host's ssh is a child of it.
@@ -184,13 +211,26 @@ func (s *Manager) handle(req askpass.Request) askpass.Reply {
 	if err != nil {
 		return tty
 	}
+	fromVault := h.PasswordRef != "" && s.vault != nil
+	if !s.enabled() && !fromVault {
+		return tty
+	}
 
 	sess.mu.Lock()
 	sess.attempts++
 	first, last := sess.attempts == 1, sess.last
 	sess.mu.Unlock()
 
-	if first && h.PasswordSaved {
+	vaultErr := ""
+	if first && fromVault {
+		pw, err := s.vault.Read(context.Background(), h.PasswordRef)
+		if err == nil {
+			sess.setLast("vault")
+			return askpass.Reply{Action: askpass.ActionAnswer, Answer: pw}
+		}
+		vaultErr = err.Error()
+	}
+	if first && s.enabled() && h.PasswordSaved {
 		if pw, err := s.secrets.Get(h.ID); err == nil && pw != "" {
 			sess.setLast("saved")
 			return askpass.Reply{Action: askpass.ActionAnswer, Answer: pw}
@@ -203,7 +243,8 @@ func (s *Manager) handle(req askpass.Request) askpass.Reply {
 
 	a, ok := s.ask(sess, PasswordRequest{
 		SessionID: sess.id, HostName: h.Name, Prompt: strings.TrimSpace(req.Prompt),
-		SavedFailed: last == "saved", CanSave: s.secrets.Available(),
+		SavedFailed: last == "saved", VaultFailed: last == "vault", VaultError: vaultErr,
+		CanSave: s.enabled() && s.secrets.Available(),
 	})
 	if !ok || a.cancel {
 		return askpass.Reply{Action: askpass.ActionCancel}

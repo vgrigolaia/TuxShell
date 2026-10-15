@@ -11,6 +11,7 @@
   import Logo from './Logo.svelte'
   import ExportHosts from './ExportHosts.svelte'
   import { logins } from '../logins.svelte'
+  import { onePassword } from '../onepassword.svelte'
   import * as Login from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/login/service'
   import { hostStore } from '../hosts.svelte'
   import * as HostIO from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/hostio/service'
@@ -61,7 +62,10 @@
   let forgetError = $state('')
 
   $effect(() => {
-    if (section === 'security') void logins.refresh()
+    if (section === 'security') {
+      void logins.refresh()
+      void onePassword.refresh()
+    }
   })
 
   async function setSavePasswords(on: boolean) {
@@ -710,14 +714,60 @@
               <span class={hint}>No password is needed or stored. Set a key file on the host, or use your agent.</span>
             </li>
             <li class="rounded-lg border border-line bg-ground px-3 py-2">
-              <span class="font-medium">1Password</span> <span class="ml-1 rounded bg-raised px-1.5 py-0.5 text-[11px] text-muted">coming soon</span>
-              <span class={hint}>The password stays in your vault; TuxShell asks 1Password when you connect.</span>
+              <span class="font-medium">1Password</span>
+              <span class={hint}>The password stays in your vault; TuxShell asks 1Password when you connect. Put a reference in a host's settings.</span>
             </li>
             <li class="rounded-lg border border-line bg-ground px-3 py-2">
               <span class="font-medium">Saved password</span>
               <span class={hint}>For servers that only take passwords, if you don't use 1Password. Stored on this computer only.</span>
             </li>
           </ul>
+        </section>
+
+        <section aria-labelledby="{id}-op" class="mt-6 border-t border-line pt-5">
+          <h4 id="{id}-op" class="text-[13px] font-medium">1Password</h4>
+          {#if onePassword.status}
+            {@const op = onePassword.status}
+            <p class="mt-2 text-xs {op.version ? 'text-success' : 'text-warning'}" role="status">
+              {#if op.version}✓ 1Password CLI {op.version} found.{:else if op.installed}The 1Password CLI didn't run: {op.error}{:else}The 1Password CLI (op) isn't installed.{/if}
+            </p>
+            {#if !op.version}
+              <ol class="mt-2 list-decimal pl-5 text-xs leading-relaxed text-muted">
+                <li>Install the 1Password app and the 1Password CLI from 1Password's own repository
+                  (<button class="text-accent-text hover:underline" onclick={() => void Browser.OpenURL('https://developer.1password.com/docs/cli/get-started/')}>how to install</button>).</li>
+                <li>In the 1Password app, turn on Settings → Developer → <span class="font-medium">Integrate with 1Password CLI</span>.</li>
+                <li>Come back here; the status updates when you open this page.</li>
+              </ol>
+            {:else}
+              <p class="mt-1 text-xs text-subtle">
+                If a reference doesn't work, check that <span class="font-medium">Integrate with 1Password CLI</span> is on in the 1Password app (Settings → Developer).
+              </p>
+            {/if}
+          {/if}
+          <label class="{check} mt-4">
+            <input
+              type="checkbox"
+              class="mt-0.5 accent-accent"
+              checked={prefs.value.onePasswordAgent}
+              onchange={(e) => prefs.setOnePasswordAgent(e.currentTarget.checked)}
+            />
+            <span
+              >Use the 1Password SSH agent<span class={hint}
+                >TuxShell's ssh uses the SSH keys in 1Password (~/.1password/agent.sock), also through jump hosts. Hosts that set IdentityAgent in
+                ~/.ssh/config keep it. Takes effect for new connections.</span
+              ></span
+            >
+          </label>
+          {#if onePassword.status}
+            {@const op = onePassword.status}
+            {#if prefs.value.onePasswordAgent && !op.agent}
+              <p role="alert" class="mt-2 text-xs text-warning">
+                The agent isn't running. Open the 1Password app and turn on Settings → Developer → <span class="font-medium">Use the SSH agent</span>.
+              </p>
+            {:else if op.configUsesAgent}
+              <p class="mt-2 text-xs text-subtle">Your ~/.ssh/config already uses the 1Password agent for some hosts; that keeps working either way.</p>
+            {/if}
+          {/if}
         </section>
 
         <section aria-labelledby="{id}-save" class="mt-6 border-t border-line pt-5">

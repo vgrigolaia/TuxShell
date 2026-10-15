@@ -91,17 +91,17 @@ Download the package for your distribution from the
 
 ```sh
 # Fedora, RHEL, AlmaLinux, Rocky Linux
-sudo dnf install ./tuxshell-1.2.1-1.x86_64.rpm
+sudo dnf install ./tuxshell-1.3.0-1.x86_64.rpm
 
 # Debian, Ubuntu
-sudo apt install ./tuxshell_1.2.1-1_amd64.deb
+sudo apt install ./tuxshell_1.3.0-1_amd64.deb
 ```
 
 Or run the AppImage on any distribution:
 
 ```sh
-chmod +x TuxShell-1.2.1-x86_64.AppImage
-./TuxShell-1.2.1-x86_64.AppImage
+chmod +x TuxShell-1.3.0-x86_64.AppImage
+./TuxShell-1.3.0-x86_64.AppImage
 ```
 
 Supported: Fedora 39+, RHEL/Alma/Rocky 10, Debian 13+ and Ubuntu 24.04+. TuxShell needs
@@ -130,7 +130,8 @@ never writes passwords to its own files.
 TuxShell can log you in three ways (Preferences → Security):
 
 - **SSH keys or your ssh agent** (recommended): nothing secret is stored by TuxShell.
-- **1Password** (coming): only `op://` references are stored; the password stays in your vault.
+- **1Password**: a host stores only an `op://Vault/Item/field` reference; the password stays in
+  your vault and is read when you connect (see below).
 - **Saved passwords**, for servers that only accept passwords. *Allow saving passwords* is on by
   default (turn it off in Preferences → Security). A password is saved when you type it into a
   host, tick *Remember* at a password prompt, or import a file that contains it. Passwords are stored encrypted in your system keyring (GNOME Keyring
@@ -142,6 +143,25 @@ private socket, so the password never appears in ssh's command line, its environ
 terminal. Only the host's own ssh gets its password: prompts from jump hosts, host key questions
 and key passphrases are shown in the terminal as usual. A saved password is tried once; if it's
 refused, TuxShell asks you instead.
+
+### 1Password
+
+1. Install the 1Password app and the [1Password CLI](https://developer.1password.com/docs/cli/get-started/)
+   (`op`), from 1Password's own repository.
+2. In the 1Password app, turn on Settings → Developer → **Integrate with 1Password CLI**.
+3. In 1Password, use **Copy Secret Reference** on the password field, and paste it into the host's
+   *Password reference* (for example `op://Infra/db-01/password`). **Check** confirms it works.
+
+When the server asks for the password, TuxShell runs `op read` and passes the answer through the
+same private channel as saved passwords. 1Password may ask you to approve. The value is never
+stored, logged or shown, and the reference works even with *Allow saving passwords* off. If it's
+refused, TuxShell asks you instead. Remote desktops use it in their own window; in a tab you type
+the password.
+
+To use the SSH keys kept in 1Password, turn on 1Password's SSH agent (Settings → Developer) and
+*Use the 1Password SSH agent* in Preferences → Security. TuxShell's ssh then uses
+`~/.1password/agent.sock`, through jump hosts too; hosts with their own `IdentityAgent` in
+`~/.ssh/config` keep it.
 
 ## Build from source
 

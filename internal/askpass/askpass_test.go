@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -94,5 +95,35 @@ func TestParentPID(t *testing.T) {
 	}
 	if parentPID(0) != 0 {
 		t.Error("parentPID(0) should be 0")
+	}
+}
+
+func TestListenRemovesStaleSockets(t *testing.T) {
+	dir := t.TempDir()
+	// A process that has ended, and one that is still running (this test).
+	done := exec.Command("true")
+	if err := done.Run(); err != nil {
+		t.Fatal(err)
+	}
+	stale := filepath.Join(dir, "askpass-"+strconv.Itoa(done.Process.Pid)+".sock")
+	live := filepath.Join(dir, "askpass-"+strconv.Itoa(os.Getppid())+".sock")
+	other := filepath.Join(dir, "cm-abc")
+	for _, p := range []string{stale, live, other} {
+		if err := os.WriteFile(p, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s, err := Listen(dir, func(Request) Reply { return Reply{} })
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Error("a dead process's socket was kept")
+	}
+	for _, p := range []string{live, other} {
+		if _, err := os.Stat(p); err != nil {
+			t.Errorf("%s was removed: %v", filepath.Base(p), err)
+		}
 	}
 }

@@ -1,7 +1,7 @@
 <script lang="ts" module>
   // Scanning ~/.ssh/config starts an `ssh -G` per alias, so the result is
   // reused until the saved hosts change.
-  let scanned: { key: string; count: Promise<number> } | undefined
+  let scanned: { key: string; aliases: Promise<string[]> } | undefined
 </script>
 
 <script lang="ts">
@@ -19,6 +19,8 @@
   import HistoryPage from './HistoryPage.svelte'
   import { snippets } from '../snippets.svelte'
   import { tunnels } from '../tunnels.svelte'
+  import { onePassword } from '../onepassword.svelte'
+  import { prefs } from '../settings.svelte'
 
   interface Props {
     selectedId: number | null
@@ -43,7 +45,10 @@
 
   let query = $state('')
   let group = $state<string | null>(null)
-  let found = $state(0)
+  // Unsaved ~/.ssh/config aliases; the banner leaves out the ones hidden with its ×.
+  let unsaved = $state<string[]>([])
+  const hidden = $derived(new Set(prefs.value.hiddenSshConfigHosts ?? []))
+  const found = $derived(unsaved.filter((a) => !hidden.has(a)).length)
   let search = $state<HTMLInputElement>()
 
   // Rescan when hosts are saved, imported or deleted, so the banner stays true.
@@ -53,13 +58,13 @@
     if (scanned?.key !== key)
       scanned = {
         key,
-        count: SshConfig.Scan().then(
-          (list) => (list ?? []).filter((c) => !c.imported && !c.error).length,
-          () => 0,
+        aliases: SshConfig.Scan().then(
+          (list) => (list ?? []).filter((c) => !c.imported && !c.error).map((c) => c.alias),
+          () => [],
         ),
       }
     const current = scanned
-    void current.count.then((n) => scanned === current && (found = n))
+    void current.aliases.then((a) => scanned === current && (unsaved = a))
   })
 
   const hour = new Date().getHours()
@@ -91,6 +96,9 @@
     else if (q && looksLikeTarget(q)) onConnectTarget(q)
   }
 
+  const refHosts = $derived(hostStore.list.filter((h) => h.passwordRef).length)
+  onMount(() => void onePassword.refresh())
+
   function auth(h: Host) {
     if (h.proxyJump) return `via ${h.proxyJump}`
     if (h.passwordRef) return '1Password ref'
@@ -115,18 +123,23 @@
         {#if count}<span class="ml-auto text-xs text-subtle">{id === 'tunnels' && tunnels.running ? `${tunnels.running} on` : count}</span>{/if}
       </button>
     {/each}
-    <span class="flex h-10 cursor-default items-center gap-3 px-3 text-sm font-medium text-subtle" title="1Password integration arrives in a later version">
-      <Icon name="shield" size={17} />Keychain<span class="ml-auto rounded-full bg-hop px-2 py-0.5 text-[10.5px]">soon</span>
-    </span>
     {#if openTabs}
       <div class="-mx-1 mt-3 flex min-h-0 flex-col border-t border-line px-1 pt-3">{@render openTabs()}</div>
     {/if}
 
     <div class="mt-auto flex flex-col gap-2 rounded-2xl border border-line bg-panel p-3.5">
       <div class="flex items-center gap-2 text-[13px] font-bold">
-        <span class="text-subtle"><Icon name="shield" size={14} /></span>1Password
+        <span class={onePassword.status?.version ? 'text-accent-text' : 'text-subtle'}><Icon name="shield" size={14} /></span>1Password
       </div>
-      <p class="text-xs leading-relaxed text-subtle">Vault references and the SSH agent arrive in a later version. TuxShell never stores 1Password secrets.</p>
+      <p class="text-xs leading-relaxed text-subtle">
+        {#if onePassword.status && !onePassword.status.version}
+          Install the 1Password CLI to sign in with vault references (Preferences → Security).
+        {:else}
+          {refHosts === 0 ? 'No hosts use a vault reference yet.' : `${refHosts} ${refHosts === 1 ? 'host signs' : 'hosts sign'} in from your vault.`}
+          {#if prefs.value.onePasswordAgent}SSH agent on.{/if}
+        {/if}
+        TuxShell never stores 1Password secrets.
+      </p>
     </div>
   </nav>
 
@@ -174,6 +187,14 @@
         <span class="text-accent-text"><Icon name="import" size={18} /></span>
         <span><strong>Found {found} {found === 1 ? 'host' : 'hosts'}</strong> in ~/.ssh/config that {found === 1 ? "isn't" : "aren't"} saved yet.</span>
         <button class="ml-auto h-8 rounded-[10px] bg-accent-text px-3.5 text-[13px] font-bold text-on-accent hover:opacity-90" onclick={() => onImport('sshconfig')}>Review & import</button>
+        <button
+          class="-mr-1.5 grid size-8 place-items-center rounded-[10px] text-accent-ink/70 hover:bg-accent-text/10 hover:text-accent-ink"
+          aria-label="Hide this reminder"
+          title="Hide until ~/.ssh/config has new hosts (they stay in Import)"
+          onclick={() => prefs.hideSshConfigHosts(unsaved)}
+        >
+          <Icon name="x" size={16} />
+        </button>
       </div>
     {/if}
 
