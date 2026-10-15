@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -142,5 +143,14 @@ func TestProfiles(t *testing.T) {
 	}
 	if (Profile{Command: "htop"}).RemoteCommand() != "htop" || (Profile{KeepShell: true}).RemoteCommand() != "" {
 		t.Error("RemoteCommand")
+	}
+}
+
+func TestHiddenSSHConfigHostsCleaned(t *testing.T) {
+	s := Defaults()
+	s.HiddenSSHConfigHosts = []string{"web", "", "web", strings.Repeat("x", 201), "db"}
+	s.normalize()
+	if got := strings.Join(s.HiddenSSHConfigHosts, ","); got != "web,db" {
+		t.Fatalf("hidden = %q", got)
 	}
 }

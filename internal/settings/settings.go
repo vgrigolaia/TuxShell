@@ -25,6 +25,9 @@ type Settings struct {
 	// GroupOrder is the order of host groups chosen by dragging; groups not
 	// listed follow in their usual order.
 	GroupOrder []string `json:"groupOrder"`
+	// HiddenSSHConfigHosts are ~/.ssh/config aliases the user chose not to be
+	// reminded about on Home; a new alias brings the reminder back.
+	HiddenSSHConfigHosts []string `json:"hiddenSshConfigHosts"`
 	// HostStatus pings saved hosts in the background to show which are up.
 	HostStatus bool `json:"hostStatus"`
 	// UpdateCheck asks GitHub for a newer release at startup (on by default;
@@ -191,10 +194,11 @@ func Defaults() Settings {
 			ConfirmClose:  true,
 			CtrlWheelZoom: true,
 		},
-		Profiles:   []NamedProfile{},
-		GroupOrder: []string{},
-		History:    History{Enabled: true, Days: 90, Max: 1000},
-		RDPClient:  "auto",
+		Profiles:             []NamedProfile{},
+		GroupOrder:           []string{},
+		HiddenSSHConfigHosts: []string{},
+		History:              History{Enabled: true, Days: 90, Max: 1000},
+		RDPClient:            "auto",
 	}
 }
 
@@ -269,6 +273,7 @@ func (s *Settings) normalize() {
 	oneOf(&s.RDPClient, d.RDPClient, "auto", "x11", "sdl")
 	oneOf(&s.TabsPosition, d.TabsPosition, "left", "top")
 	s.GroupOrder = cleanGroupOrder(s.GroupOrder)
+	s.HiddenSSHConfigHosts = cleanGroupOrder(s.HiddenSSHConfigHosts)
 	if s.History.Days == 0 {
 		s.History.Days = d.History.Days
 	}
@@ -372,13 +377,13 @@ func oneOf(v *string, def string, allowed ...string) {
 	*v = def
 }
 
-// Limits for GroupOrder, so a hand-edited file stays small.
+// Limits for GroupOrder and HiddenSSHConfigHosts, so a hand-edited file stays small.
 const (
 	maxGroups      = 1000
 	maxGroupLength = 200
 )
 
-// cleanGroupOrder drops blank, overlong and repeated names.
+// cleanGroupOrder drops blank, overlong and repeated names (group names or aliases).
 func cleanGroupOrder(in []string) []string {
 	out := []string{}
 	seen := map[string]bool{}

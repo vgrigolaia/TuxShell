@@ -1,7 +1,7 @@
 <script lang="ts" module>
   // Scanning ~/.ssh/config starts an `ssh -G` per alias, so the result is
   // reused until the saved hosts change.
-  let scanned: { key: string; count: Promise<number> } | undefined
+  let scanned: { key: string; aliases: Promise<string[]> } | undefined
 </script>
 
 <script lang="ts">
@@ -45,7 +45,10 @@
 
   let query = $state('')
   let group = $state<string | null>(null)
-  let found = $state(0)
+  // Unsaved ~/.ssh/config aliases; the banner leaves out the ones hidden with its ×.
+  let unsaved = $state<string[]>([])
+  const hidden = $derived(new Set(prefs.value.hiddenSshConfigHosts ?? []))
+  const found = $derived(unsaved.filter((a) => !hidden.has(a)).length)
   let search = $state<HTMLInputElement>()
 
   // Rescan when hosts are saved, imported or deleted, so the banner stays true.
@@ -55,13 +58,13 @@
     if (scanned?.key !== key)
       scanned = {
         key,
-        count: SshConfig.Scan().then(
-          (list) => (list ?? []).filter((c) => !c.imported && !c.error).length,
-          () => 0,
+        aliases: SshConfig.Scan().then(
+          (list) => (list ?? []).filter((c) => !c.imported && !c.error).map((c) => c.alias),
+          () => [],
         ),
       }
     const current = scanned
-    void current.count.then((n) => scanned === current && (found = n))
+    void current.aliases.then((a) => scanned === current && (unsaved = a))
   })
 
   const hour = new Date().getHours()
@@ -184,6 +187,14 @@
         <span class="text-accent-text"><Icon name="import" size={18} /></span>
         <span><strong>Found {found} {found === 1 ? 'host' : 'hosts'}</strong> in ~/.ssh/config that {found === 1 ? "isn't" : "aren't"} saved yet.</span>
         <button class="ml-auto h-8 rounded-[10px] bg-accent-text px-3.5 text-[13px] font-bold text-on-accent hover:opacity-90" onclick={() => onImport('sshconfig')}>Review & import</button>
+        <button
+          class="-mr-1.5 grid size-8 place-items-center rounded-[10px] text-accent-ink/70 hover:bg-accent-text/10 hover:text-accent-ink"
+          aria-label="Hide this reminder"
+          title="Hide until ~/.ssh/config has new hosts (they stay in Import)"
+          onclick={() => prefs.hideSshConfigHosts(unsaved)}
+        >
+          <Icon name="x" size={16} />
+        </button>
       </div>
     {/if}
 

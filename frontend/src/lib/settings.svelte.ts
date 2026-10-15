@@ -64,6 +64,7 @@ const defaults = (): Settings => ({
   hostsSidebar: true,
   tabsPosition: 'left',
   groupOrder: [],
+  hiddenSshConfigHosts: [],
   hostStatus: true,
   updateCheck: true,
   savePasswords: true,
@@ -219,6 +220,12 @@ class Preferences {
 
   setGroupOrder(order: string[]) {
     this.value.groupOrder = order
+    this.queueSave()
+  }
+
+  /** Stops Home reminding about these ~/.ssh/config aliases. */
+  hideSshConfigHosts(aliases: string[]) {
+    this.value.hiddenSshConfigHosts = [...new Set([...(this.value.hiddenSshConfigHosts ?? []), ...aliases])]
     this.queueSave()
   }
 
