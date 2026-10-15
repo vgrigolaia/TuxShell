@@ -7,6 +7,7 @@
   import { OSES } from '../os'
   import Icon from './Icon.svelte'
   import * as Login from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/login/service'
+  import * as OnePassword from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/onepassword/service'
   import { logins } from '../logins.svelte'
   import { prefs } from '../settings.svelte'
 
@@ -87,6 +88,22 @@
       else tested = { ok: false, message: errorMessage(e) }
     } finally {
       testing = false
+    }
+  }
+
+  // Asks 1Password for the reference; only "worked" or the reason comes back.
+  let checking = $state(false)
+  let checked = $state<{ ok: boolean; message: string } | null>(null)
+  async function checkRef() {
+    checking = true
+    checked = null
+    try {
+      const reason = await OnePassword.Check(draft.passwordRef)
+      checked = reason ? { ok: false, message: reason } : { ok: true, message: '1Password returned a password for this reference.' }
+    } catch (e) {
+      checked = { ok: false, message: errorMessage(e) }
+    } finally {
+      checking = false
     }
   }
 
@@ -413,7 +430,6 @@
         {@render rdpOptions()}
       {/if}
 
-      {#if !isRDP}
       <fieldset class="flex flex-col gap-2.5 rounded-2xl border border-accent-line bg-accent-soft p-4">
         <legend class="sr-only">1Password</legend>
         <p class="flex items-center gap-2 text-[13px] font-bold text-accent-ink" aria-hidden="true">
@@ -421,15 +437,26 @@
         </p>
         <div>
           <label class={label} for="host-passwordRef">Password reference</label>
-          <input id="host-passwordRef" class="{input} font-mono text-xs" bind:value={draft.passwordRef} placeholder="op://Infra/pg-primary/password"
-            aria-invalid={!!fieldError('passwordRef')} aria-describedby="host-passwordRef-error host-passwordRef-hint" autocomplete="off" spellcheck="false" />
+          <div class="flex gap-2">
+            <input id="host-passwordRef" class="{input} min-w-0 flex-1 font-mono text-xs" bind:value={draft.passwordRef} placeholder="op://Infra/pg-primary/password"
+              oninput={() => (checked = null)}
+              aria-invalid={!!fieldError('passwordRef')} aria-describedby="host-passwordRef-error host-passwordRef-hint" autocomplete="off" spellcheck="false" />
+            <button type="button" class="shrink-0 rounded-[10px] border border-strong bg-panel px-3 text-xs font-semibold hover:bg-raised disabled:opacity-60"
+              disabled={checking || !draft.passwordRef.trim()} onclick={checkRef}>
+              {checking ? 'Checking…' : 'Check'}
+            </button>
+          </div>
           {@render field('passwordRef')}
         </div>
+        {#if checked}
+          <p role="status" class="text-xs {checked.ok ? 'text-success' : 'text-warning'}">{checked.ok ? '✓ ' : ''}{checked.message}</p>
+        {/if}
         <p id="host-passwordRef-hint" class="text-[11.5px] leading-normal text-accent-ink/80">
-          Only the reference is stored, never the value. Signing in with it arrives with 1Password support in a later version.
+          Only the reference is stored, never the value. When the server asks for a password, TuxShell gets it from
+          1Password, which may ask you to approve. In 1Password, copy it with <span class="font-medium">Copy Secret Reference</span>
+          on the field.{#if isRDP} Remote desktops in a tab still ask each time.{/if}
         </p>
       </fieldset>
-      {/if}
 
 
       {#if tested}
