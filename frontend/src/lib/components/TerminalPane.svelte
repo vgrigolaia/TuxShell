@@ -276,14 +276,19 @@
         host.removeEventListener('wheel', onWheel, { capture: true })
       })
 
-      let frame = 0
+      // Fit once the size settles: a maximize or panel drag resizes every frame,
+      // and each fit reflows the scrollback and makes the remote side redraw.
+      let settle: ReturnType<typeof setTimeout> | undefined
       const observer = new ResizeObserver(() => {
-        cancelAnimationFrame(frame)
+        clearTimeout(settle)
         // Hidden tabs have zero size; fitting them would shrink the PTY to 1x1.
-        frame = requestAnimationFrame(() => host.offsetWidth > 0 && fit?.fit())
+        settle = setTimeout(() => host.offsetWidth > 0 && fit?.fit(), 50)
       })
       observer.observe(host)
-      cleanups.push(() => observer.disconnect())
+      cleanups.push(() => {
+        observer.disconnect()
+        clearTimeout(settle)
+      })
 
       onSize?.(term.cols, term.rows)
       reconnect = () => void connect()
