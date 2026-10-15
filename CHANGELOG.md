@@ -3,6 +3,27 @@
 All notable changes to TuxShell are listed here. Versions follow
 [Semantic Versioning](https://semver.org).
 
+## [1.3.0] - 2026-10-15
+
+### Added
+
+- 1Password: a host can sign in with a 1Password reference (`op://Vault/Item/field`). When the
+  server asks for the password, TuxShell gets it from 1Password through the `op` CLI (1Password
+  may ask you to approve). The value is never stored, logged or shown, and it works with
+  *Allow saving passwords* off. Remote desktops use it in their own window.
+  - **Check** in the host form confirms a reference works.
+  - The password box explains when 1Password couldn't give the password, or when the server
+    refused it.
+  - Preferences → Security shows whether the 1Password CLI is installed, with setup steps.
+- *Use the 1Password SSH agent* (Preferences → Security, off by default): TuxShell's ssh uses the
+  SSH keys in 1Password, also through jump hosts. Hosts whose `~/.ssh/config` picks an agent keep it.
+- Home: hide the "Found hosts in ~/.ssh/config" reminder with its ×. It comes back only when new
+  hosts appear; hidden hosts are still listed in Import.
+
+### Fixed
+
+- Leftover password-channel sockets from runs that didn't close cleanly are removed at startup.
+
 ## [1.2.1] - 2026-10-15
 
 ### Fixed
@@ -205,6 +226,7 @@ First release.
 - Dark and light themes, or follow the system.
 - Packages for Fedora/RHEL (.rpm), Debian/Ubuntu (.deb) and an AppImage.
 
+[1.3.0]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.3.0
 [1.2.1]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.2.1
 [1.2.0]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.2.0
 [1.1.9]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.9
