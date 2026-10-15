@@ -26,7 +26,7 @@
       <li>Encrypted clipboard history</li>
       <li>Dark and light themes</li>
     </ul>
-    <p>TuxShell is free and open source. It makes no network requests of its own unless you turn on the update check.</p>
+    <p>TuxShell is free and open source. Its only network request is an optional check for a newer version at startup (on by default, off in Preferences → About). It never downloads or installs anything itself.</p>
   </description>
 
   <launchable type="desktop-id">io.github.vgrigolaia.TuxShell.desktop</launchable>
@@ -62,6 +62,11 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="1.2.0" date="2026-10-15">
+      <description>
+        <p>Remote desktops (RDP), in their own window or inside a TuxShell tab, with shared folders, copy and paste, and file transfer. Open tabs can live in the left panel, and host groups and hosts can be reordered by dragging.</p>
+      </description>
+    </release>
     <release version="1.1.9" date="2026-10-14">
       <description>
         <p>Connection history with search and reconnect, and session recording (screen output only) with a built-in player.</p>

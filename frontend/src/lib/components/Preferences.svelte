@@ -172,6 +172,7 @@
     ['Ctrl+Alt+W', 'Set pane title'],
     ['Ctrl+Shift+W', 'Close pane'],
     ['Ctrl+Shift+Arrows', 'Move between panes'],
+    ['Alt+Up / Alt+Down', 'Move the focused host or group in the hosts list'],
     ['Ctrl+= / Ctrl+-', 'Zoom terminal text in / out'],
     ['Ctrl+mouse wheel', 'Zoom terminal text'],
     ['Ctrl+0', 'Reset zoom'],

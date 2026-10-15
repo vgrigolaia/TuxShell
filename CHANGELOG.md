@@ -3,6 +3,40 @@
 All notable changes to TuxShell are listed here. Versions follow
 [Semantic Versioning](https://semver.org).
 
+## [1.2.0] - 2026-10-15
+
+### Added
+
+- Remote desktops (RDP): add Windows machines as hosts and open them in their own window
+  (FreeRDP 3) or inside a TuxShell tab (beta, built in, nothing extra to install).
+  - Own window: shared folders, copy and paste of text and files, sound and microphone,
+    quality presets, RD Gateway, multiple monitors, an SSH jump host, and readable error
+    messages. Packages recommend FreeRDP.
+  - Tab: copy and paste of text and files (drop files on the desktop, or Send files, and
+    save what Windows copied to Downloads), resizing with the tab and Ctrl+Alt+Del. The
+    password is typed each time; shared folders and sound need the own window.
+  - Server certificates are pinned on first use, with a clear warning if one changes.
+  - Remmina connections import with their RDP settings; RDP hosts are kept in JSON and CSV
+    exports.
+- Open tabs in the left panel, above your hosts. With the panel hidden they become a strip of
+  icons. Drag to reorder. Preferences → General → Open tabs switches back to the strip in the
+  title bar.
+- Drag host groups, and hosts within a group or into another group, to put them in your own
+  order (also from the right-click menu and with Alt+↑/↓). The order is remembered.
+- Import preview: select all or none, and search the list.
+- "Don't ask again" when closing a tab, pane or window with running sessions.
+
+### Changed
+
+- "Allow saving passwords" and the startup update check are now on by default for new
+  installs. A password is still saved only when you enter or import one, and the update check
+  only links to the new release. Your existing settings are not changed.
+- The saved-password field in the host form sits under the user name.
+
+### Fixed
+
+- The hosts list scrollbar no longer covers the group fold arrows.
+
 ## [1.1.9] - 2026-10-14
 
 ### Added
@@ -160,6 +194,7 @@ First release.
 - Dark and light themes, or follow the system.
 - Packages for Fedora/RHEL (.rpm), Debian/Ubuntu (.deb) and an AppImage.
 
+[1.2.0]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.2.0
 [1.1.9]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.9
 [1.1.8]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.8
 [1.1.7]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.7
