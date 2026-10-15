@@ -94,6 +94,14 @@ func main() {
 	}
 	resolver := sshcmd.Resolver{Store: store, ControlDir: controlDir, RemoteCommand: func(h hosts.Host) string {
 		return prefs.Get().Settings.ProfileFor(h.Profile).RemoteCommand()
+	}, Agent: func() string {
+		if !prefs.Get().Settings.OnePasswordAgent {
+			return ""
+		}
+		if sock := onepassword.AgentSocket(); onepassword.AgentRunning(sock) {
+			return sock
+		}
+		return ""
 	}}
 
 	var app *application.App

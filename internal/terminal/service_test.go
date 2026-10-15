@@ -283,3 +283,17 @@ func TestBatcherKeepsOrderAndLimitsPending(t *testing.T) {
 		t.Fatalf("got %d bytes out of order or missing, want %d", len(got), len(want))
 	}
 }
+
+func TestKeepsEnvironmentFromResolver(t *testing.T) {
+	rec := newRecorder()
+	svc := NewService(rec.emit, nil, nil)
+	cmd := exec.Command("sh", "-c", `printf '%s %s' "$SSH_AUTH_SOCK" "$TERM"`)
+	cmd.Env = append(os.Environ(), "SSH_AUTH_SOCK=/tmp/agent.sock")
+	if _, err := svc.start(cmd, 80, 24, visit{}); err != nil {
+		t.Fatal(err)
+	}
+	rec.waitExit(t)
+	if got := rec.output.String(); got != "/tmp/agent.sock xterm-256color" {
+		t.Fatalf("output = %q", got)
+	}
+}

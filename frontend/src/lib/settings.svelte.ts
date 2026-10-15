@@ -67,6 +67,7 @@ const defaults = (): Settings => ({
   hostStatus: true,
   updateCheck: true,
   savePasswords: true,
+  onePasswordAgent: false,
   profiles: [],
   history: { enabled: true, days: 90, max: 1000 },
   rdpClient: 'auto',
@@ -197,6 +198,11 @@ class Preferences {
 
   setSavePasswords(on: boolean) {
     this.value.savePasswords = on
+    this.queueSave()
+  }
+
+  setOnePasswordAgent(on: boolean) {
+    this.value.onePasswordAgent = on
     this.queueSave()
   }
 

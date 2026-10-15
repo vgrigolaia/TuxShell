@@ -35,6 +35,13 @@ func AgentSocket() string {
 	return filepath.Join(home, ".1password", "agent.sock")
 }
 
+// AgentRunning reports whether sock is a socket (the 1Password app is
+// running with its SSH agent turned on).
+func AgentRunning(sock string) bool {
+	st, err := os.Stat(sock)
+	return err == nil && st.Mode()&os.ModeSocket != 0
+}
+
 // ValidRef reports whether ref looks like op://Vault/Item[/section]/field,
 // optionally with a ?query. Names may contain spaces, not control characters.
 func ValidRef(ref string) bool {

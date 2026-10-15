@@ -33,8 +33,12 @@ type Settings struct {
 	// SavePasswords allows saving host passwords in the system keyring (on by
 	// default): typed into a host, ticked "Remember", or found in an imported
 	// file. Keys, the ssh agent or 1Password stay the safer choice.
-	SavePasswords bool     `json:"savePasswords"`
-	Terminal      Terminal `json:"terminal"`
+	SavePasswords bool `json:"savePasswords"`
+	// OnePasswordAgent makes TuxShell's ssh use the 1Password SSH agent
+	// (~/.1password/agent.sock) for keys. An IdentityAgent in ~/.ssh/config
+	// still wins for its hosts.
+	OnePasswordAgent bool     `json:"onePasswordAgent"`
+	Terminal         Terminal `json:"terminal"`
 	// Profiles are the user's named terminal profiles.
 	Profiles []NamedProfile `json:"profiles"`
 	// History keeps a list of connections: host, time and duration only.

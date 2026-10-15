@@ -228,7 +228,11 @@ func (s *Service) StartTarget(target string, cols, rows int) (string, error) {
 func (s *Service) start(cmd *exec.Cmd, cols, rows int, v visit) (string, error) {
 	hostID := v.hostID
 	id := strconv.FormatUint(s.nextID.Add(1), 10)
-	cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor")
+	base := cmd.Env // set by the resolver, e.g. for the 1Password SSH agent
+	if base == nil {
+		base = os.Environ()
+	}
+	cmd.Env = append(base, "TERM=xterm-256color", "COLORTERM=truecolor")
 	started, end := func(int) {}, func() {}
 	if s.auth != nil && hostID != 0 {
 		var env []string

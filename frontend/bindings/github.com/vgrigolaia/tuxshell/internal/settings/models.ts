@@ -198,6 +198,13 @@ export interface Settings {
      * file. Keys, the ssh agent or 1Password stay the safer choice.
      */
     "savePasswords": boolean;
+
+    /**
+     * OnePasswordAgent makes TuxShell's ssh use the 1Password SSH agent
+     * (~/.1password/agent.sock) for keys. An IdentityAgent in ~/.ssh/config
+     * still wins for its hosts.
+     */
+    "onePasswordAgent": boolean;
     "terminal": Terminal;
 
     /**

@@ -102,11 +102,14 @@ func tunnelOptions() []string {
 type Remote struct {
 	ssh  string
 	args []string
+	env  []string
 }
 
 // Command returns an ssh command that runs script on the remote host.
 // script is passed to the remote login shell as one argument.
 func (r Remote) Command(ctx context.Context, script string) *exec.Cmd {
 	args := append(append([]string{}, r.args...), script)
-	return exec.CommandContext(ctx, r.ssh, args...)
+	cmd := exec.CommandContext(ctx, r.ssh, args...)
+	cmd.Env = r.env
+	return cmd
 }

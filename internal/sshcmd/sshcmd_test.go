@@ -183,3 +183,23 @@ func TestJumpTunnelCommand(t *testing.T) {
 		}
 	}
 }
+
+func TestAgentIsPassedAsAuthSock(t *testing.T) {
+	f := LocalForward(40000, "10.0.5.4", 3389)
+	cmd, err := Resolver{Agent: func() string { return "/home/me/.1password/agent.sock" }}.JumpTunnelCommand("admin@bastion", f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cmd.Env[len(cmd.Env)-1]; got != "SSH_AUTH_SOCK=/home/me/.1password/agent.sock" {
+		t.Fatalf("last env entry = %q", got)
+	}
+	if slices.ContainsFunc(cmd.Args, func(a string) bool { return strings.Contains(a, "IdentityAgent") }) {
+		t.Fatalf("args override ~/.ssh/config: %v", cmd.Args)
+	}
+	for _, agent := range []func() string{nil, func() string { return "" }} {
+		cmd, _ := Resolver{Agent: agent}.JumpTunnelCommand("admin@bastion", f)
+		if cmd.Env != nil {
+			t.Fatalf("env set without an agent: %v", cmd.Env)
+		}
+	}
+}
