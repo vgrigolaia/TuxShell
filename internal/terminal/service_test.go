@@ -222,3 +222,64 @@ func TestRecording(t *testing.T) {
 		t.Errorf("recording = %s", data)
 	}
 }
+
+func TestOutputIsBatched(t *testing.T) {
+	var mu sync.Mutex
+	events, size := 0, 0
+	exits := make(chan struct{})
+	svc := NewService(func(name string, data any) {
+		switch ev := data.(type) {
+		case DataEvent:
+			b, _ := base64.StdEncoding.DecodeString(ev.Data)
+			mu.Lock()
+			events++
+			size += len(b)
+			mu.Unlock()
+		case ExitEvent:
+			close(exits)
+		}
+	}, nil, nil)
+
+	// About 590 KB that the PTY hands out in thousands of small reads.
+	if _, err := svc.start(exec.Command("seq", "1", "100000"), 80, 24, visit{}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-exits:
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for exit event")
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if want := 588895 + 100000; size != want { // "\n" becomes "\r\n" on a PTY
+		t.Fatalf("got %d bytes, want %d", size, want)
+	}
+	t.Logf("%d bytes in %d data events", size, events)
+	if events > 200 {
+		t.Fatalf("%d data events for one burst, want them batched", events)
+	}
+}
+
+func TestBatcherKeepsOrderAndLimitsPending(t *testing.T) {
+	b := newBatcher()
+	var got []byte
+	done := make(chan struct{})
+	go func() {
+		b.run(func(p []byte) { got = append(got, p...) })
+		close(done)
+	}()
+	var want []byte
+	chunk := make([]byte, 4096)
+	for i := range 200 { // 800 KB, more than maxPending
+		for j := range chunk {
+			chunk[j] = byte(i)
+		}
+		b.write(chunk)
+		want = append(want, chunk...)
+	}
+	b.close()
+	<-done
+	if string(got) != string(want) {
+		t.Fatalf("got %d bytes out of order or missing, want %d", len(got), len(want))
+	}
+}
