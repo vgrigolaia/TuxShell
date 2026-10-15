@@ -151,7 +151,9 @@
       await loadFont(prefs.fontFamilyOf(profile))
       if (disposed) return
 
-      term = new Terminal({ allowProposedApi: true, ...termOptions() })
+      const opts = termOptions()
+      applied = { ...opts }
+      term = new Terminal({ allowProposedApi: true, ...opts })
       fit = new FitAddon()
       term.loadAddon(fit)
       term.loadAddon(new SearchAddon())
@@ -490,13 +492,21 @@
     }
   })
 
-  // Apply preference changes to the live terminal.
+  // Apply preference changes to the live terminal. Only options that really
+  // changed are set: saving any setting hands back new objects, and setting
+  // xterm's theme (even an equal one) redraws the whole terminal.
+  let applied: Record<string, unknown> = {}
   $effect(() => {
     const opts = termOptions()
     if (!term) return
+    const changed = Object.fromEntries(
+      Object.entries(opts).filter(([k, v]) => JSON.stringify(v) !== JSON.stringify(applied[k])),
+    ) as Partial<typeof opts>
+    if (Object.keys(changed).length === 0) return
+    Object.assign(applied, changed)
     void loadFont(opts.fontFamily).then(() => {
       if (!term) return
-      Object.assign(term.options, opts)
+      Object.assign(term.options, changed)
       // Cell size may have changed; refit so the PTY gets the new size.
       if (host.offsetWidth > 0) fit?.fit()
     })
