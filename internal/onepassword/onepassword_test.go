@@ -95,3 +95,26 @@ func TestVersion(t *testing.T) {
 		t.Fatalf("Version = %q, %v", v, err)
 	}
 }
+
+func TestServiceCheckNeverReturnsTheValue(t *testing.T) {
+	c, _ := fakeOp(t, "printf 'hunter2'") // gitleaks:allow
+	s := Service{Client: c}
+	if msg := s.Check(context.Background(), " op://Infra/db-01/password "); msg != "" {
+		t.Fatalf("Check = %q, want empty", msg)
+	}
+	if msg := s.Check(context.Background(), "op://Infra"); msg == "" || strings.Contains(msg, "hunter2") {
+		t.Fatalf("Check of a bad reference = %q", msg)
+	}
+}
+
+func TestServiceStatus(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	_ = os.MkdirAll(filepath.Join(home, ".ssh"), 0o700)
+	_ = os.WriteFile(filepath.Join(home, ".ssh", "config"), []byte("Host *\n  IdentityAgent ~/.1password/agent.sock\n"), 0o600)
+	c, _ := fakeOp(t, "echo 2.31.1")
+	st := (&Service{Client: c}).Status(context.Background())
+	if !st.Installed || st.Version != "2.31.1" || st.Agent || !st.ConfigUsesAgent {
+		t.Fatalf("Status = %+v", st)
+	}
+}

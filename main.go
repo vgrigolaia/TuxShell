@@ -242,6 +242,7 @@ func main() {
 			application.NewService(updates.NewService()),
 			application.NewService(images),
 			application.NewService(remoteDesktops),
+			application.NewService(&onepassword.Service{}),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
