@@ -3,6 +3,24 @@
 All notable changes to TuxShell are listed here. Versions follow
 [Semantic Versioning](https://semver.org).
 
+## [1.4.0] - 2026-10-15
+
+### Added
+
+- macOS (beta): one universal app for Apple silicon and Intel (macOS 12 or newer), as a `.dmg`.
+  It isn't notarized yet, so the first start needs System Settings → Privacy & Security →
+  *Open Anyway*.
+  - The window keeps macOS's own close, minimize and zoom buttons, with a standard menu bar.
+  - The app's shortcuts use ⌘ (⌘K quick connect, ⇧⌘L hosts, ⌘C/⌘V in the terminal), so Ctrl
+    stays with the terminal; labels and Preferences → Shortcuts show the ⌘ keys.
+  - Files live in `~/Library/Application Support/TuxShell`; saved passwords go to the Keychain.
+  - Homebrew tools are found (`op`, `sdl-freerdp`), and the 1Password SSH agent's macOS socket
+    is used.
+
+### Fixed
+
+- Preferences shows the real settings and recordings folders on each system.
+
 ## [1.3.0] - 2026-10-15
 
 ### Added
@@ -226,6 +244,7 @@ First release.
 - Dark and light themes, or follow the system.
 - Packages for Fedora/RHEL (.rpm), Debian/Ubuntu (.deb) and an AppImage.
 
+[1.4.0]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.4.0
 [1.3.0]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.3.0
 [1.2.1]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.2.1
 [1.2.0]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.2.0
