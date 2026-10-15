@@ -1,6 +1,8 @@
 package login
 
 import (
+	"context"
+	"errors"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -212,3 +214,95 @@ func TestForgetAll(t *testing.T) {
 }
 
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
+
+// fakeVault answers references from a map and counts reads.
+type fakeVault struct {
+	values map[string]string
+	reads  int
+}
+
+func (v *fakeVault) Read(_ context.Context, ref string) (string, error) {
+	v.reads++
+	if pw, ok := v.values[ref]; ok {
+		return pw, nil
+	}
+	return "", errors.New("1Password: no such item")
+}
+
+// withRef gives the fixture's host a 1Password reference and a vault.
+func (f *fixture) withRef(t *testing.T, values map[string]string) *fakeVault {
+	t.Helper()
+	f.host.PasswordRef = "op://Infra/db/password"
+	h, err := f.store.Save(f.host)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.host = h
+	v := &fakeVault{values: values}
+	UseVault(f.svc, v)
+	return v
+}
+
+func TestVaultPasswordFirstEvenWithSavingOff(t *testing.T) {
+	f := setup(t)
+	if err := f.svc.setPassword(f.host.ID, "from-keyring"); err != nil {
+		t.Fatal(err)
+	}
+	v := f.withRef(t, map[string]string{"op://Infra/db/password": "from-vault"})
+	f.on = false
+	tok, end := f.session(t)
+	defer end()
+	if r := f.prompt(tok, "root@10.0.0.7's password: ", 4242); r.Action != askpass.ActionAnswer || r.Answer != "from-vault" {
+		t.Fatalf("first prompt = %+v", r)
+	}
+	// Refused: the user is asked, told why, and can't save while saving is off.
+	done := make(chan askpass.Reply)
+	go func() { done <- f.prompt(tok, "root@10.0.0.7's password: ", 4242) }()
+	req := f.next(t, "typed", false)
+	if !req.VaultFailed || req.SavedFailed || req.CanSave {
+		t.Errorf("request = %+v", req)
+	}
+	if r := <-done; r.Answer != "typed" {
+		t.Errorf("second prompt = %+v", r)
+	}
+	if v.reads != 1 {
+		t.Errorf("1Password read %d times, want once", v.reads)
+	}
+}
+
+func TestVaultErrorFallsBackToSavedPassword(t *testing.T) {
+	f := setup(t)
+	if err := f.svc.setPassword(f.host.ID, "from-keyring"); err != nil {
+		t.Fatal(err)
+	}
+	f.withRef(t, nil)
+	tok, end := f.session(t)
+	defer end()
+	if r := f.prompt(tok, "Password:", 4242); r.Answer != "from-keyring" {
+		t.Fatalf("first prompt = %+v", r)
+	}
+}
+
+func TestVaultErrorShownInPasswordBox(t *testing.T) {
+	f := setup(t)
+	f.withRef(t, nil)
+	f.on = false
+	tok, end := f.session(t)
+	defer end()
+	done := make(chan askpass.Reply)
+	go func() { done <- f.prompt(tok, "Password:", 4242) }()
+	req := f.next(t, "typed", false)
+	if req.VaultError != "1Password: no such item" || req.VaultFailed {
+		t.Errorf("request = %+v", req)
+	}
+	<-done
+}
+
+func TestNoRefNoSavingStaysInTerminal(t *testing.T) {
+	f := setup(t)
+	UseVault(f.svc, &fakeVault{})
+	f.on = false
+	if env, _, _ := f.svc.Begin("s1", f.host.ID); env != nil {
+		t.Fatal("a host without a reference took part while saving is off")
+	}
+}
