@@ -36,16 +36,35 @@ jobs:
         run: npm ci --prefix frontend
 
       - name: Test
-        run: task test
-
-      - name: Build the universal app and .dmg
+        shell: bash
         run: |
-          task darwin:package:universal
-          # Mac users see the bundle name; the program inside stays "tuxshell".
-          mv bin/tuxshell.app bin/TuxShell.app
-          task darwin:create:dmg APP_NAME=TuxShell
+          set +e
+          task test 2>&1 | tee test.log
+          status=${PIPESTATUS[0]}
+          # Failures as annotations, so they show on the run's summary page.
+          grep -E -- '--- FAIL|^FAIL|^panic:|_test\.go:[0-9]+:|cannot|undefined:' test.log | grep -v '^ok' | head -40 |
+            while IFS= read -r line; do echo "::error title=test::${line}"; done
+          exit "$status"
+
+      # Also after failed tests, so one run shows every problem.
+      - name: Build the universal app and .dmg
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+            task darwin:package:universal &&
+            # Mac users see the bundle name; the program inside stays "tuxshell".
+            mv bin/tuxshell.app bin/TuxShell.app &&
+            task darwin:create:dmg APP_NAME=TuxShell
+          } 2>&1 | tee build.log || {
+            grep -iE 'error|undefined|cannot|failed' build.log | head -30 |
+              while IFS= read -r line; do echo "::error title=build::${line}"; done
+            exit 1
+          }
 
       - name: Name the .dmg after the version
+        if: ${{ !cancelled() }}
         run: |
           version=$(node -p "require('./frontend/package.json').version")
           mv bin/TuxShell.dmg "bin/TuxShell-${version}-universal.dmg"
@@ -53,6 +72,7 @@ jobs:
           ls -l bin
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ !cancelled() }}
         with:
           name: TuxShell-macos
           path: |
