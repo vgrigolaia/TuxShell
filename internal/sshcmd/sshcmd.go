@@ -89,27 +89,44 @@ type Resolver struct {
 	// run on the server (from the host's terminal profile), or "".
 	RemoteCommand func(h hosts.Host) string
 	// Agent, when set, returns an SSH agent socket for ssh to use ("" for
-	// the usual one). It is passed as SSH_AUTH_SOCK, so jump hosts use it too
-	// and an IdentityAgent in ~/.ssh/config still wins.
+	// the usual one). It is passed as SSH_AUTH_SOCK (so jump hosts use it
+	// too), and only to hosts whose ~/.ssh/config doesn't pick an agent:
+	// "IdentityAgent SSH_AUTH_SOCK" means the desktop's agent, not ours.
 	Agent func() string
 }
 
-// env returns the environment for ssh (nil: inherit TuxShell's).
-func (r Resolver) env() []string {
+// env returns the environment for ssh with args (nil: inherit TuxShell's).
+func (r Resolver) env(ssh string, args []string) []string {
 	if r.Agent == nil {
 		return nil
 	}
 	sock := r.Agent()
-	if sock == "" {
+	if sock == "" || configPicksAgent(ssh, args) {
 		return nil
 	}
 	return append(os.Environ(), "SSH_AUTH_SOCK="+sock)
 }
 
+// configPicksAgent asks ssh (-G: print the settings, connect to nothing)
+// whether the user's config sets IdentityAgent for this connection. If ssh
+// can't say, the config is left in charge.
+func configPicksAgent(ssh string, args []string) bool {
+	out, err := exec.Command(ssh, append([]string{"-G"}, args...)...).Output()
+	if err != nil {
+		return true
+	}
+	for line := range strings.Lines(string(out)) {
+		if strings.HasPrefix(strings.ToLower(line), "identityagent ") {
+			return true
+		}
+	}
+	return false
+}
+
 // command returns ssh with args and the resolver's environment.
 func (r Resolver) command(ssh string, args ...string) *exec.Cmd {
 	cmd := exec.Command(ssh, args...)
-	cmd.Env = r.env()
+	cmd.Env = r.env(ssh, args)
 	return cmd
 }
 
@@ -306,7 +323,8 @@ func (r Resolver) remote(h hosts.Host) (Remote, error) {
 	if err != nil {
 		return Remote{}, err
 	}
-	return Remote{ssh: ssh, args: append(batchOptions(r.ControlDir), Args(h)...), env: r.env()}, nil
+	args := append(batchOptions(r.ControlDir), Args(h)...)
+	return Remote{ssh: ssh, args: args, env: r.env(ssh, args)}, nil
 }
 
 func sshPath() (string, error) {
