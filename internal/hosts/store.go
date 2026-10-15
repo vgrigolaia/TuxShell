@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	_ "modernc.org/sqlite"
+
+	"github.com/vgrigolaia/tuxshell/internal/platform"
 )
 
 // Store persists hosts in a SQLite database.
@@ -74,17 +76,13 @@ var migrations = []string{
 	`ALTER TABLE hosts ADD COLUMN position INTEGER NOT NULL DEFAULT 0`,
 }
 
-// DefaultPath returns $XDG_DATA_HOME/tuxshell/hosts.db.
+// DefaultPath returns hosts.db in the data folder ($XDG_DATA_HOME/tuxshell on Linux).
 func DefaultPath() (string, error) {
-	dir := os.Getenv("XDG_DATA_HOME")
-	if dir == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		dir = filepath.Join(home, ".local", "share")
+	dir, err := platform.DataDir()
+	if err != nil {
+		return "", err
 	}
-	return filepath.Join(dir, "tuxshell", "hosts.db"), nil
+	return filepath.Join(dir, "hosts.db"), nil
 }
 
 // Open opens (creating if needed) the database at path and applies migrations.

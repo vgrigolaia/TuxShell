@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -19,6 +18,8 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"github.com/vgrigolaia/tuxshell/internal/platform"
 )
 
 // MaxSize stops a recording that grows past it.
@@ -30,17 +31,13 @@ const MaxPlay = 50 << 20
 // ErrTooLarge is returned when a recording reached MaxSize and stopped.
 var ErrTooLarge = fmt.Errorf("the recording reached %d MB and stopped", MaxSize>>20)
 
-// DefaultDir is $XDG_DATA_HOME/tuxshell/recordings.
+// DefaultDir is recordings in the data folder ($XDG_DATA_HOME/tuxshell on Linux).
 func DefaultDir() (string, error) {
-	dir := os.Getenv("XDG_DATA_HOME")
-	if dir == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		dir = filepath.Join(home, ".local", "share")
+	dir, err := platform.DataDir()
+	if err != nil {
+		return "", err
 	}
-	return filepath.Join(dir, "tuxshell", "recordings"), nil
+	return filepath.Join(dir, "recordings"), nil
 }
 
 type header struct {
@@ -310,12 +307,7 @@ func (s *Service) OpenFolder() error {
 	if err := os.MkdirAll(s.dir, 0o700); err != nil {
 		return err
 	}
-	cmd := exec.Command("xdg-open", s.dir)
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-	go func() { _ = cmd.Wait() }()
-	return nil
+	return platform.Open(s.dir)
 }
 
 // Dir is where recordings are saved, for display.

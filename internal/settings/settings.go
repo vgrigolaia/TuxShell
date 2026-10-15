@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/vgrigolaia/tuxshell/internal/platform"
 )
 
 // Settings are the app-wide preferences.
@@ -407,17 +409,13 @@ func weight(v, def int) int {
 	return clamp((v+50)/100*100, 100, 900)
 }
 
-// DefaultPath is $XDG_CONFIG_HOME/tuxshell/settings.json.
+// DefaultPath is settings.json in the config folder ($XDG_CONFIG_HOME/tuxshell on Linux).
 func DefaultPath() (string, error) {
-	dir := os.Getenv("XDG_CONFIG_HOME")
-	if dir == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		dir = filepath.Join(home, ".config")
+	dir, err := platform.ConfigDir()
+	if err != nil {
+		return "", err
 	}
-	return filepath.Join(dir, "tuxshell", "settings.json"), nil
+	return filepath.Join(dir, "settings.json"), nil
 }
 
 // load reads path; a missing file gives the defaults and exists=false.
