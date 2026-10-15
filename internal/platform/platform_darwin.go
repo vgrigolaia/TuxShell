@@ -7,6 +7,9 @@ import (
 
 const opener = "open"
 
+// toolDirs are Homebrew (Apple silicon, then Intel) and MacPorts.
+var toolDirs = []string{"/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin"}
+
 // DataDir is ~/Library/Application Support/TuxShell.
 func DataDir() (string, error) {
 	home, err := os.UserHomeDir()

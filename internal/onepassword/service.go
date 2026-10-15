@@ -64,7 +64,8 @@ func configUsesAgent() bool {
 	}
 	for line := range strings.Lines(string(data)) {
 		f := strings.Fields(line)
-		if len(f) >= 2 && strings.EqualFold(f[0], "IdentityAgent") && strings.Contains(line, "1password/agent.sock") {
+		lower := strings.ToLower(line)
+		if len(f) >= 2 && strings.EqualFold(f[0], "IdentityAgent") && strings.Contains(lower, "1password") && strings.Contains(lower, "agent.sock") {
 			return true
 		}
 	}

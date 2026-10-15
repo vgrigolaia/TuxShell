@@ -175,7 +175,7 @@ var timeRe = regexp.MustCompile(`time[=<]([0-9.]+) ?ms`)
 func systemPing(ctx context.Context, host string) (float64, bool) {
 	ctx, cancel := context.WithTimeout(ctx, 4*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, "ping", "-c", "1", "-W", "2", "-n", "--", host).Output()
+	out, err := exec.CommandContext(ctx, "ping", "-c", "1", "-W", pingWait, "-n", "--", host).Output()
 	if err != nil {
 		return 0, false
 	}

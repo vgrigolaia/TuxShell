@@ -19,6 +19,7 @@ import (
 	"github.com/vgrigolaia/tuxshell/internal/hosts"
 	"github.com/vgrigolaia/tuxshell/internal/login"
 	"github.com/vgrigolaia/tuxshell/internal/onepassword"
+	"github.com/vgrigolaia/tuxshell/internal/platform"
 	"github.com/vgrigolaia/tuxshell/internal/rdp"
 	"github.com/vgrigolaia/tuxshell/internal/recordings"
 	"github.com/vgrigolaia/tuxshell/internal/secrets"
@@ -64,6 +65,7 @@ func main() {
 	if askpass.IsHelper() {
 		os.Exit(askpass.Helper(os.Args[1:]))
 	}
+	platform.AddToolDirs()
 
 	dbPath, err := hosts.DefaultPath()
 	if err != nil {

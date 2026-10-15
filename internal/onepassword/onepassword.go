@@ -32,7 +32,7 @@ func AgentSocket() string {
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(home, ".1password", "agent.sock")
+	return filepath.Join(home, agentPath)
 }
 
 // AgentRunning reports whether sock is a socket (the 1Password app is
@@ -70,7 +70,7 @@ type Client struct {
 
 // candidates are checked when op isn't on PATH, as happens for apps started
 // from a desktop launcher or an AppImage.
-var candidates = []string{"/usr/bin/op", "/usr/local/bin/op", "/opt/1Password/op"}
+var candidates = []string{"/usr/bin/op", "/usr/local/bin/op", "/opt/homebrew/bin/op", "/opt/1Password/op"}
 
 func (c Client) path() (string, error) {
 	if c.Path != "" {

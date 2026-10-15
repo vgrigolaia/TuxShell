@@ -9,6 +9,9 @@ import (
 
 const opener = "xdg-open"
 
+// toolDirs: on Linux the desktop's PATH already has what TuxShell runs.
+var toolDirs []string
+
 // DataDir is $XDG_DATA_HOME/tuxshell (~/.local/share/tuxshell).
 func DataDir() (string, error) { return xdgDir("XDG_DATA_HOME", ".local", "share") }
 

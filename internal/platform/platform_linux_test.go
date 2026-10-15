@@ -1,6 +1,7 @@
 package platform
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -19,5 +20,13 @@ func TestLinuxFoldersUnchanged(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", "/data")
 	if d, _ := DataDir(); d != "/data/tuxshell" {
 		t.Errorf("DataDir with XDG_DATA_HOME = %q", d)
+	}
+}
+
+func TestAddToolDirsLeavesLinuxPathAlone(t *testing.T) {
+	t.Setenv("PATH", "/usr/bin:/bin")
+	AddToolDirs()
+	if got := os.Getenv("PATH"); got != "/usr/bin:/bin" {
+		t.Fatalf("PATH = %q", got)
 	}
 }
