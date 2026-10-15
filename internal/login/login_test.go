@@ -3,6 +3,7 @@ package login
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -52,7 +53,7 @@ func setup(t *testing.T) *fixture {
 			f.asked <- r
 		}
 	})
-	if err := f.svc.Start(t.TempDir(), "/usr/bin/tuxshell"); err != nil {
+	if err := f.svc.Start(socketDir(t), "/usr/bin/tuxshell"); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { f.svc.Close() })
@@ -305,4 +306,16 @@ func TestNoRefNoSavingStaysInTerminal(t *testing.T) {
 	if env, _, _ := f.svc.Begin("s1", f.host.ID); env != nil {
 		t.Fatal("a host without a reference took part while saving is off")
 	}
+}
+
+// socketDir is a temporary folder short enough for Unix sockets: macOS's
+// t.TempDir() is longer than its 104-byte socket path limit.
+func socketDir(t *testing.T) string {
+	t.Helper()
+	dir, err := os.MkdirTemp("/tmp", "ts-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	return dir
 }
