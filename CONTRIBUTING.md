@@ -6,7 +6,7 @@ Thanks for helping. Bug reports, ideas and pull requests are all welcome.
 
 Open an [issue](https://github.com/vgrigolaia/TuxShell/issues) with:
 
-- your TuxShell version (Preferences → About) and distribution,
+- your TuxShell version (Preferences → About) and your Linux distribution or macOS version,
 - what you did, what you expected and what happened,
 - a screenshot if it's about the UI.
 
@@ -41,7 +41,9 @@ task test    # Go tests
 ```
 
 Both `task lint` and `task test` must pass. If gitleaks flags a fake secret in a test, end
-that line with a `// gitleaks:allow` comment.
+that line with a `// gitleaks:allow` comment. The [macOS workflow](.github/workflows/macos.yml)
+runs the tests on macOS and builds the `.dmg`; check it on your branch if you touch anything
+platform-specific.
 
 Some ground rules for the code:
 
@@ -49,7 +51,11 @@ Some ground rules for the code:
   built only in Go, never from the frontend. Values are validated (no leading `-`) and `--`
   goes before the destination.
 - **Secrets**: never log them, never send them to the frontend, and never write them anywhere
-  except the system keyring.
+  except the system keyring. 1Password values are read with `op` when ssh asks for them and are
+  never stored.
+- **Linux and macOS**: put what differs between them in `internal/platform` or in `_linux.go` /
+  `_darwin.go` files, and keep Linux's behaviour and file locations unchanged. In the frontend,
+  use `isMac`, `modKey` and `keys()` from `lib/platform.ts` for shortcuts and their labels.
 - **UI**: use the theme tokens (no hard-coded colours), real buttons and labels, and an
   `aria-label` on icon-only buttons. Check both the dark and the light theme.
 - **Dependencies**: ask in the issue before adding one, and say why it's needed.
