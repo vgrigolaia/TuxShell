@@ -22,6 +22,8 @@ description: |
   - Split view with up to four panes, and typing to several servers at once
   - A file browser that reuses your open SSH connection
   - Snippets, port forwards and SOCKS tunnels
+  - Remote desktops (RDP) in their own window or in a tab
+  - Passwords from 1Password or your keyring, and the 1Password SSH agent
   - Encrypted clipboard history, dark and light themes
 
   No account and no cloud: your hosts stay on your computer.

@@ -1,9 +1,10 @@
 # TuxShell
 
-A free, open-source SSH connection manager for Linux, now also for macOS (beta).
+A free, open-source SSH and remote desktop connection manager for Linux, and for macOS (beta).
 
 TuxShell keeps your hosts in one place and connects with the system `ssh`, so your
-`~/.ssh/config`, keys, agents and jump hosts work as they already do.
+`~/.ssh/config`, keys, agents and jump hosts work as they already do. Passwords can come from
+1Password or your system keyring, never from TuxShell's own files.
 
 ## Screenshots
 
@@ -22,6 +23,9 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
 ![Light theme](docs/screenshots/light-theme.png)
 *Dark and light themes.*
 
+![TuxShell on macOS](docs/screenshots/macos.png)
+*On macOS (beta): the system's window buttons and ⌘ shortcuts.*
+
 ## Features
 
 - **Home**: a start page with your hosts, snippets and tunnels. Double-click Hosts to
@@ -32,7 +36,7 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
   Hosts without a saved user ask for one when you connect, with an option to save it.
 - **Host status**: a dot shows which hosts answer ping (up, slow or down). Checked with
   ICMP, never by opening SSH connections; can be turned off. Test a host's login from its form.
-- **Quick connect** (Ctrl+K): fuzzy search your hosts, snippets, tunnels and actions, or
+- **Quick connect** (Ctrl+K, ⌘K on macOS): fuzzy search your hosts, snippets, tunnels and actions, or
   type `user@host:port`. Open a result in a split.
 - **Snippets**: saved commands, pasted into the terminal from Ctrl+K. They never run until
   you press Enter.
@@ -54,6 +58,8 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
   and bell options, and a command to run on connect.
 - **History and recording**: Home → History lists your connections (never commands or
   output). Optionally record a session's screen output and play it back inside TuxShell.
+- **1Password**: sign in with an `op://Vault/Item/field` reference instead of a stored
+  password, and optionally use the SSH keys in the 1Password SSH agent (see below).
 - **Saved passwords**: optional, kept only in your system keyring (see below).
 - **Broadcast typing** (Ctrl+Shift+B): type into all panes of a tab at once, leaving
   out any pane you choose.
@@ -68,13 +74,15 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
   inventories, with a preview of every host before it's saved. A ready-to-fill CSV template
   is included. Export as TuxShell JSON, CSV or ssh_config (Preferences → Hosts). Exports never
   contain passwords; imported passwords are kept only if you allow saving passwords.
+  Home reminds you of `~/.ssh/config` hosts you haven't saved; its × hides the reminder until
+  new ones appear.
 - **Clipboard history** (Ctrl+Shift+H): encrypted at rest with a key in your keyring.
   Skips password- and token-looking text. Pin and edit clips, choose how long they're kept.
   Each clip shows which host it was copied from.
 - **Preferences** (Ctrl+,): font (bundled or any installed monospace font), size, spacing,
   weights, cursor, colour schemes (Solarized, Dracula, Nord, Gruvbox, One Dark, Tango…),
   scrollback, copy on select, right-click paste, bell, local shell. Saved to
-  `~/.config/tuxshell/settings.json`.
+  `~/.config/tuxshell/settings.json` (on macOS in `~/Library/Application Support/TuxShell/`).
 - **Terminal menu** (right-click): copy, paste, set title, split, open in new tab, read
   only, scrollbar, zoom. Ctrl+mouse wheel zooms text.
 - **Dark and light themes**, or follow the system.
@@ -82,12 +90,15 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
   updates on request and at startup (on by default; turn it off in Preferences → About). TuxShell only
   links to the new release; it never downloads or installs anything itself.
 
-All shortcuts are listed in Preferences → Shortcuts.
+All shortcuts are listed in Preferences → Shortcuts. On macOS the app's shortcuts use ⌘ where
+this page says Ctrl (Ctrl+Shift+L becomes ⇧⌘L), and the terminal copies and pastes with ⌘C and
+⌘V, so Ctrl stays with the programs in the terminal.
 
 ## Install
 
-Download the package for your distribution from the
-[releases page](https://github.com/vgrigolaia/tuxshell/releases):
+Download TuxShell from the [releases page](https://github.com/vgrigolaia/tuxshell/releases).
+
+### Linux
 
 ```sh
 # Fedora, RHEL, AlmaLinux, Rocky Linux
@@ -114,7 +125,8 @@ in a tab need nothing extra.
 ### macOS (beta)
 
 Download `TuxShell-<version>-universal.dmg` (Apple silicon and Intel, macOS 12 or newer), open
-it and drag TuxShell to Applications.
+it and drag TuxShell to Applications. Its checksum is in the `.sha256` file next to it
+(`shasum -a 256 -c TuxShell-<version>-universal.dmg.sha256`).
 
 The app isn't notarized by Apple yet, so the first start is blocked. Open it once, then go to
 System Settings → Privacy & Security and click **Open Anyway**. Or, in Terminal:
@@ -125,8 +137,10 @@ xattr -dr com.apple.quarantine /Applications/TuxShell.app
 
 TuxShell uses the `ssh` that comes with macOS. Optional, with [Homebrew](https://brew.sh):
 `brew install freerdp` for remote desktops in their own window, and the 1Password CLI for
-1Password references. On macOS the app's shortcuts use ⌘ (⌘K quick connect, ⌘C/⌘V copy and
-paste in the terminal), so Ctrl keeps working inside the terminal.
+1Password references. Remote desktops in a tab need nothing extra.
+
+macOS support is new, so please [report](https://github.com/vgrigolaia/TuxShell/issues) anything
+that doesn't work.
 
 ## Where your data lives
 
@@ -134,13 +148,13 @@ paste in the terminal), so Ctrl keeps working inside the terminal.
 |---|---|
 | Hosts | `~/.local/share/tuxshell/hosts.db` |
 | Clipboard history (encrypted) | `~/.local/share/tuxshell/clipboard.db` |
-| Clipboard key | your desktop keyring, as "TuxShell" |
+| Clipboard key | your system keyring, as "TuxShell" |
 | Preferences | `~/.config/tuxshell/settings.json` |
 | Terminal background images | `~/.local/share/tuxshell/backgrounds/` |
 | Session recordings (only if you record) | `~/.local/share/tuxshell/recordings/` |
 
-On macOS the files are in `~/Library/Application Support/TuxShell/` and the keyring is the
-macOS Keychain.
+On macOS the files are in `~/Library/Application Support/TuxShell/` and the system keyring is
+the macOS Keychain.
 
 Saved passwords, if you allow them, are in your desktop keyring too (see below). TuxShell
 never writes passwords to its own files.
@@ -154,15 +168,16 @@ TuxShell can log you in three ways (Preferences → Security):
   your vault and is read when you connect (see below).
 - **Saved passwords**, for servers that only accept passwords. *Allow saving passwords* is on by
   default (turn it off in Preferences → Security). A password is saved when you type it into a
-  host, tick *Remember* at a password prompt, or import a file that contains it. Passwords are stored encrypted in your system keyring (GNOME Keyring
-  or KWallet) and unlocked when you log in to your desktop. Anyone using your logged-in session
-  can use them.
+  host, tick *Remember* at a password prompt, or import a file that contains it. Passwords are
+  stored encrypted in your system keyring (GNOME Keyring or KWallet on Linux, the Keychain on
+  macOS) and unlocked when you log in. Anyone using your logged-in session can use them.
 
 When ssh asks for a password, TuxShell answers through ssh's own `SSH_ASKPASS` mechanism over a
 private socket, so the password never appears in ssh's command line, its environment or the
 terminal. Only the host's own ssh gets its password: prompts from jump hosts, host key questions
-and key passphrases are shown in the terminal as usual. A saved password is tried once; if it's
-refused, TuxShell asks you instead.
+and key passphrases are shown in the terminal as usual. The order is: the 1Password reference,
+then the saved password, then a password box. Each is tried once; if it's refused, TuxShell asks
+you instead and says why.
 
 ### 1Password
 
@@ -179,9 +194,11 @@ refused, TuxShell asks you instead. Remote desktops use it in their own window; 
 the password.
 
 To use the SSH keys kept in 1Password, turn on 1Password's SSH agent (Settings → Developer) and
-*Use the 1Password SSH agent* in Preferences → Security. TuxShell's ssh then uses
-`~/.1password/agent.sock`, through jump hosts too; hosts with their own `IdentityAgent` in
-`~/.ssh/config` keep it.
+*Use the 1Password SSH agent* in Preferences → Security (off by default). TuxShell's ssh then uses
+the agent (`~/.1password/agent.sock` on Linux,
+`~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock` on macOS), through jump hosts
+too. Hosts that pick an agent in `~/.ssh/config` (`IdentityAgent`, including `SSH_AUTH_SOCK`)
+keep it, so if your config already sends hosts to 1Password you can leave this off.
 
 ## Build from source
 
@@ -210,6 +227,12 @@ task test      # Go tests
 ```
 
 If the window stays blank on Wayland, try `WEBKIT_DISABLE_DMABUF_RENDERER=1 task dev`.
+
+On macOS you need the Xcode Command Line Tools (`xcode-select --install`) instead of the GTK
+packages. `task dev` works the same, and `task darwin:package:universal` builds `bin/tuxshell.app`
+for Apple silicon and Intel. The release `.dmg` is built by the
+[macOS workflow](.github/workflows/macos.yml) on GitHub Actions, which also runs the tests on
+macOS for every release tag.
 
 ## Contributing
 
