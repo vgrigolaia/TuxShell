@@ -176,14 +176,15 @@ export interface Settings {
     "hostStatus": boolean;
 
     /**
-     * UpdateCheck asks GitHub for a newer release at startup. Off by default:
-     * the app makes no requests of its own unless the user turns this on.
+     * UpdateCheck asks GitHub for a newer release at startup (on by default;
+     * it only links to the release, never downloads anything).
      */
     "updateCheck": boolean;
 
     /**
-     * SavePasswords allows saving host passwords in the system keyring. Off by
-     * default: keys, the ssh agent or 1Password are safer.
+     * SavePasswords allows saving host passwords in the system keyring (on by
+     * default): typed into a host, ticked "Remember", or found in an imported
+     * file. Keys, the ssh agent or 1Password stay the safer choice.
      */
     "savePasswords": boolean;
     "terminal": Terminal;

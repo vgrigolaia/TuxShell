@@ -22,11 +22,12 @@ type Settings struct {
 	HostsSidebar bool `json:"hostsSidebar"`
 	// HostStatus pings saved hosts in the background to show which are up.
 	HostStatus bool `json:"hostStatus"`
-	// UpdateCheck asks GitHub for a newer release at startup. Off by default:
-	// the app makes no requests of its own unless the user turns this on.
+	// UpdateCheck asks GitHub for a newer release at startup (on by default;
+	// it only links to the release, never downloads anything).
 	UpdateCheck bool `json:"updateCheck"`
-	// SavePasswords allows saving host passwords in the system keyring. Off by
-	// default: keys, the ssh agent or 1Password are safer.
+	// SavePasswords allows saving host passwords in the system keyring (on by
+	// default): typed into a host, ticked "Remember", or found in an imported
+	// file. Keys, the ssh agent or 1Password stay the safer choice.
 	SavePasswords bool     `json:"savePasswords"`
 	Terminal      Terminal `json:"terminal"`
 	// Profiles are the user's named terminal profiles.
@@ -170,9 +171,11 @@ const (
 // Defaults returns the out-of-the-box settings.
 func Defaults() Settings {
 	return Settings{
-		Theme:        "dark",
-		HostsSidebar: true,
-		HostStatus:   true,
+		Theme:         "dark",
+		HostsSidebar:  true,
+		HostStatus:    true,
+		UpdateCheck:   true,
+		SavePasswords: true,
 		Terminal: Terminal{
 			Profile:       DefaultProfile(),
 			ConfirmClose:  true,

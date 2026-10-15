@@ -129,7 +129,7 @@
 
   onMount(() => {
     void hostStore.load()
-    // The startup update check is opt-in (Preferences → About).
+    // The startup update check is on by default (Preferences → About).
     void prefs.load().then(() => {
       if (prefs.value.updateCheck) void updates.check()
     })

@@ -45,7 +45,7 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
   only, scrollbar, zoom. Ctrl+mouse wheel zooms text.
 - **Dark and light themes**, or follow the system.
 - **About and updates** (Preferences → About): the version and project links. Check for
-  updates on request, or at startup if you turn it on (off by default). TuxShell only
+  updates on request and at startup (on by default; turn it off in Preferences → About). TuxShell only
   links to the new release; it never downloads or installs anything itself.
 
 All shortcuts are listed in Preferences → Shortcuts.
@@ -91,8 +91,9 @@ TuxShell can log you in three ways (Preferences → Security):
 
 - **SSH keys or your ssh agent** (recommended): nothing secret is stored by TuxShell.
 - **1Password** (coming): only `op://` references are stored; the password stays in your vault.
-- **Saved passwords**, for servers that only accept passwords. Off by default. When you turn on
-  *Allow saving passwords*, passwords are stored encrypted in your system keyring (GNOME Keyring
+- **Saved passwords**, for servers that only accept passwords. *Allow saving passwords* is on by
+  default (turn it off in Preferences → Security). A password is saved when you type it into a
+  host, tick *Remember* at a password prompt, or import a file that contains it. Passwords are stored encrypted in your system keyring (GNOME Keyring
   or KWallet) and unlocked when you log in to your desktop. Anyone using your logged-in session
   can use them.
 
