@@ -5,6 +5,23 @@ A free, open-source SSH connection manager for Linux.
 TuxShell keeps your hosts in one place and connects with the system `ssh`, so your
 `~/.ssh/config`, keys, agents and jump hosts work as they already do.
 
+## Screenshots
+
+![Split view with the open tabs and hosts in the left panel](docs/screenshots/split-view.png)
+*Split view: open tabs and hosts in the left panel, up to four panes per tab.*
+
+![Home with your hosts, grouped and with live status](docs/screenshots/home.png)
+*Home: your hosts by group, with status, search and quick connect.*
+
+![Adding a remote desktop host](docs/screenshots/remote-desktop.png)
+*Remote desktops (RDP) sit next to your SSH hosts, with an SSH jump host if you need one.*
+
+![File panel next to a terminal](docs/screenshots/files.png)
+*File browser beside the terminal: upload, download, rename and edit.*
+
+![Light theme](docs/screenshots/light-theme.png)
+*Dark and light themes.*
+
 ## Features
 
 - **Home**: a start page with your hosts, snippets and tunnels. Double-click Hosts to
@@ -22,13 +39,30 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
 - **Tunnels**: local port forwards and SOCKS proxies through a saved host, listening on
   127.0.0.1 only. Password-only hosts can share an open terminal's connection.
 - **Tabs and split view**: up to four panes per tab. Merge tabs into a split, move a pane
-  out to its own tab, maximize a pane, drag dividers to resize.
+  out to its own tab, maximize a pane, drag dividers to resize. Open tabs are listed in the
+  left panel above your hosts (or shrink to a strip of icons when it's hidden); drag to
+  reorder them. Prefer the classic strip? Preferences → General → Open tabs.
+- **Organize your hosts**: drag groups and hosts to put them in your own order, or into
+  another group. The same with the keyboard (Alt+↑/↓) and from the right-click menu.
+- **Remote desktops (RDP)**: connect to Windows machines like any other host. Open them in
+  their own window (FreeRDP 3: shared folders, copy and paste of text and files, sound and
+  microphone, quality presets, RD Gateway, multiple monitors) or inside a TuxShell tab (beta,
+  built in: copy and paste of text and files, resizes with the tab). Certificates are pinned
+  and you're warned if one changes. RDP hosts can go through an SSH jump host, and Remmina
+  connections import with their settings.
+- **Terminal profiles**: per-host colours, background image, pane header colour, scrolling
+  and bell options, and a command to run on connect.
+- **History and recording**: Home → History lists your connections (never commands or
+  output). Optionally record a session's screen output and play it back inside TuxShell.
+- **Saved passwords**: optional, kept only in your system keyring (see below).
 - **Broadcast typing** (Ctrl+Shift+B): type into all panes of a tab at once, leaving
   out any pane you choose.
 - **Shared connections**: new panes, splits and the file browser reuse an open SSH
   connection, so you log in once.
 - **File browser** (Ctrl+Shift+E): browse the focused pane's host, download, upload with a
-  file picker or drag-and-drop. Never overwrites files on either side.
+  file picker or drag-and-drop. Rename, create folders, delete and change permissions, or
+  edit a file in your desktop editor and upload it back. Never overwrites files on either
+  side unasked.
 - **Import and export**: import from `~/.ssh/config` (usernames optional), CSV/TSV, Excel
   (.xlsx), MobaXterm, Remmina, PuTTY (Linux or a Windows .reg export) and Ansible INI
   inventories, with a preview of every host before it's saved. A ready-to-fill CSV template
@@ -45,7 +79,7 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
   only, scrollbar, zoom. Ctrl+mouse wheel zooms text.
 - **Dark and light themes**, or follow the system.
 - **About and updates** (Preferences → About): the version and project links. Check for
-  updates on request, or at startup if you turn it on (off by default). TuxShell only
+  updates on request and at startup (on by default; turn it off in Preferences → About). TuxShell only
   links to the new release; it never downloads or installs anything itself.
 
 All shortcuts are listed in Preferences → Shortcuts.
@@ -57,21 +91,25 @@ Download the package for your distribution from the
 
 ```sh
 # Fedora, RHEL, AlmaLinux, Rocky Linux
-sudo dnf install ./tuxshell-1.1.9-1.x86_64.rpm
+sudo dnf install ./tuxshell-1.2.0-1.x86_64.rpm
 
 # Debian, Ubuntu
-sudo apt install ./tuxshell_1.1.9-1_amd64.deb
+sudo apt install ./tuxshell_1.2.0-1_amd64.deb
 ```
 
 Or run the AppImage on any distribution:
 
 ```sh
-chmod +x TuxShell-1.1.9-x86_64.AppImage
-./TuxShell-1.1.9-x86_64.AppImage
+chmod +x TuxShell-1.2.0-x86_64.AppImage
+./TuxShell-1.2.0-x86_64.AppImage
 ```
 
 Supported: Fedora 39+, RHEL/Alma/Rocky 10, Debian 13+ and Ubuntu 24.04+. TuxShell needs
 GTK 4 and WebKitGTK 6.0. Remote hosts need GNU `find` for the file browser.
+
+Remote desktops in their own window use FreeRDP 3 (`freerdp` on Fedora, `freerdp3-x11` on
+Debian and Ubuntu), which the packages recommend and install where available. Remote desktops
+in a tab need nothing extra.
 
 ## Where your data lives
 
@@ -81,6 +119,8 @@ GTK 4 and WebKitGTK 6.0. Remote hosts need GNU `find` for the file browser.
 | Clipboard history (encrypted) | `~/.local/share/tuxshell/clipboard.db` |
 | Clipboard key | your desktop keyring, as "TuxShell" |
 | Preferences | `~/.config/tuxshell/settings.json` |
+| Terminal background images | `~/.local/share/tuxshell/backgrounds/` |
+| Session recordings (only if you record) | `~/.local/share/tuxshell/recordings/` |
 
 Saved passwords, if you allow them, are in your desktop keyring too (see below). TuxShell
 never writes passwords to its own files.
@@ -91,8 +131,9 @@ TuxShell can log you in three ways (Preferences → Security):
 
 - **SSH keys or your ssh agent** (recommended): nothing secret is stored by TuxShell.
 - **1Password** (coming): only `op://` references are stored; the password stays in your vault.
-- **Saved passwords**, for servers that only accept passwords. Off by default. When you turn on
-  *Allow saving passwords*, passwords are stored encrypted in your system keyring (GNOME Keyring
+- **Saved passwords**, for servers that only accept passwords. *Allow saving passwords* is on by
+  default (turn it off in Preferences → Security). A password is saved when you type it into a
+  host, tick *Remember* at a password prompt, or import a file that contains it. Passwords are stored encrypted in your system keyring (GNOME Keyring
   or KWallet) and unlocked when you log in to your desktop. Anyone using your logged-in session
   can use them.
 

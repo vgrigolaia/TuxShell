@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { errorMessage, hostStore, type Host, type SaveError } from '../hosts.svelte'
+  import { defaultRDP, errorMessage, hostStore, type Host, type SaveError } from '../hosts.svelte'
+  import * as RDP from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/rdp/service'
   import * as Status from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/status/service'
   import HostBadge from './HostBadge.svelte'
   import { OSES } from '../os'
@@ -19,7 +20,34 @@
 
   // Edit a copy so Cancel discards changes.
   // svelte-ignore state_referenced_locally
-  let draft = $state<Host>({ ...host, tags: [...(host.tags ?? [])] })
+  let draft = $state<Host>({
+    ...host,
+    protocol: host.protocol || 'ssh',
+    tags: [...(host.tags ?? [])],
+    rdp: { ...defaultRDP(), ...host.rdp, folders: (host.rdp?.folders ?? []).map((f) => ({ ...f })), gateway: { ...defaultRDP().gateway, ...host.rdp?.gateway } },
+  })
+  const isRDP = $derived(draft.protocol === 'rdp')
+
+  function setProtocol(p: 'ssh' | 'rdp') {
+    if (p === draft.protocol) return
+    draft.protocol = p
+    // Move the port along with the default for the protocol.
+    if (p === 'rdp' && (!draft.port || Number(draft.port) === 22)) draft.port = 3389
+    if (p === 'ssh' && Number(draft.port) === 3389) draft.port = 22
+  }
+
+  async function addFolder() {
+    try {
+      const path = await RDP.ChooseFolder()
+      if (!path) return
+      const base = (path.split('/').filter(Boolean).pop() ?? 'Folder').replace(/[^\p{L}\p{N} _.-]/gu, '').slice(0, 32) || 'Folder'
+      let name = base
+      for (let i = 2; draft.rdp.folders?.some((f) => f.name.toLowerCase() === name.toLowerCase()); i++) name = `${base.slice(0, 29)} ${i}`
+      draft.rdp.folders = [...(draft.rdp.folders ?? []), { name, path }]
+    } catch (e) {
+      error = { message: errorMessage(e) }
+    }
+  }
   // svelte-ignore state_referenced_locally
   let tagText = $state((host.tags ?? []).join(', '))
   let error = $state<SaveError | null>(null)
@@ -35,7 +63,7 @@
   let formEl: HTMLFormElement
 
   const isNew = $derived(draft.id === 0)
-  const jumpCandidates = $derived(hostStore.list.filter((h) => h.id !== draft.id).map((h) => h.alias || h.hostname))
+  const jumpCandidates = $derived(hostStore.list.filter((h) => h.id !== draft.id && h.protocol !== 'rdp').map((h) => h.alias || h.hostname))
 
   // New hosts start typing in Name; picking an existing host shouldn't steal focus.
   onMount(() => {
@@ -141,7 +169,7 @@
       <div class="min-w-0 flex-1">
         <h2 class="truncate font-display text-lg font-bold">{isNew ? 'New host' : host.name}</h2>
         <p class="truncate text-xs text-subtle">
-          {draft.alias ? `from ~/.ssh/config · ${draft.alias}` : draft.group || (isNew ? 'Saved hosts connect with your ssh' : 'Saved host')}
+          {draft.alias ? `from ~/.ssh/config · ${draft.alias}` : draft.group || (isNew ? (isRDP ? 'Opens in its own window with FreeRDP' : 'Saved hosts connect with your ssh') : isRDP ? 'Remote desktop' : 'Saved host')}
         </p>
       </div>
       <button type="button" class="grid size-7 place-items-center rounded-lg bg-hop text-muted hover:text-fg" aria-label="Close" onclick={onClose}>
@@ -154,6 +182,124 @@
         {@const msg = fieldError(id)}
         {#if msg}<p id="host-{id}-error" class="mt-1 text-xs text-warning">{msg}</p>{/if}
       {/snippet}
+
+      {#snippet rdpOptions()}
+        {@const r = draft.rdp}
+        {@const box = 'flex min-w-0 flex-col gap-2.5 rounded-2xl border border-line bg-ground/60 p-4'}
+        {@const head = 'flex items-center gap-2 text-[13px] font-bold'}
+        {@const seg = (on: boolean) => `h-8 flex-1 rounded-lg text-xs font-semibold ${on ? 'bg-panel text-fg shadow-sm' : 'text-muted hover:text-fg'}`}
+        {@const check = 'flex items-start gap-2.5 text-[13px]'}
+        <fieldset class={box}>
+          <legend class="sr-only">Display</legend>
+          <p class={head} aria-hidden="true"><span class="text-muted"><Icon name="monitor" size={14} /></span>Display</p>
+          <div class="flex gap-1 rounded-[10px] bg-ground p-1" role="radiogroup" aria-label="Window">
+            <button type="button" role="radio" aria-checked={r.window === 'window'} class={seg(r.window === 'window')} onclick={() => (r.window = 'window')}>Window</button>
+            <button type="button" role="radio" aria-checked={r.window === 'fullscreen'} class={seg(r.window === 'fullscreen')} onclick={() => (r.window = 'fullscreen')}>Fullscreen</button>
+          </div>
+          <label class={check}>
+            <input type="radio" class="mt-0.5 accent-accent" name="rdp-size" checked={r.size === 'fit'} onchange={() => (r.size = 'fit')} />
+            <span>Fit the window<span class="mt-0.5 block text-[11.5px] text-subtle">The remote desktop resizes when you resize the window.</span></span>
+          </label>
+          <label class={check}>
+            <input type="radio" class="mt-0.5 accent-accent" name="rdp-size" checked={r.size === 'fixed'} onchange={() => (r.size = 'fixed')} />
+            <span class="flex flex-1 flex-wrap items-center gap-1.5">Fixed size
+              {#if r.size === 'fixed'}
+                <input class="h-7 w-16 rounded-md border border-strong bg-field px-1.5 text-center text-xs" type="number" min="200" max="8192" aria-label="Width" bind:value={r.width} />×
+                <input class="h-7 w-16 rounded-md border border-strong bg-field px-1.5 text-center text-xs" type="number" min="200" max="8192" aria-label="Height" bind:value={r.height} />
+              {/if}
+            </span>
+          </label>
+          {@render field('rdp.size')}
+          {#if r.window === 'fullscreen'}
+            <label class={check}><input type="checkbox" class="mt-0.5 accent-accent" bind:checked={r.multimon} /><span>Use all monitors</span></label>
+          {/if}
+        </fieldset>
+
+        <fieldset class={box}>
+          <legend class="sr-only">Sharing</legend>
+          <p class={head} aria-hidden="true"><span class="text-muted"><Icon name="folder" size={14} /></span>Sharing</p>
+          <label class={check}>
+            <input type="checkbox" class="mt-0.5 accent-accent" bind:checked={r.clipboard} />
+            <span>Copy and paste<span class="mt-0.5 block text-[11.5px] text-subtle">Text and files, both ways.</span></span>
+          </label>
+          <label class={check}>
+            <input type="checkbox" class="mt-0.5 accent-accent" bind:checked={r.homeFolder} />
+            <span>Share my home folder</span>
+          </label>
+          {#if r.folders?.length}
+            <ul class="flex flex-col gap-1.5" aria-label="Shared folders">
+              {#each r.folders as f, i (i)}
+                <li class="flex items-center gap-2">
+                  <input class="h-8 w-28 shrink-0 rounded-lg border border-strong bg-field px-2 text-xs" aria-label="Name the remote computer sees" bind:value={f.name} maxlength="32" />
+                  <span class="min-w-0 flex-1 truncate font-mono text-[11px] text-subtle" title={f.path}>{f.path}</span>
+                  <button type="button" class="grid size-7 shrink-0 place-items-center rounded-lg text-subtle hover:bg-raised hover:text-fg" aria-label="Stop sharing {f.name}"
+                    onclick={() => (r.folders = (r.folders ?? []).filter((_, j) => j !== i))}><Icon name="x" size={12} /></button>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+          <button type="button" class="self-start rounded-lg border border-strong px-2.5 py-1.5 text-xs font-semibold hover:bg-raised" onclick={addFolder}>+ Share a folder…</button>
+          {@render field('rdp.folders')}
+          <p class="text-[11.5px] leading-normal text-subtle">Shared folders show under This PC on the remote computer, which can read and change the files in them.</p>
+        </fieldset>
+
+        <fieldset class={box}>
+          <legend class="sr-only">Sound and quality</legend>
+          <p class={head} aria-hidden="true"><span class="text-muted"><Icon name="gear" size={14} /></span>Sound and quality</p>
+          <label class="text-xs font-semibold text-text" for="rdp-sound">Sound</label>
+          <select id="rdp-sound" class={input} bind:value={r.sound}>
+            <option value="local">Play on this computer</option>
+            <option value="remote">Play on the remote computer</option>
+            <option value="off">Off</option>
+          </select>
+          <label class={check}><input type="checkbox" class="mt-0.5 accent-accent" bind:checked={r.microphone} /><span>Use my microphone</span></label>
+          <label class="text-xs font-semibold text-text" for="rdp-quality">Quality</label>
+          <select id="rdp-quality" class={input} bind:value={r.quality}>
+            <option value="best">Best (fast network)</option>
+            <option value="balanced">Balanced</option>
+            <option value="low">Low bandwidth (slow or mobile links)</option>
+          </select>
+        </fieldset>
+
+        <details class="rounded-2xl border border-line bg-ground/60 px-4 py-3" open={!!r.gateway?.host}>
+          <summary class="cursor-pointer text-[13px] font-bold">RD Gateway <span class="font-normal text-subtle">(optional)</span></summary>
+          <div class="mt-3 grid grid-cols-3 gap-2.5">
+            <div class="col-span-2">
+              <label class={label} for="host-rdp.gateway">Gateway</label>
+              <input id="host-rdp.gateway" class={input} bind:value={r.gateway.host} placeholder="gateway.example.com" autocomplete="off" spellcheck="false"
+                aria-invalid={!!fieldError('rdp.gateway')} aria-describedby="host-rdp.gateway-error" />
+            </div>
+            <div>
+              <label class={label} for="rdp-gw-port">Port</label>
+              <input id="rdp-gw-port" class={input} type="number" min="1" max="65535" bind:value={r.gateway.port} />
+            </div>
+            <div class="col-span-2">
+              <label class={label} for="rdp-gw-user">Gateway user</label>
+              <input id="rdp-gw-user" class={input} bind:value={r.gateway.user} placeholder="Same as the host" autocomplete="off" spellcheck="false" />
+            </div>
+            <div>
+              <label class={label} for="rdp-gw-domain">Domain</label>
+              <input id="rdp-gw-domain" class={input} bind:value={r.gateway.domain} autocomplete="off" spellcheck="false" />
+            </div>
+            <div class="col-span-3">{@render field('rdp.gateway')}</div>
+          </div>
+          <p class="mt-2 text-[11.5px] leading-normal text-subtle">The gateway logs in with the host's password.</p>
+        </details>
+      {/snippet}
+
+      <div class="grid grid-cols-2 gap-1 rounded-[13px] bg-ground p-1" role="radiogroup" aria-label="Connection type">
+        {#each [['ssh', 'SSH terminal', 'terminal'], ['rdp', 'Remote desktop', 'monitor']] as const as [p, name, icon] (p)}
+          <button
+            type="button"
+            role="radio"
+            aria-checked={draft.protocol === p}
+            class="flex h-9 items-center justify-center gap-2 rounded-[10px] text-[13px] font-semibold {draft.protocol === p ? 'bg-panel text-fg shadow-sm' : 'text-muted hover:text-fg'}"
+            onclick={() => setProtocol(p)}
+          >
+            <Icon name={icon} size={14} />{name}
+          </button>
+        {/each}
+      </div>
 
       <div class="grid grid-cols-3 gap-2.5">
         <div class="col-span-3">
@@ -175,18 +321,51 @@
         <div class="col-span-3 -mt-1.5 empty:hidden">{@render field('hostname')}{@render field('port')}</div>
         <div class="col-span-3">
           <label class={label} for="host-user">User</label>
-          <input id="host-user" class={input} bind:value={draft.user} placeholder="Asked when you connect"
+          <input id="host-user" class={input} bind:value={draft.user} placeholder={isRDP ? 'Administrator' : 'Asked when you connect'}
             aria-invalid={!!fieldError('user')} aria-describedby="host-user-error" autocomplete="off" spellcheck="false" />
           {@render field('user')}
         </div>
+        {#if isRDP}
+          <div class="col-span-3">
+            <label class={label} for="host-rdp.domain">Domain <span class="font-normal text-subtle">(optional)</span></label>
+            <input id="host-rdp.domain" class={input} bind:value={draft.rdp.domain} placeholder="CORP" autocomplete="off" spellcheck="false"
+              aria-invalid={!!fieldError('rdp.domain')} aria-describedby="host-rdp.domain-error" />
+            {@render field('rdp.domain')}
+          </div>
+        {/if}
+        {#if prefs.value.savePasswords}
+          <div class="col-span-3">
+            <label class={label} for="host-password">Password <span class="font-normal text-subtle">(optional)</span></label>
+            {#if passwordSaved && !changingPassword}
+              <div class="flex h-9 items-center gap-2 text-[13px]">
+                <span class="text-success">✓ Saved in your keyring</span>
+                <span class="flex-1"></span>
+                <button type="button" class="rounded-lg px-2 py-1 text-xs text-muted hover:bg-raised hover:text-fg" onclick={() => (changingPassword = true)}>Change</button>
+                <button type="button" class="rounded-lg px-2 py-1 text-xs text-muted hover:bg-raised hover:text-fg" onclick={removePassword}>Remove</button>
+              </div>
+            {:else}
+              <div class="relative">
+                <input id="host-password" class="{input} pr-10 font-mono text-xs" type={showPassword ? 'text' : 'password'} bind:value={password}
+                  placeholder={passwordSaved ? 'New password' : 'Leave empty to type it when connecting'} autocomplete="new-password" spellcheck="false"
+                  aria-describedby="host-password-hint" />
+                <button type="button" class="absolute top-1/2 right-2 grid size-7 -translate-y-1/2 place-items-center rounded-md text-subtle hover:text-fg"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} onclick={() => (showPassword = !showPassword)}>
+                  <Icon name={showPassword ? 'eyeOff' : 'eye'} size={14} />
+                </button>
+              </div>
+            {/if}
+            <span id="host-password-hint" class="mt-1 block text-[11.5px] text-subtle">Stored encrypted in your system keyring. Keys or 1Password are safer.</span>
+          </div>
+        {/if}
         <div class="col-span-3">
-          <label class={label} for="host-proxyJump">Jump host</label>
+          <label class={label} for="host-proxyJump">{isRDP ? 'SSH jump host' : 'Jump host'} {#if isRDP}<span class="font-normal text-subtle">(optional)</span>{/if}</label>
           <input id="host-proxyJump" class={input} bind:value={draft.proxyJump} list="host-jumps" placeholder="bastion-01"
             aria-invalid={!!fieldError('proxyJump')} aria-describedby="host-proxyJump-error" autocomplete="off" spellcheck="false" />
           <datalist id="host-jumps">
             {#each jumpCandidates as j (j)}<option value={j}></option>{/each}
           </datalist>
           {@render field('proxyJump')}
+          {#if isRDP}<span class="mt-1 block text-[11.5px] text-subtle">Reach the desktop through an SSH tunnel (the jump host needs a key or the agent).</span>{/if}
         </div>
         <div class="col-span-3">
           <label class={label} for="host-group">Group</label>
@@ -195,12 +374,14 @@
             {#each hostStore.groupNames as g (g)}<option value={g}></option>{/each}
           </datalist>
         </div>
+        {#if !isRDP}
         <div class="col-span-3">
           <label class={label} for="host-identityFile">Key file</label>
           <input id="host-identityFile" class="{input} font-mono text-xs" bind:value={draft.identityFile} placeholder="~/.ssh/id_ed25519"
             aria-invalid={!!fieldError('identityFile')} aria-describedby="host-identityFile-error" autocomplete="off" spellcheck="false" />
           {@render field('identityFile')}
         </div>
+        {/if}
         <div class="col-span-3">
           <label class={label} for="host-tags">Tags</label>
           <input id="host-tags" class={input} bind:value={tagText} placeholder="patroni, leader"
@@ -215,6 +396,7 @@
           </select>
           {@render field('os')}
         </div>
+        {#if !isRDP}
         <div class="col-span-3">
           <label class={label} for="host-profile">Terminal profile</label>
           <select id="host-profile" class={input} bind:value={draft.profile} aria-invalid={!!fieldError('profile')} aria-describedby="host-profile-error host-profile-hint">
@@ -224,8 +406,14 @@
           <span id="host-profile-hint" class="mt-1 block text-[11.5px] text-subtle">Fonts, colours, header colour and a command to run on connect. Make profiles in Preferences → Profiles.</span>
           {@render field('profile')}
         </div>
+        {/if}
       </div>
 
+      {#if isRDP}
+        {@render rdpOptions()}
+      {/if}
+
+      {#if !isRDP}
       <fieldset class="flex flex-col gap-2.5 rounded-2xl border border-accent-line bg-accent-soft p-4">
         <legend class="sr-only">1Password</legend>
         <p class="flex items-center gap-2 text-[13px] font-bold text-accent-ink" aria-hidden="true">
@@ -241,37 +429,8 @@
           Only the reference is stored, never the value. Signing in with it arrives with 1Password support in a later version.
         </p>
       </fieldset>
-
-      {#if prefs.value.savePasswords}
-        <fieldset class="flex flex-col gap-2 rounded-2xl border border-line bg-ground/60 p-4">
-          <legend class="sr-only">Saved password</legend>
-          <p class="flex items-center gap-2 text-[13px] font-bold" aria-hidden="true">
-            <span class="text-muted"><Icon name="lock" size={14} /></span>Saved password <span class="font-normal text-subtle">(optional)</span>
-          </p>
-          {#if passwordSaved && !changingPassword}
-            <div class="flex items-center gap-2 text-[13px]">
-              <span class="text-success">✓ Saved in your keyring</span>
-              <span class="flex-1"></span>
-              <button type="button" class="rounded-lg px-2 py-1 text-xs text-muted hover:bg-raised hover:text-fg" onclick={() => (changingPassword = true)}>Change</button>
-              <button type="button" class="rounded-lg px-2 py-1 text-xs text-muted hover:bg-raised hover:text-fg" onclick={removePassword}>Remove</button>
-            </div>
-          {:else}
-            <label class="sr-only" for="host-password">Password</label>
-            <div class="relative">
-              <input id="host-password" class="{input} pr-10 font-mono text-xs" type={showPassword ? 'text' : 'password'} bind:value={password}
-                placeholder={passwordSaved ? 'New password' : 'Leave empty to type it when connecting'} autocomplete="new-password" spellcheck="false"
-                aria-describedby="host-password-hint" />
-              <button type="button" class="absolute top-1/2 right-2 grid size-7 -translate-y-1/2 place-items-center rounded-md text-subtle hover:text-fg"
-                aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} onclick={() => (showPassword = !showPassword)}>
-                <Icon name={showPassword ? 'eyeOff' : 'eye'} size={14} />
-              </button>
-            </div>
-          {/if}
-          <p id="host-password-hint" class="text-[11.5px] leading-normal text-subtle">
-            Stored encrypted in your system keyring, saved with the host. Keys or 1Password are safer.
-          </p>
-        </fieldset>
       {/if}
+
 
       {#if tested}
         <p role="status" class="rounded-xl border px-3 py-2 text-xs {tested.ok ? 'border-success/40 bg-success/10 text-success' : 'border-warning/40 bg-warning/10 text-warning'}">
@@ -298,9 +457,11 @@
         <button type="submit" disabled={saving} class="rounded-lg px-2.5 py-1 font-semibold text-accent-text hover:bg-raised disabled:opacity-60">Save</button>
       </div>
       <div class="flex gap-2.5">
-        <button type="button" disabled={testing} class="h-11 flex-1 rounded-[13px] border border-strong bg-panel text-sm font-semibold hover:bg-raised disabled:opacity-60" onclick={test}>
-          {testing ? 'Testing…' : 'Test'}
-        </button>
+        {#if !isRDP}
+          <button type="button" disabled={testing} class="h-11 flex-1 rounded-[13px] border border-strong bg-panel text-sm font-semibold hover:bg-raised disabled:opacity-60" onclick={test}>
+            {testing ? 'Testing…' : 'Test'}
+          </button>
+        {/if}
         {#if onConnect}
           <button type="button" disabled={saving} class="h-11 flex-[2] rounded-[13px] bg-fg text-sm font-bold text-panel hover:opacity-90 disabled:opacity-60" onclick={() => save(true)}>
             Save & connect
@@ -310,3 +471,4 @@
     </div>
   </form>
 </aside>
+

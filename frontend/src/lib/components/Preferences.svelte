@@ -172,6 +172,7 @@
     ['Ctrl+Alt+W', 'Set pane title'],
     ['Ctrl+Shift+W', 'Close pane'],
     ['Ctrl+Shift+Arrows', 'Move between panes'],
+    ['Alt+Up / Alt+Down', 'Move the focused host or group in the hosts list'],
     ['Ctrl+= / Ctrl+-', 'Zoom terminal text in / out'],
     ['Ctrl+mouse wheel', 'Zoom terminal text'],
     ['Ctrl+0', 'Reset zoom'],
@@ -577,6 +578,19 @@
           </div>
         </fieldset>
 
+        <fieldset class="mb-6">
+          <legend class={label}>Open tabs</legend>
+          <div class="flex gap-2">
+            {#each [['left', 'In the left panel', 'sidebar'], ['top', 'In the title bar', 'tab']] as const as [value, name, icon] (value)}
+              <label class="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-[13px] {prefs.value.tabsPosition === value ? 'border-accent bg-accent/10' : 'border-line hover:bg-raised'}">
+                <input type="radio" class="sr-only" name="{id}-tabs" {value} checked={prefs.value.tabsPosition === value} onchange={() => prefs.setTabsPosition(value)} />
+                <Icon name={icon} size={15} />
+                {name}
+              </label>
+            {/each}
+          </div>
+          <span class={hint}>In the left panel, open tabs are listed above your hosts; with the panel hidden they become a narrow strip of icons.</span>
+        </fieldset>
 
         <div class="flex flex-col gap-4">
           <label class={check}>

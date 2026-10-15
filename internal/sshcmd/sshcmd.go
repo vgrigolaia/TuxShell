@@ -97,6 +97,9 @@ func (r Resolver) host(id int64, user *string) (hosts.Host, error) {
 	if err != nil {
 		return h, err
 	}
+	if h.Protocol == hosts.ProtocolRDP {
+		return h, fmt.Errorf("%q is a remote desktop host, not SSH", h.Name)
+	}
 	if user != nil {
 		h.User = *user
 	}
@@ -187,6 +190,31 @@ func (r Resolver) TunnelCommand(id int64, f Forward) (*exec.Cmd, error) {
 	h, err := r.host(id, nil)
 	if err != nil {
 		return nil, err
+	}
+	ssh, err := sshPath()
+	if err != nil {
+		return nil, err
+	}
+	args := append(tunnelOptions(), f[0], f[1])
+	return exec.Command(ssh, append(args, Args(h)...)...), nil
+}
+
+// JumpTunnelCommand returns a forward-only ssh through jump, a ProxyJump
+// list ("[user@]host[:port],..."): it connects to the last hop, through the
+// others. Like TunnelCommand it needs key or agent auth.
+func (r Resolver) JumpTunnelCommand(jump string, f Forward) (*exec.Cmd, error) {
+	hops := strings.Split(strings.TrimSpace(jump), ",")
+	if len(hops) == 0 || strings.TrimSpace(hops[len(hops)-1]) == "" {
+		return nil, errors.New("no jump host")
+	}
+	h, err := ParseTarget(hops[len(hops)-1])
+	if err != nil {
+		return nil, fmt.Errorf("jump host: %w", err)
+	}
+	h.ProxyJump = strings.Join(hops[:len(hops)-1], ",")
+	h.Normalize()
+	if err := h.Validate(); err != nil {
+		return nil, fmt.Errorf("jump host: %w", err)
 	}
 	ssh, err := sshPath()
 	if err != nil {

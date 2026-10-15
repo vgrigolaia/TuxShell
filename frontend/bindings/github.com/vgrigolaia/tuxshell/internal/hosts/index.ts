@@ -11,7 +11,10 @@ export {
 };
 
 export type {
+    Folder,
+    Gateway,
     Host,
+    RDP,
     Snippet,
     Tunnel,
     Visit

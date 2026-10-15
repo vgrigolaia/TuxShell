@@ -171,19 +171,31 @@ export interface Settings {
     "hostsSidebar": boolean;
 
     /**
+     * TabsPosition puts the open tabs in the left panel ("left") or the title bar ("top").
+     */
+    "tabsPosition": string;
+
+    /**
+     * GroupOrder is the order of host groups chosen by dragging; groups not
+     * listed follow in their usual order.
+     */
+    "groupOrder": string[] | null;
+
+    /**
      * HostStatus pings saved hosts in the background to show which are up.
      */
     "hostStatus": boolean;
 
     /**
-     * UpdateCheck asks GitHub for a newer release at startup. Off by default:
-     * the app makes no requests of its own unless the user turns this on.
+     * UpdateCheck asks GitHub for a newer release at startup (on by default;
+     * it only links to the release, never downloads anything).
      */
     "updateCheck": boolean;
 
     /**
-     * SavePasswords allows saving host passwords in the system keyring. Off by
-     * default: keys, the ssh agent or 1Password are safer.
+     * SavePasswords allows saving host passwords in the system keyring (on by
+     * default): typed into a host, ticked "Remember", or found in an imported
+     * file. Keys, the ssh agent or 1Password stay the safer choice.
      */
     "savePasswords": boolean;
     "terminal": Terminal;
@@ -197,6 +209,11 @@ export interface Settings {
      * History keeps a list of connections: host, time and duration only.
      */
     "history": History;
+
+    /**
+     * RDPClient picks the FreeRDP program: "auto", "x11" or "sdl".
+     */
+    "rdpClient": string;
 }
 
 /**

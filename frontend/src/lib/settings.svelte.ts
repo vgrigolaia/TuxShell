@@ -62,11 +62,14 @@ const BUNDLED_CSS = '"JetBrains Mono Variable"'
 const defaults = (): Settings => ({
   theme: 'dark',
   hostsSidebar: true,
+  tabsPosition: 'left',
+  groupOrder: [],
   hostStatus: true,
-  updateCheck: false,
-  savePasswords: false,
+  updateCheck: true,
+  savePasswords: true,
   profiles: [],
   history: { enabled: true, days: 90, max: 1000 },
+  rdpClient: 'auto',
   terminal: {
     ...defaultProfile(),
     confirmClose: true,
@@ -208,6 +211,16 @@ class Preferences {
     this.queueSave()
   }
 
+  setGroupOrder(order: string[]) {
+    this.value.groupOrder = order
+    this.queueSave()
+  }
+
+  setTabsPosition(where: 'left' | 'top') {
+    this.value.tabsPosition = where
+    this.queueSave()
+  }
+
   setHostsSidebar(open: boolean) {
     this.value.hostsSidebar = open
     this.queueSave()
@@ -228,6 +241,12 @@ class Preferences {
     } catch (e) {
       this.error = asError(e)
     }
+  }
+
+  /** Saves pending changes right away (e.g. before the window closes). */
+  saveNow() {
+    clearTimeout(this.timer)
+    return this.flush()
   }
 
   private queueSave() {

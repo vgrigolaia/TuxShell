@@ -61,14 +61,19 @@
   }
 
   const location = $derived<Location | null>(
-    !pane || pane.source.kind === 'shell'
+    // A remote desktop tab browses this computer (its shared folders are local).
+    !pane || pane.source.kind === 'shell' || pane.source.kind === 'rdp'
       ? { kind: 'local', hostId: 0, user: '', target: '' }
       : pane.source.kind === 'host'
         ? { kind: 'host', hostId: pane.source.hostId, user: pane.loginUser, target: '' }
         : { kind: 'target', hostId: 0, user: '', target: pane.source.target },
   )
   const where = $derived(
-    !pane || pane.source.kind === 'shell' ? 'This computer' : pane.source.kind === 'host' ? (hostStore.get(pane.source.hostId)?.name ?? pane.title) : pane.source.target,
+    !pane || pane.source.kind === 'shell' || pane.source.kind === 'rdp'
+      ? 'This computer'
+      : pane.source.kind === 'host'
+        ? (hostStore.get(pane.source.hostId)?.name ?? pane.title)
+        : pane.source.target,
   )
 
   // Reload when the focused pane (or its login) changes.

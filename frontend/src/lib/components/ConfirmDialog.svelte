@@ -7,8 +7,11 @@
     confirmLabel: string
     onConfirm: () => void | Promise<void>
     onClose: () => void
+    /** Shows "Don't ask again"; called on confirm when it's ticked. */
+    onDontAsk?: () => void | Promise<void>
   }
-  let { title, message, confirmLabel, onConfirm, onClose }: Props = $props()
+  let { title, message, confirmLabel, onConfirm, onClose, onDontAsk }: Props = $props()
+  let dontAsk = $state(false)
 
   let dialog: HTMLDialogElement
   let error = $state<string | null>(null)
@@ -17,6 +20,8 @@
 
   async function confirm() {
     try {
+      // Saved first: confirming may close the window.
+      if (dontAsk) await onDontAsk?.()
       await onConfirm()
       dialog.close()
     } catch (e) {
@@ -34,6 +39,11 @@
 >
   <h2 id="confirm-title" class="font-display text-[15px] font-semibold">{title}</h2>
   <p id="confirm-message" class="mt-2 text-[13px] text-muted">{message}</p>
+  {#if onDontAsk}
+    <label class="mt-3 flex items-center gap-2 text-[13px] text-text">
+      <input type="checkbox" class="accent-accent" bind:checked={dontAsk} />Don't ask again
+    </label>
+  {/if}
   {#if error}<p role="alert" class="mt-2 text-xs text-warning">{error}</p>{/if}
   <div class="mt-5 flex justify-end gap-2">
     <!-- Cancel is first in tab order and focused by default, so Enter doesn't delete by accident. -->

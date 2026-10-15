@@ -7,9 +7,12 @@
   import { hostStatus } from '../status.svelte'
   import { best } from '../fuzzy'
   import { SvelteSet } from 'svelte/reactivity'
+  import { onDestroy, tick } from 'svelte'
   import ContextMenu, { type MenuItem } from './ContextMenu.svelte'
   import ConfirmDialog from './ConfirmDialog.svelte'
+  import PromptDialog from './PromptDialog.svelte'
   import Icon from './Icon.svelte'
+  import type { Snippet } from 'svelte'
 
   interface Props {
     selectedId: number | null
@@ -22,8 +25,10 @@
     onImport: () => void
     /** Opens the selected hosts as tiles of one tab. */
     onOpenTiles: (hosts: Host[]) => void
+    /** The open tabs, shown above the hosts (Preferences → Open tabs). */
+    openTabs?: Snippet
   }
-  let { selectedId, onConnect, onEdit, onConnectAs, onDuplicate, onDelete, onNew, onImport, onOpenTiles }: Props = $props()
+  let { selectedId, onConnect, onEdit, onConnectAs, onDuplicate, onDelete, onNew, onImport, onOpenTiles, openTabs }: Props = $props()
 
   const COLLAPSED_KEY = 'tuxshell.sidebar.collapsed'
 
@@ -67,6 +72,178 @@
   })
 
   const visibleHosts = $derived(visible.flatMap((g) => g.hosts))
+
+  // Reordering groups: drag a group's header (not while filtering or selecting,
+  // when the list isn't the whole picture), its menu, or Alt+arrows.
+  let list = $state<HTMLElement>()
+  let groupMenu = $state<{ x: number; y: number; name: string } | null>(null)
+  let gdrag = $state<{ name: string; from: number; startY: number; slot: number; moved: boolean } | null>(null)
+  let justDragged = false
+  const canReorder = $derived(!filter.trim() && !selecting && hostStore.groups.length > 1)
+
+  async function moveGroup(name: string, index: number) {
+    hostStore.moveGroup(name, index)
+    await tick()
+    document.getElementById(`group-head-${name}`)?.focus()
+  }
+
+  function onGroupPointerDown(e: PointerEvent, name: string, index: number) {
+    if (e.button !== 0 || !canReorder) return
+    gdrag = { name, from: index, startY: e.clientY, slot: index, moved: false }
+    window.addEventListener('pointermove', onGroupPointerMove)
+    window.addEventListener('pointerup', stopGroupDrag)
+  }
+
+  function onGroupPointerMove(e: PointerEvent) {
+    if (!gdrag || !list) return
+    if (!gdrag.moved && Math.abs(e.clientY - gdrag.startY) < 5) return
+    gdrag.moved = true
+    // The slot is decided by the headers: above a header's middle goes before that group.
+    const heads = [...list.querySelectorAll<HTMLElement>('[data-group-head]')]
+    let slot = heads.length
+    for (const [i, h] of heads.entries()) {
+      const r = h.getBoundingClientRect()
+      if (e.clientY < r.top + r.height / 2) {
+        slot = i
+        break
+      }
+    }
+    gdrag.slot = slot
+    // Scroll when dragging near the list's edges.
+    const box = list.getBoundingClientRect()
+    if (e.clientY < box.top + 24) list.scrollTop -= 12
+    else if (e.clientY > box.bottom - 24) list.scrollTop += 12
+  }
+
+  function stopGroupDrag() {
+    window.removeEventListener('pointermove', onGroupPointerMove)
+    window.removeEventListener('pointerup', stopGroupDrag)
+    if (gdrag?.moved) {
+      justDragged = true
+      setTimeout(() => (justDragged = false))
+      const to = gdrag.slot > gdrag.from ? gdrag.slot - 1 : gdrag.slot
+      if (to !== gdrag.from) hostStore.moveGroup(gdrag.name, to)
+    }
+    gdrag = null
+  }
+  onDestroy(stopGroupDrag)
+
+  function onGroupKey(e: KeyboardEvent, name: string, index: number) {
+    if (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) {
+      e.preventDefault()
+      const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+      groupMenu = { x: r.left + 24, y: r.bottom, name }
+      return
+    }
+    if (!e.altKey || !canReorder) return
+    const step = e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0
+    if (!step) return
+    e.preventDefault()
+    void moveGroup(name, index + step)
+  }
+
+  const groupMenuItems = (name: string): MenuItem[] => {
+    const i = hostStore.groups.findIndex((g) => g.name === name)
+    const last = hostStore.groups.length - 1
+    return [
+      { label: 'Move to top', disabled: !canReorder || i === 0, run: () => void moveGroup(name, 0) },
+      { label: 'Move up', hint: 'Alt+↑', disabled: !canReorder || i === 0, run: () => void moveGroup(name, i - 1) },
+      { label: 'Move down', hint: 'Alt+↓', disabled: !canReorder || i === last, run: () => void moveGroup(name, i + 1) },
+      { label: 'Move to bottom', disabled: !canReorder || i === last, run: () => void moveGroup(name, last) },
+    ]
+  }
+
+  // Moving hosts: drag a row within its group or into another one (a folded or
+  // empty group takes it at the end), the host menu, or Alt+↑/↓. The jump hosts
+  // group fills itself, so nothing is dragged from or into it.
+  interface HostDrag {
+    host: Host
+    group: string
+    startY: number
+    moved: boolean
+    /** Where it would land: a group, and the host it goes before (0: the end). */
+    target: { group: string; before: number } | null
+  }
+  let hdrag = $state<HostDrag | null>(null)
+  let moveTo = $state<Host | null>(null)
+  const realGroup = (name: string) => (name === 'Ungrouped' ? '' : name)
+
+  function onHostPointerDown(e: PointerEvent, host: Host, group: string) {
+    if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || !canReorder || group === JUMP_GROUP) return
+    hdrag = { host, group, startY: e.clientY, moved: false, target: null }
+    window.addEventListener('pointermove', onHostPointerMove)
+    window.addEventListener('pointerup', stopHostDrag)
+  }
+
+  function hostTarget(y: number, id: number): HostDrag['target'] {
+    if (!list) return null
+    for (const block of list.querySelectorAll<HTMLElement>('[data-group-block]')) {
+      const name = block.dataset.groupBlock!
+      const r = block.getBoundingClientRect()
+      if (name === JUMP_GROUP || y < r.top || y > r.bottom) continue
+      const rows = [...block.querySelectorAll<HTMLElement>('[data-host-row]')].filter((row) => Number(row.dataset.hostRow) !== id)
+      const head = block.querySelector('[data-group-head]')!.getBoundingClientRect()
+      // Over the header, or over a folded group: the top of an open group, the end of a folded one.
+      if (collapsed[name] || !rows.length) return { group: name, before: 0 }
+      if (y < head.bottom) return { group: name, before: Number(rows[0].dataset.hostRow) }
+      const next = rows.find((row) => {
+        const b = row.getBoundingClientRect()
+        return y < b.top + b.height / 2
+      })
+      return { group: name, before: next ? Number(next.dataset.hostRow) : 0 }
+    }
+    return null
+  }
+
+  function onHostPointerMove(e: PointerEvent) {
+    if (!hdrag || !list) return
+    if (!hdrag.moved && Math.abs(e.clientY - hdrag.startY) < 5) return
+    hdrag.moved = true
+    // Between two groups there is no target: keep the last one.
+    hdrag.target = hostTarget(e.clientY, hdrag.host.id) ?? hdrag.target
+    const box = list.getBoundingClientRect()
+    if (e.clientY < box.top + 24) list.scrollTop -= 12
+    else if (e.clientY > box.bottom - 24) list.scrollTop += 12
+  }
+
+  function stopHostDrag() {
+    window.removeEventListener('pointermove', onHostPointerMove)
+    window.removeEventListener('pointerup', stopHostDrag)
+    const d = hdrag
+    hdrag = null
+    if (!d?.moved) return
+    justDragged = true
+    setTimeout(() => (justDragged = false))
+    if (d.target) void hostStore.moveHost(d.host.id, realGroup(d.target.group), d.target.before)
+  }
+  onDestroy(stopHostDrag)
+
+  /** Alt+↑/↓: one place up or down in its group. */
+  async function nudgeHost(host: Host, step: number) {
+    const g = hostStore.groups.find((x) => x.hosts.some((h) => h.id === host.id))
+    if (!g || g.name === JUMP_GROUP || !canReorder) return
+    const i = g.hosts.findIndex((h) => h.id === host.id)
+    const j = i + step
+    if (j < 0 || j >= g.hosts.length) return
+    // Up: before the host above. Down: before the host two below, or at the end.
+    const before = step < 0 ? g.hosts[j].id : (g.hosts[j + 1]?.id ?? 0)
+    await hostStore.moveHost(host.id, realGroup(g.name), before)
+    await tick()
+    document.getElementById(`host-row-${host.id}`)?.focus()
+  }
+
+  // Marker above host `h` (it is where the dragged one would go before it) and below a group's last row.
+  const hostMarkAbove = (group: string, h: Host) => hdrag?.moved && hdrag.target?.group === group && hdrag.target.before === h.id && hdrag.host.id !== h.id
+  const hostMarkBelow = (group: string, hosts: Host[], h: Host) => {
+    if (!hdrag?.moved || hdrag.target?.group !== group || hdrag.target.before !== 0 || collapsed[group]) return false
+    const rest = hosts.filter((x) => x.id !== hdrag!.host.id)
+    return rest.length > 0 && rest[rest.length - 1].id === h.id
+  }
+  const hostDropInto = (group: string, hosts: Host[]) =>
+    !!hdrag?.moved && hdrag.target?.group === group && hdrag.target.before === 0 && (collapsed[group] || hosts.every((x) => x.id === hdrag!.host.id))
+
+  const markAbove = (i: number) => gdrag?.moved && gdrag.slot === i && i !== gdrag.from && i !== gdrag.from + 1
+  const markBelow = (i: number) => gdrag?.moved && i === visible.length - 1 && gdrag.slot === visible.length && gdrag.from !== visible.length - 1
   const up = $derived(hostStatus.upCount(hostStore.list.map((h) => h.id)))
   // Hosts with a running session in some pane.
   const open = $derived(new Set(workspace.panes.filter((p) => p.source.kind === 'host' && !p.exited).map((p) => (p.source as { hostId: number }).hostId)))
@@ -136,11 +313,17 @@
   }
 
   function onRowKey(e: KeyboardEvent, host: Host) {
+    if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      e.preventDefault()
+      void nudgeHost(host, e.key === 'ArrowUp' ? -1 : 1)
+      return
+    }
     if (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) openMenu(e, host)
   }
 
   // Ctrl+click (or Shift+click for a range) picks hosts to open together.
   function onRowClick(e: MouseEvent, host: Host) {
+    if (justDragged) return
     if (e.ctrlKey || e.metaKey || e.shiftKey) {
       e.preventDefault()
       pick(host, e)
@@ -160,12 +343,17 @@
     { label: 'Edit…', run: () => onEdit(host) },
     { label: 'Duplicate…', run: () => onDuplicate(host) },
     { label: picked.has(host.id) ? 'Unpick for tiles' : 'Pick for tiles', hint: 'Ctrl+click', run: () => pick(host, new MouseEvent('click')) },
+    { label: 'Move to group…', run: () => (moveTo = host), disabled: hostStore.groups.find((g) => g.name === JUMP_GROUP)?.hosts.some((h) => h.id === host.id) },
     { label: 'Select…', run: () => startSelecting(host) },
     { label: 'Delete…', run: () => onDelete(host), danger: true },
   ]
 </script>
 
 <aside aria-label="Hosts" class="flex w-60 shrink-0 flex-col gap-3.5 overflow-hidden rounded-panel border border-line bg-panel px-2.5 py-3.5">
+  {#if openTabs}
+    <!-- At most 40% of the panel, so the hosts stay reachable with many tabs open. -->
+    <div class="flex max-h-[40%] min-h-0 shrink-0 flex-col border-b border-line pb-3">{@render openTabs()}</div>
+  {/if}
   <div class="flex items-center gap-1 px-1.5">
     <h2 class="font-display text-[15px] font-semibold">Hosts</h2>
     <span class="ml-auto font-mono text-[11px] whitespace-nowrap text-subtle">{hostStore.list.length}{up ? ` · ${up} up` : ''}</span>
@@ -217,7 +405,9 @@
     </div>
   {/if}
 
-  <nav aria-label="Saved hosts" class="-mx-1 flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-1">
+  <!-- Reaches into the panel's right padding, so the scrollbar (drawn over
+       the content in WebKitGTK) runs there instead of over the buttons. -->
+  <nav bind:this={list} aria-label="Saved hosts" class:select-none={gdrag?.moved || hdrag?.moved} class="-mr-2.5 -ml-1 flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto pr-2.5 pl-1">
     {#if hostStore.error}
       <p role="alert" class="m-2 text-xs text-warning">Could not load hosts: {hostStore.error}</p>
     {:else if hostStore.loaded && hostStore.list.length === 0}
@@ -234,8 +424,23 @@
     {#each visible as group, gi (group.name)}
       {@const expanded = !collapsed[group.name] || !!filter}
       {@const groupPicked = group.hosts.filter((h) => picked.has(h.id)).length}
-      <div class="flex flex-col gap-0.5">
-        <h3 class="flex items-center">
+      <div
+        data-group-block={group.name}
+        class="flex flex-col gap-0.5 rounded-lg {gdrag?.moved && gdrag.name === group.name ? 'opacity-50' : ''}"
+        class:mark-above={markAbove(gi)}
+        class:mark-below={markBelow(gi)}
+        class:drop-into={hostDropInto(group.name, group.hosts)}
+      >
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <h3
+          data-group-head
+          class="flex items-center"
+          oncontextmenu={(e) => {
+            e.preventDefault()
+            groupMenu = { x: e.clientX, y: e.clientY, name: group.name }
+          }}
+          onpointerdown={(e) => onGroupPointerDown(e, group.name, gi)}
+        >
           {#if selecting}
             <input
               type="checkbox"
@@ -247,10 +452,13 @@
             />
           {/if}
           <button
+            id="group-head-{group.name}"
             class="cap group/h flex w-full items-center gap-1.5 rounded-md px-2 pb-1.5 hover:text-muted"
             aria-expanded={expanded}
             aria-controls="host-group-{gi}"
-            onclick={() => toggle(group.name)}
+            title={canReorder ? 'Click to fold · drag (or Alt+↑/↓) to move · right-click for more' : undefined}
+            onclick={() => !justDragged && toggle(group.name)}
+            onkeydown={(e) => onGroupKey(e, group.name, gi)}
           >
             <span class="flex-1 truncate text-left">{group.name}</span>
             <!-- The chevron only shows when it matters: hovered, focused or collapsed. -->
@@ -260,7 +468,14 @@
         <ul id="host-group-{gi}" class="flex flex-col gap-0.5" hidden={!expanded}>
           {#each group.hosts as host (host.id)}
             {@const chosen = picked.has(host.id)}
-            <li class="group relative">
+            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+            <li
+              class="group relative rounded-[10px] {hdrag?.moved && hdrag.host.id === host.id ? 'opacity-40' : ''}"
+              class:mark-above={hostMarkAbove(group.name, host)}
+              class:mark-below={hostMarkBelow(group.name, group.hosts, host)}
+              data-host-row={host.id}
+              onpointerdown={(e) => onHostPointerDown(e, host, group.name)}
+            >
               {#if selecting}
                 <label class="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] px-2 py-1.5 text-[13px] hover:bg-raised {chosen ? 'bg-select text-fg' : 'text-text'}">
                   <input
@@ -277,6 +492,7 @@
                 </label>
               {:else}
                 <button
+                  id="host-row-{host.id}"
                   class="flex w-full items-center gap-2.5 rounded-[10px] px-2 py-1.5 text-left text-[13px] transition-colors hover:bg-raised {chosen || host.id === selectedId ? 'bg-select text-fg' : 'text-text'}"
                   title="Connect to {describe(host)}{hostStatus.label(host.id) ? ` · ${hostStatus.label(host.id)}` : ''} · Ctrl+click to pick for tiles"
                   aria-haspopup="menu"
@@ -334,6 +550,21 @@
 {#if menu}
   <ContextMenu x={menu.x} y={menu.y} label="Actions for {menu.host.name}" items={menuItems(menu.host)} onClose={() => (menu = null)} />
 {/if}
+{#if moveTo}
+  {@const host = moveTo}
+  <PromptDialog
+    title="Move {host.name}"
+    label="Group"
+    initial={host.group}
+    hint="Type an existing group or a new name. Leave empty for no group."
+    submitLabel="Move"
+    onSubmit={(g) => void hostStore.moveHost(host.id, g.trim(), 0)}
+    onClose={() => (moveTo = null)}
+  />
+{/if}
+{#if groupMenu}
+  <ContextMenu x={groupMenu.x} y={groupMenu.y} label="Move {groupMenu.name}" items={groupMenuItems(groupMenu.name)} onClose={() => (groupMenu = null)} />
+{/if}
 
 {#if confirmBulk}
   <ConfirmDialog
@@ -346,3 +577,18 @@
 {/if}
 
 <svelte:window onkeydown={(e) => e.key === 'Escape' && selecting && !confirmBulk && stopSelecting()} />
+
+<style>
+  /* Where a dragged group will land. */
+  .mark-above {
+    box-shadow: 0 -2px 0 var(--color-accent);
+  }
+  .mark-below {
+    box-shadow: 0 2px 0 var(--color-accent);
+  }
+  /* A folded or empty group that would take the dragged host. */
+  .drop-into {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+  }
+</style>

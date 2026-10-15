@@ -18,10 +18,16 @@ class Closer {
     this.ask(live, what, run)
   }
 
+  /** "Don't ask again": turns off the question (Preferences can turn it back on). */
+  stopAsking() {
+    prefs.update({ confirmClose: false })
+    return prefs.saveNow()
+  }
+
   ask(live: number, what: string, run: () => void | Promise<void>) {
     this.pending = {
       title: `Close ${what}?`,
-      message: `${live} ${live === 1 ? 'session is' : 'sessions are'} still running and will be disconnected. You can turn this question off in Preferences.`,
+      message: `${live} ${live === 1 ? 'session is' : 'sessions are'} still running and will be disconnected.`,
       run,
     }
   }

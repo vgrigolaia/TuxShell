@@ -3,6 +3,7 @@
   import type { Preview, Result, Row } from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/hostio/models'
   import { describe, errorMessage, hostStore } from '../hosts.svelte'
   import HostBadge from './HostBadge.svelte'
+  import Icon from './Icon.svelte'
 
   interface Props {
     /** A preview just opened by HostIO.Open. */
@@ -35,12 +36,34 @@
     os: 'Operating system',
     identityFile: 'Key file',
     password: '1Password (op://)',
+    protocol: 'Type (SSH or RDP)',
+    domain: 'Windows domain',
+    rdpOptions: 'Remote desktop options',
   }
 
   const rows = $derived(preview.rows ?? [])
   const columns = $derived(preview.columns ?? [])
   const importable = (r: Row) => !r.error && !r.sameAs
   const selected = $derived(rows.filter((r) => importable(r) && chosen[r.line]))
+  // Search narrows the list; select all acts on what's shown. Rows ticked
+  // earlier stay ticked while hidden (the Import button counts them).
+  let query = $state('')
+  const shown = $derived.by(() => {
+    const words = query.toLowerCase().split(/\s+/).filter(Boolean)
+    if (!words.length) return rows
+    return rows.filter((r) => {
+      const h = r.host
+      const text = [h.name, h.hostname, h.user, h.group || group, h.proxyJump, h.os, h.protocol, ...(h.tags ?? []), describe(h)].join(' ').toLowerCase()
+      return words.every((w) => text.includes(w))
+    })
+  })
+  const choosable = $derived(shown.filter(importable))
+  const shownSelected = $derived(choosable.filter((r) => chosen[r.line]).length)
+
+  // The header box: ticks or clears every shown row that can be imported.
+  function chooseAll(on: boolean) {
+    for (const r of choosable) chosen[r.line] = on
+  }
   const existing = $derived(rows.filter((r) => importable(r) && r.existingId).length)
   const hasHost = $derived(!preview.tabular || columns.some((c) => c.field === 'hostname' || c.field === 'alias'))
 
@@ -163,11 +186,30 @@
       </div>
     </div>
 
-    <table class="mt-4 w-full text-left text-xs">
+    <div class="mt-4 flex items-center gap-3">
+      <label class="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md border border-line bg-ground px-2 text-subtle focus-within:border-accent">
+        <Icon name="search" size={13} />
+        <input class="h-full min-w-0 flex-1 bg-transparent text-xs text-fg placeholder:text-subtle focus:outline-none" type="search" placeholder="Search name, address, user or group" aria-label="Search the hosts in this file" bind:value={query} />
+      </label>
+      <span class="shrink-0 text-xs text-subtle">{query ? `${shown.length} of ${rows.length} shown · ` : ''}{selected.length} selected</span>
+    </div>
+
+    <table class="mt-2 w-full text-left text-xs">
       <caption class="sr-only">Hosts in {preview.file}</caption>
       <thead class="text-subtle">
         <tr class="border-b border-line">
-          <th class="w-8 py-1.5"><span class="sr-only">Import</span></th>
+          <th class="w-8 py-1.5">
+            <input
+              type="checkbox"
+              class="size-4 accent-accent"
+              aria-label="Select all"
+              title="Select all / none"
+              disabled={choosable.length === 0}
+              checked={choosable.length > 0 && shownSelected === choosable.length}
+              indeterminate={shownSelected > 0 && shownSelected < choosable.length}
+              onchange={(e) => chooseAll(e.currentTarget.checked)}
+            />
+          </th>
           <th class="w-10 py-1.5 font-normal">Line</th>
           <th class="py-1.5 font-normal">Name</th>
           <th class="py-1.5 font-normal">Connects to</th>
@@ -176,18 +218,20 @@
         </tr>
       </thead>
       <tbody>
-        {#each rows as r (r.line)}
+        {#each shown as r (r.line)}
           {@const st = status(r)}
           <tr class="border-b border-line last:border-0" class:opacity-60={!importable(r)}>
             <td class="py-1.5">
               <input type="checkbox" class="size-4 accent-accent" aria-label="Import line {r.line}" bind:checked={chosen[r.line]} disabled={!importable(r)} />
             </td>
             <td class="py-1.5 font-mono text-subtle">{r.line}</td>
-            <td class="max-w-40 py-1.5"><span class="flex items-center gap-2"><HostBadge name={r.host.name} os={r.host.os} size={20} /><span class="truncate">{r.host.name}</span></span></td>
+            <td class="max-w-40 py-1.5"><span class="flex items-center gap-2"><HostBadge name={r.host.name} os={r.host.os} size={20} /><span class="truncate">{r.host.name}</span>{#if r.host.protocol === 'rdp'}<span class="shrink-0 rounded bg-hop px-1.5 py-px text-[10px] font-semibold text-muted" title="Remote desktop">RDP</span>{/if}</span></td>
             <td class="max-w-48 truncate py-1.5 font-mono text-muted">{describe(r.host)}{r.host.proxyJump ? ` · via ${r.host.proxyJump}` : ''}</td>
             <td class="max-w-28 truncate py-1.5 text-muted">{r.host.group || group}</td>
             <td class="max-w-56 truncate py-1.5 {st.tone}" title={st.text}>{st.text}</td>
           </tr>
+        {:else}
+          <tr><td colspan="6" class="py-6 text-center text-muted">No hosts match “{query}”</td></tr>
         {/each}
       </tbody>
     </table>

@@ -191,8 +191,8 @@ func TestTemplate(t *testing.T) {
 			t.Errorf("column %q not matched", c.Header)
 		}
 	}
-	if len(p.Rows) != 4 {
-		t.Fatalf("rows = %d, want 4 (notes skipped)", len(p.Rows))
+	if len(p.Rows) != 5 {
+		t.Fatalf("rows = %d, want 5 (notes skipped)", len(p.Rows))
 	}
 	got := map[string]hosts.Host{}
 	for _, r := range p.Rows {
@@ -200,6 +200,9 @@ func TestTemplate(t *testing.T) {
 			t.Errorf("line %d: %s", r.Line, r.Error)
 		}
 		got[r.Host.Name] = r.Host
+	}
+	if w := got["win-01"]; w.Protocol != hosts.ProtocolRDP || w.RDP.Domain != "CORP" || w.OS != "windows" {
+		t.Errorf("win-01 = %+v", w)
 	}
 	if got["bastion-01"].OS != "ubuntu" || got["db-01"].OS != "rocky" || got["web-01"].OS != "debian" {
 		t.Errorf("OS not read: %+v", got)

@@ -1,5 +1,6 @@
 import * as HostService from '../../bindings/github.com/vgrigolaia/tuxshell/internal/hosts/service'
 import type { Host } from '../../bindings/github.com/vgrigolaia/tuxshell/internal/hosts/models'
+import { prefs } from './settings.svelte'
 
 export type { Host }
 
@@ -29,6 +30,26 @@ export const emptyHost = (): Host => ({
   os: '',
   passwordSaved: false,
   profile: '',
+  protocol: 'ssh',
+  rdp: defaultRDP(),
+  rdpCert: '',
+})
+
+/** Mirrors hosts.DefaultRDP. */
+export const defaultRDP = (): Host['rdp'] => ({
+  domain: '',
+  window: 'window',
+  size: 'fit',
+  width: 1600,
+  height: 900,
+  multimon: false,
+  clipboard: true,
+  folders: [],
+  homeFolder: false,
+  sound: 'local',
+  microphone: false,
+  quality: 'balanced',
+  gateway: { host: '', port: 443, user: '', domain: '' },
 })
 
 /** Name of the automatic group holding jump hosts. */
@@ -62,8 +83,20 @@ class HostStore {
       if (!byName.has(key)) byName.set(key, [])
       byName.get(key)!.push(h)
     }
-    return [...byName].map(([name, hosts]) => ({ name, hosts }))
+    // The order the user dragged them into; groups not in it keep their place after those.
+    const order = new Map((prefs.value.groupOrder ?? []).map((g, i) => [g, i]))
+    return [...byName]
+      .map(([name, hosts], i) => ({ name, hosts, rank: order.get(name) ?? order.size + i }))
+      .sort((a, b) => a.rank - b.rank)
+      .map(({ name, hosts }) => ({ name, hosts }))
   })
+
+  /** Moves group name to position index among the groups and saves the order. */
+  moveGroup(name: string, index: number) {
+    const names = this.groups.map((g) => g.name).filter((g) => g !== name)
+    names.splice(Math.max(0, Math.min(index, names.length)), 0, name)
+    prefs.setGroupOrder(names)
+  }
 
   groupNames = $derived([...new Set(this.list.map((h) => h.group).filter(Boolean))])
 
@@ -87,6 +120,17 @@ class HostStore {
     } catch (e) {
       throw toSaveError(e)
     }
+  }
+
+  /** Moves a host into a group ("" for none), before host `before` (0: at the end). */
+  async moveHost(id: number, group: string, before: number) {
+    try {
+      await HostService.MoveHost(id, group, before)
+      this.error = null
+    } catch (e) {
+      this.error = errorMessage(e)
+    }
+    await this.load()
   }
 
   /** Saves the login user for a host. */

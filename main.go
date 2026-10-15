@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -16,6 +17,7 @@ import (
 	"github.com/vgrigolaia/tuxshell/internal/hostio"
 	"github.com/vgrigolaia/tuxshell/internal/hosts"
 	"github.com/vgrigolaia/tuxshell/internal/login"
+	"github.com/vgrigolaia/tuxshell/internal/rdp"
 	"github.com/vgrigolaia/tuxshell/internal/recordings"
 	"github.com/vgrigolaia/tuxshell/internal/secrets"
 	"github.com/vgrigolaia/tuxshell/internal/settings"
@@ -44,6 +46,8 @@ func init() {
 	application.RegisterEvent[[]status.Result](status.EventChanged)
 	application.RegisterEvent[application.Void](tunnels.EventChanged)
 	application.RegisterEvent[application.Void](hosts.EventHistoryChanged)
+	application.RegisterEvent[application.Void](rdp.EventChanged)
+	application.RegisterEvent[rdp.FilesEvent](rdp.EventFiles)
 	application.RegisterEvent[login.PasswordRequest](login.EventPassword)
 	application.RegisterEvent[string](login.EventDone)
 }
@@ -142,7 +146,8 @@ func main() {
 	forwards := tunnels.NewService(store, resolver, func() { app.Event.Emit(tunnels.EventChanged) })
 	// Saved passwords answer ssh's prompts through a private socket next to
 	// the control sockets; without that directory they stay in the terminal.
-	logins := login.New(store, secrets.New(),
+	keyring := secrets.New()
+	logins := login.New(store, keyring,
 		func() bool { return prefs.Get().Settings.SavePasswords },
 		func(name string, data any) { app.Event.Emit(name, data) },
 	)
@@ -153,6 +158,28 @@ func main() {
 	} else if err := logins.Start(controlDir, exe); err != nil {
 		log.Printf("saved passwords unavailable: %v", err)
 	}
+
+	// Remote desktops open in FreeRDP's own window; saved passwords come from
+	// the keyring like ssh's.
+	remoteDesktops := rdp.NewService(store, resolver, rdpPasswords{store: store, keyring: keyring, logins: logins,
+		enabled: func() bool { return prefs.Get().Settings.SavePasswords }},
+		func() string { return prefs.Get().Settings.RDPClient },
+		func(name string, data any) { app.Event.Emit(name, data) })
+
+	// Remote desktops in tabs reach their server through a loopback relay.
+	if relay, err := rdp.StartRelay(); err != nil {
+		log.Printf("remote desktops in tabs unavailable: %v", err)
+	} else {
+		rdp.UseRelay(remoteDesktops, relay)
+	}
+	rdp.UseFolderPicker(remoteDesktops, func() (string, error) {
+		return app.Dialog.OpenFile().CanChooseDirectories(true).CanChooseFiles(false).
+			SetTitle("Folder to share with the remote desktop").SetButtonText("Share").PromptForSingleSelection()
+	})
+	rdp.UseFilePicker(remoteDesktops, func() ([]string, error) {
+		return app.Dialog.OpenFile().CanChooseFiles(true).
+			SetTitle("Send files to the remote desktop").SetButtonText("Send").PromptForMultipleSelection()
+	})
 
 	terminals := terminal.NewService(func(name string, data any) {
 		app.Event.Emit(name, data)
@@ -203,6 +230,7 @@ func main() {
 			application.NewService(forwards),
 			application.NewService(updates.NewService()),
 			application.NewService(images),
+			application.NewService(remoteDesktops),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -241,7 +269,23 @@ func main() {
 	// Files dropped on the file panel are uploaded to the folder it shows.
 	window.OnWindowEvent(events.Common.WindowFilesDropped, func(e *application.WindowEvent) {
 		target := e.Context().DropTargetDetails()
-		if target == nil || target.ElementID != "file-panel" {
+		if target == nil {
+			return
+		}
+		// Files dropped on a remote desktop tab are offered for pasting there.
+		if key, ok := strings.CutPrefix(target.ElementID, rdp.DropPrefix); ok {
+			paths := e.Context().DroppedFiles()
+			go func() {
+				offered, err := rdp.Dropped(remoteDesktops, key, paths)
+				ev := rdp.FilesEvent{Key: key, Files: offered}
+				if err != nil {
+					ev.Error = err.Error()
+				}
+				app.Event.Emit(rdp.EventFiles, ev)
+			}()
+			return
+		}
+		if target.ElementID != "file-panel" {
 			return
 		}
 		if paths := e.Context().DroppedFiles(); len(paths) > 0 {
@@ -252,4 +296,32 @@ func main() {
 	if err := app.Run(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// rdpPasswords gives remote desktops the saved passwords, while "Allow saving
+// passwords" is on.
+type rdpPasswords struct {
+	store   *hosts.Store
+	keyring *secrets.Store
+	logins  *login.Manager
+	enabled func() bool
+}
+
+func (p rdpPasswords) Saved(id int64) (string, bool) {
+	if !p.enabled() {
+		return "", false
+	}
+	h, err := p.store.Get(id)
+	if err != nil || !h.PasswordSaved {
+		return "", false
+	}
+	pw, err := p.keyring.Get(id)
+	return pw, err == nil && pw != ""
+}
+
+func (p rdpPasswords) Save(id int64, password string) error {
+	if !p.enabled() {
+		return login.ErrDisabled
+	}
+	return p.logins.SavePassword(id, password)
 }

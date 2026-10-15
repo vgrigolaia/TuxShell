@@ -17,9 +17,13 @@
   import { updates } from './lib/updates.svelte'
   import { logins } from './lib/logins.svelte'
   import { edits } from './lib/edits.svelte'
+  import { remoteDesktops } from './lib/rdp.svelte'
+  import RdpConnect from './lib/components/RdpConnect.svelte'
   import PromptDialog from './lib/components/PromptDialog.svelte'
   import { prefs } from './lib/settings.svelte'
   import { closer } from './lib/close.svelte'
+  import type { TabActions } from './lib/tabbar.svelte'
+  import OpenTabs from './lib/components/OpenTabs.svelte'
   import { hostStatus } from './lib/status.svelte'
   import { tunnels } from './lib/tunnels.svelte'
   import { snippets } from './lib/snippets.svelte'
@@ -71,7 +75,8 @@
   }
 
   function hostTitle(source: Source) {
-    return source.kind === 'host' ? hostStore.get(source.hostId)?.name : source.kind === 'shell' ? 'Local shell' : source.target
+    if (source.kind === 'host' || source.kind === 'rdp') return hostStore.get(source.hostId)?.name
+    return source.kind === 'shell' ? 'Local shell' : source.target
   }
 
   function newTabSame(paneId: number) {
@@ -109,6 +114,11 @@
   const active = $derived(workspace.activePane)
   const activeHost = $derived(active?.source.kind === 'host' ? hostStore.get(active.source.hostId) : undefined)
   const activeHostId = $derived(active?.source.kind === 'host' ? active.source.hostId : null)
+  function firstHost(paneId: number): { hostId: number | null; kind: Source['kind'] } {
+    const src = workspace.pane(paneId)?.source
+    if (src?.kind === 'host' || src?.kind === 'rdp') return { hostId: src.hostId, kind: src.kind }
+    return { hostId: null, kind: src?.kind ?? 'shell' }
+  }
   const tabInfos = $derived<TabInfo[]>(
     workspace.tabs.map((t) => ({
       key: t.key,
@@ -116,17 +126,36 @@
       exited: t.paneIds.every((id) => workspace.pane(id)?.exited),
       bell: t.paneIds.some((id) => workspace.pane(id)?.bell),
       panes: t.paneIds.length,
+      ...firstHost(t.paneIds[0]),
     })),
   )
 
   const tab = $derived(workspace.activeTab)
+
+  // Where the open tabs show: the left panel (or the icon rail), or the title bar.
+  const tabsLeft = $derived(prefs.value.tabsPosition !== 'top')
+  const tabActions: TabActions = {
+    select: (key) => (workspace.activeKey = key),
+    close: (key) => closer.closeTabs([key]),
+    closeMany: (keys) => closer.closeTabs(keys),
+    merge: (keys, orientation) => workspace.mergeTabs(keys, orientation),
+    split: (key, orientation) => openQuick({ key, orientation }),
+    unsplit: (key) => workspace.unsplit(key),
+    rename: (key) => {
+      const t = workspace.tabs.find((x) => x.key === key)
+      if (t) renamingTab = { key, name: workspace.tabTitle(t) }
+    },
+    move: (key, index) => workspace.moveTab(key, index),
+    newShell: () => workspace.openTab({ kind: 'shell' }, 'Local shell'),
+    home: () => (workspace.activeKey = HOME),
+  }
   const home = $derived(workspace.activeKey === HOME)
 
   const arrows: Record<string, Direction> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' }
 
   onMount(() => {
     void hostStore.load()
-    // The startup update check is opt-in (Preferences → About).
+    // The startup update check is on by default (Preferences → About).
     void prefs.load().then(() => {
       if (prefs.value.updateCheck) void updates.check()
     })
@@ -134,6 +163,7 @@
     const offTunnels = tunnels.start()
     const offLogins = logins.start()
     const offEdits = edits.start()
+    const offRdp = remoteDesktops.start()
     void snippets.load()
     void Terminals.DisplayServer().then((d) => (displayServer = d), () => {})
     const clock = setInterval(() => (now = Date.now()), 30000)
@@ -199,6 +229,7 @@
       offTunnels()
       offLogins()
       offEdits()
+      offRdp()
       clearInterval(clock)
       offClose()
       window.removeEventListener('keydown', onKey, { capture: true })
@@ -221,11 +252,21 @@
   }
 
   // Hosts without a saved user ask for one in the pane before connecting.
-  const connect = (host: Host) => open({ kind: 'host', hostId: host.id, askUser: !host.user }, host.name)
-  const connectAs = (host: Host) => open({ kind: 'host', hostId: host.id, askUser: true }, host.name)
+  // Remote desktop hosts open their own window instead of a terminal.
+  function connect(host: Host) {
+    if (host.protocol === 'rdp') remoteDesktops.connecting = host
+    else open({ kind: 'host', hostId: host.id, askUser: !host.user }, host.name)
+  }
+  function connectAs(host: Host) {
+    if (host.protocol === 'rdp') remoteDesktops.connecting = host
+    else open({ kind: 'host', hostId: host.id, askUser: true }, host.name)
+  }
 
   // Opens hosts as the panes of one new tab (quick connect's "Open all in split").
-  function openSplit(hosts: Host[]) {
+  function openSplit(all: Host[]) {
+    for (const h of all) if (h.protocol === 'rdp') remoteDesktops.connecting = h
+    const hosts = all.filter((h) => h.protocol !== 'rdp')
+    if (!hosts.length) return
     const [first, ...rest] = hosts
     workspace.openTab({ kind: 'host', hostId: first.id, askUser: !first.user }, first.name)
     const key = workspace.activeKey
@@ -326,7 +367,12 @@
         onNew={() => (panel = { kind: 'host', host: emptyHost() })}
         onImport={() => openImport()}
         onOpenTiles={openSplit}
+        openTabs={tabsLeft ? openTabsList : undefined}
       />
+{/snippet}
+
+{#snippet openTabsList()}
+  <OpenTabs tabs={tabInfos} activeKey={workspace.activeKey} homeActive={home} actions={tabActions} variant="list" />
 {/snippet}
 
 <div class="flex h-full flex-col gap-2.5 p-2.5">
@@ -338,22 +384,12 @@
     onToggleHosts={toggleHosts}
     filesOpen={panel.kind === 'files'}
     onToggleFiles={toggleFiles}
-    onSelect={(key) => (workspace.activeKey = key)}
-    onClose={(key) => closer.closeTabs([key])}
-    onCloseMany={(keys) => closer.closeTabs(keys)}
-    onMerge={(keys, orientation) => workspace.mergeTabs(keys, orientation)}
-    onSplit={(key, orientation) => openQuick({ key, orientation })}
-    onUnsplit={(key) => workspace.unsplit(key)}
-    onRename={(key) => {
-      const t = workspace.tabs.find((x) => x.key === key)
-      if (t) renamingTab = { key, name: workspace.tabTitle(t) }
-    }}
-    onNew={() => workspace.openTab({ kind: 'shell' }, 'Local shell')}
+    showTabs={!tabsLeft}
+    actions={tabActions}
     onSearch={() => openQuick(null)}
     onToggleClipboard={toggleClipboard}
     onPreferences={() => (prefsOpen = true)}
     homeActive={home}
-    onHome={() => (workspace.activeKey = HOME)}
   />
 
   <main class="relative flex min-h-0 flex-1 gap-2.5">
@@ -367,6 +403,7 @@
         onImport={openImport}
         onOpenHostList={openHostList}
         onPreferences={() => (prefsOpen = true)}
+        openTabs={tabsLeft ? openTabsList : undefined}
       >
         {#snippet editor()}
           {#if panel.kind === 'host'}
@@ -381,6 +418,9 @@
     <!-- Terminals stay mounted while Home shows, so sessions keep running. -->
     {#if hostsOpen && !home}
       {@render hostList()}
+    {:else if tabsLeft && !home}
+      <!-- Hosts hidden: the open tabs shrink to a strip of icons. -->
+      <OpenTabs tabs={tabInfos} activeKey={workspace.activeKey} homeActive={home} actions={tabActions} variant="rail" />
     {/if}
 
     <section aria-label="Terminals" class:hidden={home} class="relative flex min-w-0 flex-1 flex-col gap-2.5 rounded-panel border border-line bg-panel p-2.5">
@@ -463,6 +503,11 @@
   />
 {/if}
 
+{#if remoteDesktops.connecting}
+  {#key remoteDesktops.connecting.id}
+    <RdpConnect host={remoteDesktops.connecting} onClose={() => (remoteDesktops.connecting = null)} onOpenTab={(h) => open({ kind: 'rdp', hostId: h.id }, h.name)} />
+  {/key}
+{/if}
 {#if prefsOpen}
   <Preferences onClose={() => (prefsOpen = false)} onImport={() => openImport()} />
 {/if}
@@ -495,7 +540,7 @@
 
 {#if closer.pending}
   {@const pending = closer.pending}
-  <ConfirmDialog title={pending.title} message={pending.message} confirmLabel="Close" onConfirm={pending.run} onClose={() => (closer.pending = null)} />
+  <ConfirmDialog title={pending.title} message={pending.message} confirmLabel="Close" onConfirm={pending.run} onClose={() => (closer.pending = null)} onDontAsk={() => closer.stopAsking()} />
 {/if}
 
 {#if deleting}

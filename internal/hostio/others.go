@@ -3,6 +3,7 @@ package hostio
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -11,7 +12,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf16"
+
+	"github.com/vgrigolaia/tuxshell/internal/hosts"
 )
 
 // Other tools' formats are turned into a table with csvHeader, so their hosts
@@ -30,6 +34,9 @@ const (
 	colPassword
 	colAlias
 	colOS
+	colProtocol
+	colDomain
+	colRDP
 )
 
 func newFixedTable() *table { return &table{rows: [][]string{csvHeader}} }
@@ -145,12 +152,13 @@ func scanRemmina() (*table, string, error) {
 		}
 	}
 	if found == "" {
-		return nil, "", errors.New("no Remmina SSH connections found in ~/.local/share/remmina")
+		return nil, "", errors.New("no Remmina SSH or remote desktop connections found in ~/.local/share/remmina")
 	}
 	return t, found, nil
 }
 
-// addRemmina adds one connection file if it's an SSH connection.
+// addRemmina adds one connection file if it's an SSH or RDP connection.
+// Remmina keeps passwords in its own keyring entry, so they aren't imported.
 func addRemmina(t *table, data []byte) bool {
 	v := map[string]string{}
 	in := false
@@ -162,6 +170,10 @@ func addRemmina(t *table, data []byte) bool {
 		if k, val, ok := strings.Cut(l, "="); in && ok {
 			v[strings.ToLower(k)] = val
 		}
+	}
+	if strings.EqualFold(v["protocol"], "RDP") {
+		addRemminaRDP(t, v)
+		return true
 	}
 	if !strings.EqualFold(v["protocol"], "SSH") {
 		return false
@@ -179,6 +191,93 @@ func addRemmina(t *table, data []byte) bool {
 		r[colIdentityFile] = v["ssh_privatekey"]
 	})
 	return true
+}
+
+// addRemminaRDP turns a Remmina RDP connection into a remote desktop host.
+func addRemminaRDP(t *table, v map[string]string) {
+	r := hosts.DefaultRDP()
+	// resolution_mode 0 is a custom size; 1 and 2 follow the window.
+	if v["resolution_mode"] == "0" {
+		w, _ := strconv.Atoi(v["resolution_width"])
+		h, _ := strconv.Atoi(v["resolution_height"])
+		if w > 0 && h > 0 {
+			r.Size, r.Width, r.Height = "fixed", w, h
+		}
+	}
+	// viewmode 2–4 are Remmina's fullscreen modes.
+	if m := v["viewmode"]; m == "2" || m == "3" || m == "4" {
+		r.Window = "fullscreen"
+	}
+	r.Multimon = v["multimon"] == "1"
+	r.Clipboard = v["disableclipboard"] != "1"
+	switch v["sound"] {
+	case "local", "remote":
+		r.Sound = v["sound"]
+	default:
+		r.Sound = "off"
+	}
+	r.Microphone = v["microphone"] != "" && v["microphone"] != "0"
+	// Remmina's quality 0 ("poor") still uses automatic colours, closer to
+	// our Balanced than to Low bandwidth.
+	if q := v["quality"]; q == "2" || q == "9" {
+		r.Quality = "best"
+	}
+	for _, key := range []string{"drive", "sharefolder"} {
+		if raw := strings.TrimSpace(v[key]); strings.HasPrefix(raw, "/") {
+			p := strings.TrimRight(raw, "/")
+			if p == "" {
+				p = "/"
+			}
+			name := filepath.Base(p)
+			if name == "/" || name == "." {
+				name = "root"
+			}
+			r.Folders = append(r.Folders, hosts.Folder{Name: shareName(name), Path: p})
+			break
+		}
+	}
+	if g := strings.TrimSpace(v["gateway_server"]); g != "" {
+		host, port := g, 443
+		if h, p, ok := strings.Cut(g, ":"); ok {
+			if n, err := strconv.Atoi(p); err == nil {
+				host, port = h, n
+			}
+		}
+		r.Gateway = hosts.Gateway{Host: host, Port: port, User: v["gateway_username"], Domain: v["gateway_domain"]}
+	}
+	jump := ""
+	if v["ssh_tunnel_enabled"] == "1" && v["ssh_tunnel_server"] != "" {
+		jump = v["ssh_tunnel_server"]
+		if u := v["ssh_tunnel_username"]; u != "" && !strings.Contains(jump, "@") {
+			jump = u + "@" + jump
+		}
+	}
+	options, _ := json.Marshal(r)
+	t.add(func(row []string) {
+		row[colName], row[colGroup], row[colHostname], row[colUser] = v["name"], v["group"], v["server"], v["username"]
+		row[colProxyJump], row[colProtocol], row[colDomain], row[colRDP] = jump, hosts.ProtocolRDP, v["domain"], string(options)
+		if row[colName] == "" {
+			row[colName] = v["server"]
+		}
+	})
+}
+
+// shareName makes a folder name usable as a share name.
+func shareName(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || strings.ContainsRune(" _.-", r) {
+			b.WriteRune(r)
+		}
+	}
+	n := strings.TrimSpace(b.String())
+	if len([]rune(n)) > 32 {
+		n = string([]rune(n)[:32])
+	}
+	if n == "" {
+		n = "share"
+	}
+	return n
 }
 
 // --- PuTTY -----------------------------------------------------------------

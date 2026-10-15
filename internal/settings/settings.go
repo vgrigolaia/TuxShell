@@ -20,19 +20,27 @@ type Settings struct {
 	Theme string `json:"theme"`
 	// HostsSidebar shows the hosts sidebar.
 	HostsSidebar bool `json:"hostsSidebar"`
+	// TabsPosition puts the open tabs in the left panel ("left") or the title bar ("top").
+	TabsPosition string `json:"tabsPosition"`
+	// GroupOrder is the order of host groups chosen by dragging; groups not
+	// listed follow in their usual order.
+	GroupOrder []string `json:"groupOrder"`
 	// HostStatus pings saved hosts in the background to show which are up.
 	HostStatus bool `json:"hostStatus"`
-	// UpdateCheck asks GitHub for a newer release at startup. Off by default:
-	// the app makes no requests of its own unless the user turns this on.
+	// UpdateCheck asks GitHub for a newer release at startup (on by default;
+	// it only links to the release, never downloads anything).
 	UpdateCheck bool `json:"updateCheck"`
-	// SavePasswords allows saving host passwords in the system keyring. Off by
-	// default: keys, the ssh agent or 1Password are safer.
+	// SavePasswords allows saving host passwords in the system keyring (on by
+	// default): typed into a host, ticked "Remember", or found in an imported
+	// file. Keys, the ssh agent or 1Password stay the safer choice.
 	SavePasswords bool     `json:"savePasswords"`
 	Terminal      Terminal `json:"terminal"`
 	// Profiles are the user's named terminal profiles.
 	Profiles []NamedProfile `json:"profiles"`
 	// History keeps a list of connections: host, time and duration only.
 	History History `json:"history"`
+	// RDPClient picks the FreeRDP program: "auto", "x11" or "sdl".
+	RDPClient string `json:"rdpClient"`
 }
 
 // History says whether and how long connections are remembered.
@@ -168,16 +176,21 @@ const (
 // Defaults returns the out-of-the-box settings.
 func Defaults() Settings {
 	return Settings{
-		Theme:        "dark",
-		HostsSidebar: true,
-		HostStatus:   true,
+		Theme:         "dark",
+		HostsSidebar:  true,
+		HostStatus:    true,
+		TabsPosition:  "left",
+		UpdateCheck:   true,
+		SavePasswords: true,
 		Terminal: Terminal{
 			Profile:       DefaultProfile(),
 			ConfirmClose:  true,
 			CtrlWheelZoom: true,
 		},
-		Profiles: []NamedProfile{},
-		History:  History{Enabled: true, Days: 90, Max: 1000},
+		Profiles:   []NamedProfile{},
+		GroupOrder: []string{},
+		History:    History{Enabled: true, Days: 90, Max: 1000},
+		RDPClient:  "auto",
 	}
 }
 
@@ -249,6 +262,9 @@ func (s *Settings) normalize() {
 	d := Defaults()
 	oneOf(&s.Theme, d.Theme, "dark", "light", "system")
 	s.Terminal.Profile.normalize()
+	oneOf(&s.RDPClient, d.RDPClient, "auto", "x11", "sdl")
+	oneOf(&s.TabsPosition, d.TabsPosition, "left", "top")
+	s.GroupOrder = cleanGroupOrder(s.GroupOrder)
 	if s.History.Days == 0 {
 		s.History.Days = d.History.Days
 	}
@@ -350,6 +366,26 @@ func oneOf(v *string, def string, allowed ...string) {
 		}
 	}
 	*v = def
+}
+
+// Limits for GroupOrder, so a hand-edited file stays small.
+const (
+	maxGroups      = 1000
+	maxGroupLength = 200
+)
+
+// cleanGroupOrder drops blank, overlong and repeated names.
+func cleanGroupOrder(in []string) []string {
+	out := []string{}
+	seen := map[string]bool{}
+	for _, g := range in {
+		if g == "" || len(g) > maxGroupLength || seen[g] || len(out) == maxGroups {
+			continue
+		}
+		seen[g] = true
+		out = append(out, g)
+	}
+	return out
 }
 
 func clamp(v, lo, hi int) int { return min(max(v, lo), hi) }

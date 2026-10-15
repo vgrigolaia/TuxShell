@@ -13,6 +13,9 @@ import type * as files$0 from "../../../../vgrigolaia/tuxshell/internal/files/mo
 import type * as login$0 from "../../../../vgrigolaia/tuxshell/internal/login/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import type * as rdp$0 from "../../../../vgrigolaia/tuxshell/internal/rdp/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import type * as status$0 from "../../../../vgrigolaia/tuxshell/internal/status/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -29,6 +32,8 @@ declare module "@wailsio/runtime" {
             "hosts:status": status$0.Result[] | null;
             "login:done": string;
             "login:password": login$0.PasswordRequest;
+            "rdp:changed": void;
+            "rdp:files": rdp$0.FilesEvent;
             "terminal:data": terminal$0.DataEvent;
             "terminal:exit": terminal$0.ExitEvent;
             "terminal:recording": terminal$0.RecordingEvent;

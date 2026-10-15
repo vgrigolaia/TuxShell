@@ -30,7 +30,7 @@
       label: 'Other apps',
       sources: [
         { id: 'mobaxterm', title: 'MobaXterm', detail: 'A session export (.mxtsessions): Settings → Export sessions' },
-        { id: 'remmina', title: 'Remmina', detail: 'SSH connections saved in Remmina on this computer' },
+        { id: 'remmina', title: 'Remmina', detail: 'SSH and remote desktop (RDP) connections saved in Remmina' },
         { id: 'putty', title: 'PuTTY', detail: 'Sessions saved by PuTTY on this computer (~/.putty)' },
         { id: 'puttyreg', title: 'PuTTY on Windows', detail: 'A .reg export of the PuTTY Sessions registry key' },
         { id: 'ansible', title: 'Ansible inventory', detail: 'An INI inventory file; groups and host variables are read' },

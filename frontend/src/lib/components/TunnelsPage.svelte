@@ -20,7 +20,7 @@
 
   function edit(t: Tunnel | null) {
     error = null
-    editing = t ? { ...t } : emptyTunnel(hostStore.list[0]?.id ?? 0)
+    editing = t ? { ...t } : emptyTunnel(hostStore.list.find((h) => h.protocol !== 'rdp')?.id ?? 0)
   }
 
   async function save() {
@@ -131,7 +131,7 @@
       <div>
         <label class={label} for="tunnel-host">Through host</label>
         <select id="tunnel-host" class={input} bind:value={t.hostId} aria-invalid={!!fieldError('hostId')}>
-          {#each hostStore.list as h (h.id)}<option value={h.id}>{h.name}</option>{/each}
+          {#each hostStore.list.filter((h) => h.protocol !== 'rdp') as h (h.id)}<option value={h.id}>{h.name}</option>{/each}
         </select>
         {#if fieldError('hostId')}<p class="mt-1 text-xs text-warning">{fieldError('hostId')}</p>{/if}
       </div>
