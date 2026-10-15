@@ -62,6 +62,11 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="1.2.1" date="2026-10-15">
+      <description>
+        <p>Faster: typing, switching tabs and resizing the window no longer lag while a terminal prints a lot, and changing a setting no longer redraws every terminal.</p>
+      </description>
+    </release>
     <release version="1.2.0" date="2026-10-15">
       <description>
         <p>Remote desktops (RDP), in their own window or inside a TuxShell tab, with shared folders, copy and paste, and file transfer. Open tabs can live in the left panel, and host groups and hosts can be reordered by dragging.</p>

@@ -256,11 +256,20 @@ func (s *Service) start(cmd *exec.Cmd, cols, rows int, v visit) (string, error) 
 
 // pump forwards PTY output until the process exits, then reports the exit code.
 func (s *Service) pump(id string, cmd *exec.Cmd, ptmx *os.File) {
+	out := newBatcher()
+	sent := make(chan struct{})
+	go func() {
+		out.run(func(data []byte) {
+			s.emit(EventData, DataEvent{ID: id, Data: base64.StdEncoding.EncodeToString(data)})
+		})
+		close(sent)
+	}()
+
 	buf := make([]byte, 32*1024)
 	for {
 		n, err := ptmx.Read(buf)
 		if n > 0 {
-			s.emit(EventData, DataEvent{ID: id, Data: base64.StdEncoding.EncodeToString(buf[:n])})
+			out.write(buf[:n])
 			s.record(id, buf[:n])
 		}
 		if err != nil {
@@ -268,6 +277,9 @@ func (s *Service) pump(id string, cmd *exec.Cmd, ptmx *os.File) {
 			break
 		}
 	}
+	// All output reaches the frontend before the exit event.
+	out.close()
+	<-sent
 
 	code := 0
 	if err := cmd.Wait(); err != nil {
