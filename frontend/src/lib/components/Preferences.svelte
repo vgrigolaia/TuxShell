@@ -754,7 +754,7 @@
             />
             <span
               >Use the 1Password SSH agent<span class={hint}
-                >TuxShell's ssh uses the SSH keys in 1Password (~/.1password/agent.sock), also through jump hosts. Hosts that set IdentityAgent in
+                >TuxShell's ssh uses the SSH keys in 1Password ({onePassword.status?.agentPath ?? '~/.1password/agent.sock'}), also through jump hosts. Hosts that set IdentityAgent in
                 ~/.ssh/config keep it. Takes effect for new connections.</span
               ></span
             >
