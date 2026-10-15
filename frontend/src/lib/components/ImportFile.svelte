@@ -44,6 +44,12 @@
   const columns = $derived(preview.columns ?? [])
   const importable = (r: Row) => !r.error && !r.sameAs
   const selected = $derived(rows.filter((r) => importable(r) && chosen[r.line]))
+  const choosable = $derived(rows.filter(importable))
+
+  // The header box: ticks or clears every row that can be imported.
+  function chooseAll(on: boolean) {
+    for (const r of choosable) chosen[r.line] = on
+  }
   const existing = $derived(rows.filter((r) => importable(r) && r.existingId).length)
   const hasHost = $derived(!preview.tabular || columns.some((c) => c.field === 'hostname' || c.field === 'alias'))
 
@@ -170,7 +176,18 @@
       <caption class="sr-only">Hosts in {preview.file}</caption>
       <thead class="text-subtle">
         <tr class="border-b border-line">
-          <th class="w-8 py-1.5"><span class="sr-only">Import</span></th>
+          <th class="w-8 py-1.5">
+            <input
+              type="checkbox"
+              class="size-4 accent-accent"
+              aria-label="Select all"
+              title="Select all / none"
+              disabled={choosable.length === 0}
+              checked={choosable.length > 0 && selected.length === choosable.length}
+              indeterminate={selected.length > 0 && selected.length < choosable.length}
+              onchange={(e) => chooseAll(e.currentTarget.checked)}
+            />
+          </th>
           <th class="w-10 py-1.5 font-normal">Line</th>
           <th class="py-1.5 font-normal">Name</th>
           <th class="py-1.5 font-normal">Connects to</th>
