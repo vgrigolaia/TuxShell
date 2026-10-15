@@ -12,6 +12,7 @@ package askpass
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -77,6 +78,7 @@ type Server struct {
 // Listen starts a server in dir, which must be private to this user (the ssh
 // control socket directory is).
 func Listen(dir string, h Handler) (*Server, error) {
+	removeStale(dir)
 	path := filepath.Join(dir, "askpass-"+strconv.Itoa(os.Getpid())+".sock")
 	_ = os.Remove(path)
 	ln, err := net.ListenUnix("unix", &net.UnixAddr{Name: path, Net: "unix"})
@@ -91,6 +93,21 @@ func Listen(dir string, h Handler) (*Server, error) {
 	s.wg.Add(1)
 	go s.serve()
 	return s, nil
+}
+
+// removeStale deletes sockets left by TuxShell processes that ended without
+// closing them (killed or crashed). Sockets of running instances stay.
+func removeStale(dir string) {
+	names, _ := filepath.Glob(filepath.Join(dir, "askpass-*.sock"))
+	for _, name := range names {
+		pid, err := strconv.Atoi(strings.TrimSuffix(strings.TrimPrefix(filepath.Base(name), "askpass-"), ".sock"))
+		if err != nil || pid <= 0 || pid == os.Getpid() {
+			continue
+		}
+		if errors.Is(syscall.Kill(pid, 0), syscall.ESRCH) {
+			_ = os.Remove(name)
+		}
+	}
 }
 
 // Path is the socket for EnvSocket.
