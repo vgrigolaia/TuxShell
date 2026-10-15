@@ -542,7 +542,7 @@
             <input type="checkbox" class="mt-0.5 accent-accent" checked={t.record} onchange={(e) => setP({ record: e.currentTarget.checked })} />
             <span
               >Record sessions automatically<span class={hint}
-                >Saves what the terminal shows (never your keystrokes) to ~/.local/share/tuxshell/recordings, readable only by you. Watch them under Home → History → Recordings. Anything shown on screen, such as a password printed by a command, ends up in the file.</span
+                >Saves what the terminal shows (never your keystrokes) to {isMac ? '~/Library/Application Support/TuxShell/recordings' : '~/.local/share/tuxshell/recordings'}, readable only by you. Watch them under Home → History → Recordings. Anything shown on screen, such as a password printed by a command, ends up in the file.</span
               ></span
             >
           </label>
@@ -876,7 +876,7 @@
       {#if prefs.error && prefs.error.field !== 'shell'}
         <span class="text-warning">Not saved: {prefs.error.message}</span>
       {:else}
-        Changes apply right away · saved in <span class="font-mono">~/.config/tuxshell/settings.json</span>
+        Changes apply right away · saved in <span class="font-mono">{isMac ? '~/Library/Application Support/TuxShell/settings.json' : '~/.config/tuxshell/settings.json'}</span>
       {/if}
     </span>
     {#if confirmReset}
