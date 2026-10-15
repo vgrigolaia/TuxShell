@@ -5,6 +5,7 @@
 </script>
 
 <script lang="ts">
+  import { keys } from '../platform'
   import type { Snippet } from 'svelte'
   import { onMount } from 'svelte'
   import * as SshConfig from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/sshconfig/service'
@@ -179,7 +180,7 @@
           onkeydown={(e) => e.key === 'Escape' && (query = '')}
         />
       </label>
-      <span class="kbd">Ctrl K</span>
+      <span class="kbd">{keys('Ctrl K')}</span>
     </form>
 
     {#if found > 0}

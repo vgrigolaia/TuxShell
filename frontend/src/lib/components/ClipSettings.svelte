@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { isMac } from '../platform'
   import { clipboardHistory, type Settings } from '../clipboard.svelte'
   import { errorMessage } from '../hosts.svelte'
 
@@ -73,7 +74,7 @@
     <input type="checkbox" class="mt-0.5 size-4 accent-accent" bind:checked={draft.captureSystem} />
     <span>
       Record clipboard from other apps
-      <span class="block text-xs text-subtle">Captured when you switch back to TuxShell. Off: only Ctrl+Shift+C in a terminal.</span>
+      <span class="block text-xs text-subtle">Captured when you switch back to TuxShell. Off: only {isMac ? '⌘C' : 'Ctrl+Shift+C'} in a terminal.</span>
     </span>
   </label>
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { isMac } from '../platform'
   import { onMount } from 'svelte'
   import { Clipboard } from '@wailsio/runtime'
   import { clipboardHistory, type Clip } from '../clipboard.svelte'
@@ -181,7 +182,7 @@
         </p>
       {:else if clipboardHistory.list.length === 0}
         <p class="px-3 pt-8 text-center text-[13px] text-muted">
-          Nothing yet. Copy with Ctrl+Shift+C in a terminal, copy anywhere and come back, or add a saved clip with +.
+          Nothing yet. Copy with {isMac ? '⌘C' : 'Ctrl+Shift+C'} in a terminal, copy anywhere and come back, or add a saved clip with +.
         </p>
       {:else if !shown.length}
         <p class="px-3 pt-8 text-center text-[13px] text-muted">{query ? 'No matches' : show === 'host' ? `Nothing copied from ${activeHost} yet` : 'No pinned clips yet'}</p>

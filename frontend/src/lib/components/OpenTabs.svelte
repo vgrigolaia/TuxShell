@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { keys } from '../platform'
   import { onDestroy } from 'svelte'
   import Icon from './Icon.svelte'
   import HostBadge from './HostBadge.svelte'
@@ -170,7 +171,7 @@
               aria-controls="panel-{tab.key}"
               tabindex={current ? 0 : -1}
               class="flex h-full min-w-0 flex-1 items-center gap-2.5 pl-2 text-left text-[13px]"
-              title="{describe(tab)} — Ctrl+click to select, drag to move, right-click to split or close"
+              title="{describe(tab)} — {keys('Ctrl+click')} to select, drag to move, right-click to split or close"
               onclick={(e) => onClick(e, tab.key)}
               onkeydown={(e) => onKey(e, i)}
             >
