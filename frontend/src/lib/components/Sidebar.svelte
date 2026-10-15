@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { keys } from '../platform'
   import { JUMP_GROUP, describe, hostStore, type Host, type HostGroup } from '../hosts.svelte'
   import { MAX_PANES } from '../layout'
   import { workspace } from '../workspace.svelte'
@@ -494,7 +495,7 @@
                 <button
                   id="host-row-{host.id}"
                   class="flex w-full items-center gap-2.5 rounded-[10px] px-2 py-1.5 text-left text-[13px] transition-colors hover:bg-raised {chosen || host.id === selectedId ? 'bg-select text-fg' : 'text-text'}"
-                  title="Connect to {describe(host)}{hostStatus.label(host.id) ? ` · ${hostStatus.label(host.id)}` : ''} · Ctrl+click to pick for tiles"
+                  title="Connect to {describe(host)}{hostStatus.label(host.id) ? ` · ${hostStatus.label(host.id)}` : ''} · {keys('Ctrl+click')} to pick for tiles"
                   aria-haspopup="menu"
                   aria-pressed={chosen || undefined}
                   onclick={(e) => onRowClick(e, host)}
@@ -533,7 +534,7 @@
           {pickedHosts.length} picked{pickedHosts.length > MAX_PANES ? ` · first ${MAX_PANES} open` : ''} ·
           <button class="underline hover:text-fg" onclick={() => picked.clear()}>clear</button>
         {:else}
-          Ctrl+click hosts, then
+          {keys('Ctrl+click')} hosts, then
         {/if}
       </span>
       <button

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { isMac, keys } from '../platform'
   import { onMount } from 'svelte'
   import { Browser, Window } from '@wailsio/runtime'
   import Icon from './Icon.svelte'
@@ -91,8 +92,10 @@
 
 <!-- Double-click to maximize is a mouse shortcut; the Maximize button covers keyboard users. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- On macOS the system's own close/minimize/zoom buttons sit at the left, so
+     the bar starts after them and has no buttons of its own. -->
 <header
-  class="drag flex shrink-0 items-center gap-3.5 pt-0.5 pr-1 pl-1.5"
+  class="drag flex shrink-0 items-center gap-3.5 pt-0.5 pr-1 {isMac ? 'pl-[78px]' : 'pl-1.5'}"
   ondblclick={(e) => e.target === e.currentTarget && Window.ToggleMaximise()}
 >
   <div class="flex items-center gap-2.5">
@@ -100,8 +103,8 @@
       class="{wc} {hostsOpen ? 'text-fg' : ''}"
       aria-label={hostsOpen ? 'Hide hosts' : 'Show hosts'}
       aria-pressed={hostsOpen}
-      aria-keyshortcuts="Control+Shift+L"
-      title="{hostsOpen ? 'Hide' : 'Show'} hosts (Ctrl+Shift+L)"
+      aria-keyshortcuts="{isMac ? 'Meta' : 'Control'}+Shift+L"
+      title="{hostsOpen ? 'Hide' : 'Show'} hosts ({keys('Ctrl+Shift+L')})"
       onclick={onToggleHosts}
     >
       <Icon name="sidebar" size={14} />
@@ -150,7 +153,7 @@
             aria-controls="panel-{tab.key}"
             tabindex={current ? 0 : -1}
             class="flex h-full max-w-56 items-center gap-2 pr-1 pl-3 text-[13px]"
-            title="{tab.title}{tab.exited ? ' (disconnected)' : ''} — Ctrl+click to select, right-click to split or close"
+            title="{tab.title}{tab.exited ? ' (disconnected)' : ''} — {keys('Ctrl+click')} to select, right-click to split or close"
             onclick={(e) => tabPicker.click(e, tab.key, activeKey, actions.select)}
             onkeydown={(e) => onTabKey(e, i)}
           >
@@ -179,10 +182,10 @@
 
   <div class="min-w-4 flex-1 self-stretch"></div>
 
-  <button class={pill} aria-keyshortcuts="Control+K" onclick={onSearch}>
+  <button class={pill} aria-keyshortcuts="{isMac ? 'Meta' : 'Control'}+K" onclick={onSearch}>
     <Icon name="search" size={14} />
     <span class="whitespace-nowrap">Jump to anything</span>
-    <span class="kbd">Ctrl K</span>
+    <span class="kbd">{keys('Ctrl K')}</span>
   </button>
 
   <div class="flex items-center gap-1.5">
@@ -215,8 +218,8 @@
       class="{wc} {clipboardOpen ? 'bg-accent-chip text-accent-ink' : ''}"
       aria-label="Clipboard history"
       aria-pressed={clipboardOpen}
-      aria-keyshortcuts="Control+Shift+H"
-      title="Clipboard history (Ctrl+Shift+H)"
+      aria-keyshortcuts="{isMac ? 'Meta' : 'Control'}+Shift+H"
+      title="Clipboard history ({keys('Ctrl+Shift+H')})"
       onclick={onToggleClipboard}
     >
       <Icon name="clipboard" size={14} />
@@ -225,7 +228,7 @@
       class="relative {wc} {filesOpen ? 'bg-accent-chip text-accent-ink' : ''}"
       aria-label={edits.changed ? 'Files (an edited file is waiting to be uploaded)' : 'Files'}
       aria-pressed={filesOpen}
-      aria-keyshortcuts="Control+Shift+E"
+      aria-keyshortcuts="{isMac ? 'Meta' : 'Control'}+Shift+E"
       title={edits.changed ? 'Files: an edited file is waiting to be uploaded (Ctrl+Shift+E)' : 'Files (Ctrl+Shift+E)'}
       onclick={onToggleFiles}
     >
@@ -240,11 +243,12 @@
     >
       <Icon name={theme.mode === 'dark' ? 'moon' : theme.mode === 'light' ? 'sun' : 'monitor'} size={14} />
     </button>
-    <button class={wc} aria-label="Preferences" aria-keyshortcuts="Control+," title="Preferences (Ctrl+,)" onclick={onPreferences}>
+    <button class={wc} aria-label="Preferences" aria-keyshortcuts="{isMac ? 'Meta' : 'Control'}+," title="Preferences ({keys('Ctrl+,')})" onclick={onPreferences}>
       <Icon name="gear" size={14} />
     </button>
   </div>
 
+  {#if !isMac}
   <div class="flex items-center gap-1.5 border-l border-line pl-2.5">
     <button class={wc} aria-label="Minimize" onclick={() => Window.Minimise()}>
       <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
@@ -263,6 +267,7 @@
       <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 2.5l5 5M7.5 2.5l-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
     </button>
   </div>
+  {/if}
 </header>
 
 {#if menu}

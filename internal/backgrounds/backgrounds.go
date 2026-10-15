@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+
+	"github.com/vgrigolaia/tuxshell/internal/platform"
 )
 
 // MaxSize is the largest image accepted.
@@ -34,17 +36,13 @@ var ErrNotImage = errors.New("choose a PNG, JPEG or WebP image")
 
 var nameRe = regexp.MustCompile(`^[0-9a-f]{16}\.(png|jpg|webp)$`)
 
-// DefaultDir is $XDG_DATA_HOME/tuxshell/backgrounds.
+// DefaultDir is backgrounds in the data folder ($XDG_DATA_HOME/tuxshell on Linux).
 func DefaultDir() (string, error) {
-	dir := os.Getenv("XDG_DATA_HOME")
-	if dir == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		dir = filepath.Join(home, ".local", "share")
+	dir, err := platform.DataDir()
+	if err != nil {
+		return "", err
 	}
-	return filepath.Join(dir, "tuxshell", "backgrounds"), nil
+	return filepath.Join(dir, "backgrounds"), nil
 }
 
 // NewService stores images in dir. inUse lists the images profiles still

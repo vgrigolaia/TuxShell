@@ -18,6 +18,7 @@
 </script>
 
 <script lang="ts">
+  import { isMac, keys } from '../platform'
   import { onMount } from 'svelte'
   import Icon from './Icon.svelte'
 
@@ -87,7 +88,7 @@
         role={item.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
         aria-checked={item.checked}
         disabled={item.disabled}
-        aria-keyshortcuts={item.hint?.replaceAll('Ctrl', 'Control')}
+        aria-keyshortcuts={item.hint?.replaceAll('Ctrl', isMac ? 'Meta' : 'Control')}
         class="flex w-full items-center gap-6 rounded-lg px-3 py-1.5 text-left text-[13px] focus:outline-none disabled:pointer-events-none disabled:text-subtle {item.danger
           ? 'text-danger-text hover:bg-danger/15 focus:bg-danger/15'
           : 'hover:bg-line focus:bg-line'}"
@@ -105,7 +106,7 @@
           <span class="-mr-3 grid size-4 place-items-center text-muted" aria-hidden="true">{#if item.icon}<Icon name={item.icon} size={15} />{/if}</span>
         {/if}
         <span class="flex-1">{item.label}</span>
-        {#if item.hint}<span class="font-mono text-[11px] text-subtle">{item.hint}</span>{/if}
+        {#if item.hint}<span class="font-mono text-[11px] text-subtle">{keys(item.hint)}</span>{/if}
       </button>
     </li>
   {/each}

@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"syscall"
+
+	"github.com/vgrigolaia/tuxshell/internal/platform"
 )
 
 // Unix socket paths are limited to 108 bytes (sun_path); ssh's %C hash is 40
@@ -23,7 +25,7 @@ const controlPersist = "120"
 // $XDG_RUNTIME_DIR/tuxshell, or /tmp/tuxshell-<uid> when that path is too
 // long for a socket. Fallback directories are verified to be ours.
 func ControlDir() (string, error) {
-	if rt := os.Getenv("XDG_RUNTIME_DIR"); rt != "" {
+	if rt := platform.RuntimeDir(); rt != "" {
 		dir := filepath.Join(rt, "tuxshell")
 		if len(dir)+len("/cm-")+40 < maxSocketPath {
 			if err := ensurePrivateDir(dir); err == nil {
@@ -31,7 +33,7 @@ func ControlDir() (string, error) {
 			}
 		}
 	}
-	dir := filepath.Join(os.TempDir(), "tuxshell-"+strconv.Itoa(os.Getuid()))
+	dir := filepath.Join(platform.SocketTempDir(), "tuxshell-"+strconv.Itoa(os.Getuid()))
 	if len(dir)+len("/cm-")+40 >= maxSocketPath {
 		return "", errors.New("no short enough directory for ssh control sockets")
 	}

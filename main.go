@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -19,6 +20,7 @@ import (
 	"github.com/vgrigolaia/tuxshell/internal/hosts"
 	"github.com/vgrigolaia/tuxshell/internal/login"
 	"github.com/vgrigolaia/tuxshell/internal/onepassword"
+	"github.com/vgrigolaia/tuxshell/internal/platform"
 	"github.com/vgrigolaia/tuxshell/internal/rdp"
 	"github.com/vgrigolaia/tuxshell/internal/recordings"
 	"github.com/vgrigolaia/tuxshell/internal/secrets"
@@ -64,6 +66,7 @@ func main() {
 	if askpass.IsHelper() {
 		os.Exit(askpass.Helper(os.Args[1:]))
 	}
+	platform.AddToolDirs()
 
 	dbPath, err := hosts.DefaultPath()
 	if err != nil {
@@ -225,6 +228,7 @@ func main() {
 			ApplicationID: "io.github.vgrigolaia.TuxShell",
 			ProgramName:   "tuxshell",
 		},
+		Mac: application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: true},
 		Services: []application.Service{
 			application.NewService(terminals),
 			application.NewService(logins.Service()),
@@ -250,13 +254,26 @@ func main() {
 	})
 
 	// Frameless: the frontend draws its own title bar and window controls.
+	// macOS apps need a menu bar; its Edit menu also makes ⌘C/⌘V/⌘A work in
+	// text fields.
+	if runtime.GOOS == "darwin" {
+		menu := application.NewMenu()
+		menu.AddRole(application.AppMenu)
+		menu.AddRole(application.EditMenu)
+		menu.AddRole(application.WindowMenu)
+		app.Menu.SetApplicationMenu(menu)
+	}
+
 	window := app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:            "TuxShell",
-		Width:            1280,
-		Height:           800,
-		MinWidth:         760,
-		MinHeight:        480,
-		Frameless:        true,
+		Title:     "TuxShell",
+		Width:     1280,
+		Height:    800,
+		MinWidth:  760,
+		MinHeight: 480,
+		// Linux: our own title bar instead of the window manager's. macOS keeps
+		// its close/minimize/zoom buttons, over our title bar.
+		Frameless:        runtime.GOOS != "darwin",
+		Mac:              application.MacWindow{TitleBar: application.MacTitleBarHiddenInset},
 		EnableFileDrop:   true,
 		BackgroundColour: application.NewRGB(0x08, 0x09, 0x0C),
 		URL:              "/",

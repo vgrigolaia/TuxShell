@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"strconv"
 	"time"
 )
@@ -35,7 +36,8 @@ var versionRe = regexp.MustCompile(`FreeRDP version (\d+)\.(\d+)\.(\d+)`)
 // through XWayland) and falls back to the SDL one.
 func FindClient(prefer string) (Client, error) {
 	order := []string{"x11", "sdl"}
-	if prefer == "sdl" {
+	// macOS has no X server by default; Homebrew's sdl-freerdp runs natively.
+	if prefer == "sdl" || (prefer == "auto" && runtime.GOOS == "darwin") {
 		order = []string{"sdl", "x11"}
 	}
 	for _, kind := range order {

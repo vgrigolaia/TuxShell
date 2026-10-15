@@ -5,11 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/vgrigolaia/tuxshell/internal/platform"
 )
 
 // MaxEditSize is the largest file that can be opened for editing.
@@ -62,16 +63,7 @@ type editor struct {
 }
 
 func newEditor() *editor {
-	return &editor{edits: map[string]*editSession{}, open: xdgOpen, poll: time.Second}
-}
-
-func xdgOpen(path string) error {
-	cmd := exec.Command("xdg-open", path)
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("couldn't open an editor: %w", err)
-	}
-	go func() { _ = cmd.Wait() }()
-	return nil
+	return &editor{edits: map[string]*editSession{}, open: platform.Open, poll: time.Second}
 }
 
 // UseEvents makes s report saved edits through emit. It's a function rather
@@ -80,7 +72,7 @@ func UseEvents(s *Service, emit func(name string, data any)) { s.edit.emit = emi
 
 // editDir is a new private folder for one edit.
 func editDir() (string, error) {
-	base := os.Getenv("XDG_RUNTIME_DIR")
+	base := platform.RuntimeDir()
 	if base == "" {
 		base = os.TempDir()
 	}

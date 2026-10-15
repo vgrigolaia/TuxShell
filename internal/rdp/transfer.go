@@ -1,7 +1,6 @@
 package rdp
 
 import (
-	"bufio"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -11,10 +10,11 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/vgrigolaia/tuxshell/internal/platform"
 )
 
 // Files copied to and from a remote desktop in a tab. The page has no file
@@ -296,30 +296,11 @@ func saveUnder(dir, path, name string, body io.Reader) (string, error) {
 	return "", errors.New("too many files with this name")
 }
 
-// downloadsDir is the desktop's Downloads folder (XDG_DOWNLOAD_DIR), made if missing.
+// downloadsDir is the desktop's Downloads folder, made if missing.
 func downloadsDir() (string, error) {
-	home, err := os.UserHomeDir()
+	dir, err := platform.DownloadsDir()
 	if err != nil {
 		return "", err
-	}
-	dir := filepath.Join(home, "Downloads")
-	cfg := os.Getenv("XDG_CONFIG_HOME")
-	if cfg == "" {
-		cfg = filepath.Join(home, ".config")
-	}
-	if f, err := os.Open(filepath.Join(cfg, "user-dirs.dirs")); err == nil {
-		defer f.Close()
-		s := bufio.NewScanner(f)
-		for s.Scan() {
-			v, ok := strings.CutPrefix(strings.TrimSpace(s.Text()), "XDG_DOWNLOAD_DIR=")
-			if !ok {
-				continue
-			}
-			v = strings.ReplaceAll(strings.Trim(v, `"`), "$HOME", home)
-			if filepath.IsAbs(v) && filepath.Clean(v) != home {
-				dir = filepath.Clean(v)
-			}
-		}
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
@@ -360,10 +341,5 @@ func (s *Service) OpenDownloads() error {
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command("xdg-open", dir)
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-	go func() { _ = cmd.Wait() }()
-	return nil
+	return platform.Open(dir)
 }

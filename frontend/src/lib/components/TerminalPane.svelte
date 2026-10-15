@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { isMac } from '../platform'
   import { onMount } from 'svelte'
   import { Terminal, type FontWeight } from '@xterm/xterm'
   import { FitAddon } from '@xterm/addon-fit'
@@ -177,8 +178,10 @@
           return false
         }
         const key = e.key.toLowerCase()
-        const copy = (e.ctrlKey && e.shiftKey && key === 'c') || (e.ctrlKey && !e.shiftKey && key === 'insert')
-        const paste = (e.ctrlKey && e.shiftKey && key === 'v') || (e.shiftKey && !e.ctrlKey && key === 'insert')
+        // macOS: ⌘C and ⌘V, so Ctrl+C still interrupts; Linux: Ctrl+Shift+C/V.
+        const cmd = isMac && e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey
+        const copy = (cmd && key === 'c') || (e.ctrlKey && e.shiftKey && key === 'c') || (e.ctrlKey && !e.shiftKey && key === 'insert')
+        const paste = (cmd && key === 'v') || (e.ctrlKey && e.shiftKey && key === 'v') || (e.shiftKey && !e.ctrlKey && key === 'insert')
         if (copy) {
           e.preventDefault()
           copySelection()
@@ -252,7 +255,7 @@
       // Ctrl+wheel zooms; trackpads send many small deltas, so add them up.
       let wheel = 0
       const onWheel = (e: WheelEvent) => {
-        if (!e.ctrlKey || !prefs.value.terminal.ctrlWheelZoom) return
+        if (!(isMac ? e.metaKey : e.ctrlKey) || !prefs.value.terminal.ctrlWheelZoom) return
         e.preventDefault()
         e.stopPropagation()
         wheel += e.deltaMode === WheelEvent.DOM_DELTA_PIXEL ? e.deltaY : e.deltaY * 40
@@ -385,8 +388,8 @@
     const live = !asking && exited === null
     const a = actions
     const items: MenuItem[] = [
-      { label: 'Copy', icon: 'copy', hint: 'Ctrl+Shift+C', disabled: !term?.hasSelection(), run: copySelection },
-      { label: 'Paste', icon: 'clipboard', hint: 'Ctrl+Shift+V', disabled: !live || readOnly, run: pasteClipboard },
+      { label: 'Copy', icon: 'copy', hint: isMac ? 'Cmd+C' : 'Ctrl+Shift+C', disabled: !term?.hasSelection(), run: copySelection },
+      { label: 'Paste', icon: 'clipboard', hint: isMac ? 'Cmd+V' : 'Ctrl+Shift+V', disabled: !live || readOnly, run: pasteClipboard },
       { label: 'Select all', icon: 'selectAll', run: () => term?.selectAll() },
       { label: 'Clear scrollback', icon: 'eraser', run: () => term?.clear() },
       recording

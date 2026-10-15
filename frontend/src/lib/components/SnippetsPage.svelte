@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { keys } from '../platform'
   import { Clipboard } from '@wailsio/runtime'
   import { onMount } from 'svelte'
   import { emptySnippet, snippets, type Snippet } from '../snippets.svelte'
@@ -52,7 +53,7 @@
     </button>
   </header>
   <p class="-mt-2 max-w-2xl text-sm text-subtle">
-    Saved commands. In a terminal, press <span class="kbd">Ctrl K</span> and pick a snippet to paste it; it never runs until you press Enter.
+    Saved commands. In a terminal, press <span class="kbd">{keys('Ctrl K')}</span> and pick a snippet to paste it; it never runs until you press Enter.
   </p>
 
   {#if snippets.error}<p role="alert" class="text-sm text-warning">{snippets.error}</p>{/if}

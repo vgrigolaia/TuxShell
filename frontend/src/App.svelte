@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { isMac, keys, modKey } from './lib/platform'
   import { onMount } from 'svelte'
   import { Events, Window } from '@wailsio/runtime'
   import * as Terminals from '../bindings/github.com/vgrigolaia/tuxshell/internal/terminal/service'
@@ -176,7 +177,7 @@
     )
     // Capture phase, so shortcuts win over the focused terminal.
     const onKey = (e: KeyboardEvent) => {
-      if (!e.ctrlKey || e.metaKey) return
+      if (!modKey(e)) return
       const key = e.key.toLowerCase()
       let handled = true
       if (e.altKey) {
@@ -437,8 +438,8 @@
           {/if}
           <button
             class="ml-auto h-7 rounded-lg bg-accent px-3 text-xs font-semibold text-on-accent hover:bg-accent/90"
-            aria-keyshortcuts="Control+Shift+B"
-            title="Stop multi-exec (Ctrl+Shift+B)"
+            aria-keyshortcuts="{isMac ? 'Meta' : 'Control'}+Shift+B"
+            title="Stop multi-exec ({keys('Ctrl+Shift+B')})"
             onclick={() => workspace.toggleBroadcast(tab.key)}>Stop</button
           >
         </div>
@@ -475,7 +476,7 @@
     {#if tunnels.running}<span>{tunnels.running} {tunnels.running === 1 ? 'tunnel' : 'tunnels'}</span>{/if}
     <span>{workspace.tabs.length} {workspace.tabs.length === 1 ? 'tab' : 'tabs'} · {workspace.panes.filter((p) => !p.exited).length} live</span>
     {#if workspace.activeTab && workspace.activeTab.paneIds.length > 1}
-      <span>Ctrl+Shift+arrows: move between tiles</span>
+      <span>{keys('Ctrl+Shift+')}arrows: move between tiles</span>
     {/if}
     <span class="ml-auto font-mono">{['UTF-8', active?.size, displayServer].filter(Boolean).join(' · ')}</span>
   </footer>

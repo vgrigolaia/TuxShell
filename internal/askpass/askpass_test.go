@@ -48,7 +48,7 @@ func run(t *testing.T, s *Server, token, prompt string) (string, int) {
 func TestAnswerAndCancel(t *testing.T) {
 	var mu sync.Mutex
 	var got []Request
-	s, err := Listen(t.TempDir(), func(r Request) Reply {
+	s, err := Listen(socketDir(t), func(r Request) Reply {
 		mu.Lock()
 		got = append(got, r)
 		mu.Unlock()
@@ -99,7 +99,7 @@ func TestParentPID(t *testing.T) {
 }
 
 func TestListenRemovesStaleSockets(t *testing.T) {
-	dir := t.TempDir()
+	dir := socketDir(t)
 	// A process that has ended, and one that is still running (this test).
 	done := exec.Command("true")
 	if err := done.Run(); err != nil {
@@ -126,4 +126,16 @@ func TestListenRemovesStaleSockets(t *testing.T) {
 			t.Errorf("%s was removed: %v", filepath.Base(p), err)
 		}
 	}
+}
+
+// socketDir is a temporary folder short enough for Unix sockets: macOS's
+// t.TempDir() is longer than its 104-byte socket path limit.
+func socketDir(t *testing.T) string {
+	t.Helper()
+	dir, err := os.MkdirTemp("/tmp", "ts-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	return dir
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -13,8 +14,16 @@ import (
 // Both backends must behave the same; the remote one runs its real scripts in
 // a local sh.
 func backends() map[string]backend {
+	if !gnuHost() {
+		return map[string]backend{"local": local{}}
+	}
 	return map[string]backend{"remote": remote{shRunner{}}, "local": local{}}
 }
+
+// gnuHost reports whether this machine can stand in for a remote server: the
+// remote scripts are written for Linux servers with GNU tools, which macOS
+// (BSD head, stat and find) is not.
+func gnuHost() bool { return runtime.GOOS == "linux" }
 
 func TestRenameMkdirRemove(t *testing.T) {
 	ctx := context.Background()

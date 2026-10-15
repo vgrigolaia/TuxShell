@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { isMac, keys } from '../platform'
   import { onMount } from 'svelte'
   import { BUNDLED_FONT, DEFAULT_PROFILE, defaultPalette, limits, loginShells, prefs, systemFonts, type Palette, type Profile } from '../settings.svelte'
   import { ansiNames, paletteTheme, profileTheme, schemes, schemeTheme } from '../schemes'
@@ -181,8 +182,8 @@
     ['Ctrl+mouse wheel', 'Zoom terminal text'],
     ['Ctrl+0', 'Reset zoom'],
     ['Right-click terminal', 'Copy, paste, split, title, read only, zoom, preferences'],
-    ['Ctrl+Shift+C / Ctrl+Insert', 'Copy selection'],
-    ['Ctrl+Shift+V / Shift+Insert', 'Paste'],
+    [isMac ? 'Cmd+C' : 'Ctrl+Shift+C / Ctrl+Insert', 'Copy selection'],
+    [isMac ? 'Cmd+V' : 'Ctrl+Shift+V / Shift+Insert', 'Paste'],
     ['Middle-click tab', 'Close tab'],
     ['Ctrl+click tab', 'Select tabs (merge, close)'],
   ]
@@ -329,7 +330,7 @@
             {#if prefs.zoom}
               <p class="mt-1 text-xs text-subtle">
                 Zoomed to {prefs.fontSize}px ·
-                <button class="underline hover:text-fg" onclick={() => (prefs.zoom = 0)}>reset (Ctrl+0)</button>
+                <button class="underline hover:text-fg" onclick={() => (prefs.zoom = 0)}>reset ({keys('Ctrl+0')})</button>
               </p>
             {/if}
           </div>
@@ -489,7 +490,7 @@
           </div>
           <label class={check}>
             <input type="checkbox" class="mt-0.5 accent-accent" checked={t.scrollbar} onchange={(e) => setP({ scrollbar: e.currentTarget.checked })} />
-            <span>Show the scrollbar<span class={hint}>For new panes. Ctrl+Shift+S still shows or hides it per pane.</span></span>
+            <span>Show the scrollbar<span class={hint}>For new panes. {keys('Ctrl+Shift+S')} still shows or hides it per pane.</span></span>
           </label>
           <label class={check}>
             <input type="checkbox" class="mt-0.5 accent-accent" checked={t.scrollOnOutput} onchange={(e) => setP({ scrollOnOutput: e.currentTarget.checked })} />
@@ -541,7 +542,7 @@
             <input type="checkbox" class="mt-0.5 accent-accent" checked={t.record} onchange={(e) => setP({ record: e.currentTarget.checked })} />
             <span
               >Record sessions automatically<span class={hint}
-                >Saves what the terminal shows (never your keystrokes) to ~/.local/share/tuxshell/recordings, readable only by you. Watch them under Home → History → Recordings. Anything shown on screen, such as a password printed by a command, ends up in the file.</span
+                >Saves what the terminal shows (never your keystrokes) to {isMac ? '~/Library/Application Support/TuxShell/recordings' : '~/.local/share/tuxshell/recordings'}, readable only by you. Watch them under Home → History → Recordings. Anything shown on screen, such as a password printed by a command, ends up in the file.</span
               ></span
             >
           </label>
@@ -607,7 +608,7 @@
           </label>
           <label class={check}>
             <input type="checkbox" class="mt-0.5 accent-accent" checked={g.ctrlWheelZoom} onchange={(e) => prefs.update({ ctrlWheelZoom: e.currentTarget.checked })} />
-            <span>Ctrl+mouse wheel zooms text</span>
+            <span>{keys('Ctrl+mouse wheel')} zooms text</span>
           </label>
           <label class={check}>
             <input
@@ -753,7 +754,7 @@
             />
             <span
               >Use the 1Password SSH agent<span class={hint}
-                >TuxShell's ssh uses the SSH keys in 1Password (~/.1password/agent.sock), also through jump hosts. Hosts that set IdentityAgent in
+                >TuxShell's ssh uses the SSH keys in 1Password ({onePassword.status?.agentPath ?? '~/.1password/agent.sock'}), also through jump hosts. Hosts that set IdentityAgent in
                 ~/.ssh/config keep it. Takes effect for new connections.</span
               ></span
             >
@@ -857,9 +858,9 @@
         <h3 class="sr-only">Shortcuts</h3>
         <table class="w-full text-[13px]">
           <tbody>
-            {#each shortcuts as [keys, action] (keys)}
+            {#each shortcuts as [combo, action] (combo)}
               <tr class="border-b border-line last:border-0">
-                <td class="py-2 pr-4 whitespace-nowrap"><kbd class="rounded border border-line bg-ground px-1.5 py-0.5 font-mono text-[11px]">{keys}</kbd></td>
+                <td class="py-2 pr-4 whitespace-nowrap"><kbd class="rounded border border-line bg-ground px-1.5 py-0.5 font-mono text-[11px]">{keys(combo)}</kbd></td>
                 <td class="py-2 text-muted">{action}</td>
               </tr>
             {/each}
@@ -875,7 +876,7 @@
       {#if prefs.error && prefs.error.field !== 'shell'}
         <span class="text-warning">Not saved: {prefs.error.message}</span>
       {:else}
-        Changes apply right away · saved in <span class="font-mono">~/.config/tuxshell/settings.json</span>
+        Changes apply right away · saved in <span class="font-mono">{isMac ? '~/Library/Application Support/TuxShell/settings.json' : '~/.config/tuxshell/settings.json'}</span>
       {/if}
     </span>
     {#if confirmReset}

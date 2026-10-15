@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { keys } from '../platform'
   import TerminalPane from './TerminalPane.svelte'
   import RdpPane from './RdpPane.svelte'
   import Icon from './Icon.svelte'
@@ -173,7 +174,7 @@
                   class={tileBtn}
                   aria-label="Multi-exec: type into all tiles"
                   aria-pressed={at.tab.broadcast}
-                  title="Multi-exec: type into all tiles (Ctrl+Shift+B)"
+                  title="Multi-exec: type into all tiles ({keys('Ctrl+Shift+B')})"
                   onclick={() => workspace.toggleBroadcast(at.tab.key)}
                 >
                   <Icon name="broadcast" size={13} />
@@ -182,7 +183,7 @@
                   class={tileBtn}
                   aria-label="{at.maximized ? 'Restore split' : 'Maximize'} {pane.title}"
                   aria-pressed={at.maximized}
-                  title="{at.maximized ? 'Restore split' : 'Maximize pane'} (Ctrl+Shift+X)"
+                  title="{at.maximized ? 'Restore split' : 'Maximize pane'} ({keys('Ctrl+Shift+X')})"
                   onclick={() => workspace.toggleMaximized(pane.id)}
                 >
                   <Icon name={at.maximized ? 'restore' : 'maximize'} size={12} />
@@ -191,7 +192,7 @@
                   <Icon name="detach" size={12} />
                 </button>
               {/if}
-              <button class={tileBtn} aria-label="Close {pane.title}" title="Close (Ctrl+Shift+W)" onclick={() => closer.closePane(pane.id)}>
+              <button class={tileBtn} aria-label="Close {pane.title}" title="Close ({keys('Ctrl+Shift+W')})" onclick={() => closer.closePane(pane.id)}>
                 <Icon name="x" size={12} />
               </button>
             </span>

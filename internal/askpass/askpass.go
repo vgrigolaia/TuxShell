@@ -22,6 +22,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 // Environment variables the helper reads.
@@ -154,42 +156,6 @@ func (s *Server) handleConn(conn *net.UnixConn) {
 	_, _ = conn.Write(append(b, '\n'))
 }
 
-// peer returns the connecting process's PID, and false unless it runs as us.
-func peer(conn *net.UnixConn) (int, bool) {
-	raw, err := conn.SyscallConn()
-	if err != nil {
-		return 0, false
-	}
-	var cred *syscall.Ucred
-	var credErr error
-	if err := raw.Control(func(fd uintptr) {
-		cred, credErr = syscall.GetsockoptUcred(int(fd), syscall.SOL_SOCKET, syscall.SO_PEERCRED)
-	}); err != nil || credErr != nil {
-		return 0, false
-	}
-	return int(cred.Pid), int(cred.Uid) == os.Getuid()
-}
-
-// parentPID reads a process's parent from /proc, or 0 if it can't.
-func parentPID(pid int) int {
-	b, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/stat")
-	if err != nil {
-		return 0
-	}
-	// The command name in parentheses may contain spaces; fields follow the last ")".
-	s := string(b)
-	i := strings.LastIndexByte(s, ')')
-	if i < 0 {
-		return 0
-	}
-	f := strings.Fields(s[i+1:])
-	if len(f) < 2 {
-		return 0
-	}
-	n, _ := strconv.Atoi(f[1])
-	return n
-}
-
 // ask sends one prompt to the server.
 func ask(socket, token, prompt string) (Reply, error) {
 	conn, err := net.DialTimeout("unix", socket, 5*time.Second)
@@ -291,17 +257,15 @@ func readTTY(prompt string, echo bool) (string, error) {
 
 // noEcho turns off terminal echo and returns a function that restores it.
 func noEcho(fd int) (func(), error) {
-	var old syscall.Termios
-	if _, _, e := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), syscall.TCGETS, uintptrOf(&old)); e != 0 {
-		return nil, e
+	old, err := unix.IoctlGetTermios(fd, ioctlGetTermios)
+	if err != nil {
+		return nil, err
 	}
-	t := old
-	t.Lflag &^= syscall.ECHO
-	t.Lflag |= syscall.ICANON
-	if _, _, e := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), syscall.TCSETS, uintptrOf(&t)); e != 0 {
-		return nil, e
+	t := *old
+	t.Lflag &^= unix.ECHO
+	t.Lflag |= unix.ICANON
+	if err := unix.IoctlSetTermios(fd, ioctlSetTermios, &t); err != nil {
+		return nil, err
 	}
-	return func() {
-		_, _, _ = syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), syscall.TCSETS, uintptrOf(&old))
-	}, nil
+	return func() { _ = unix.IoctlSetTermios(fd, ioctlSetTermios, old) }, nil
 }
