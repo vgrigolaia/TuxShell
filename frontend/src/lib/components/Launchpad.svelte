@@ -68,7 +68,7 @@
   const groups = $derived(hostStore.groups.filter((g) => g.hosts.length))
   const cards = $derived.by(() => {
     const q = query.trim()
-    const inGroup = group ? (groups.find((g) => g.name === group)?.hosts ?? []) : hostStore.list
+    const inGroup = group ? (groups.find((g) => g.name === group)?.hosts ?? []) : groups.flatMap((g) => g.hosts)
     if (!q) return inGroup
     return inGroup
       .map((h) => ({ h, s: best(q, [h.name, h.hostname, h.alias, h.group, describe(h), ...(h.tags ?? [])]) }))

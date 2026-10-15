@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -300,5 +301,114 @@ func TestProfileField(t *testing.T) {
 	var ve *ValidationError
 	if _, err := s.Save(h); !errors.As(err, &ve) || ve.Field != "profile" {
 		t.Errorf("bad profile: %v", err)
+	}
+}
+
+func TestMoveHost(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "hosts.db")
+	s, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	add := func(name, group string) int64 {
+		h, err := s.Save(Host{Name: name, Group: group, Hostname: "10.0.0.1"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return h.ID
+	}
+	a, b, c := add("a", "g1"), add("b", "g1"), add("c", "g1")
+	x := add("x", "g2")
+	order := func(group string) []string {
+		list, err := s.List()
+		if err != nil {
+			t.Fatal(err)
+		}
+		var names []string
+		for _, h := range list {
+			if h.Group == group {
+				names = append(names, h.Name)
+			}
+		}
+		return names
+	}
+	same := func(got []string, want ...string) {
+		t.Helper()
+		if len(got) != len(want) {
+			t.Fatalf("got %v, want %v", got, want)
+		}
+		for i := range got {
+			if got[i] != want[i] {
+				t.Fatalf("got %v, want %v", got, want)
+			}
+		}
+	}
+	same(order("g1"), "a", "b", "c") // never moved: by name
+
+	// Within the group: c before a (the top), then a to the end.
+	if err := s.MoveHost(c, "g1", a); err != nil {
+		t.Fatal(err)
+	}
+	same(order("g1"), "c", "a", "b")
+	if err := s.MoveHost(a, "g1", 0); err != nil { // 0 means the end
+		t.Fatal(err)
+	}
+	same(order("g1"), "c", "b", "a")
+
+	// To another group, before x; the old group keeps its order.
+	if err := s.MoveHost(b, "g2", x); err != nil {
+		t.Fatal(err)
+	}
+	same(order("g1"), "c", "a")
+	same(order("g2"), "b", "x")
+	got, _ := s.Get(b)
+	if got.Group != "g2" {
+		t.Fatalf("group = %q", got.Group)
+	}
+
+	// "Before" a host from another group counts as the end.
+	if err := s.MoveHost(a, "g2", c); err != nil {
+		t.Fatal(err)
+	}
+	same(order("g2"), "b", "x", "a")
+
+	// To no group, and into a brand new group.
+	if err := s.MoveHost(x, "", 0); err != nil {
+		t.Fatal(err)
+	}
+	same(order(""), "x")
+	if err := s.MoveHost(c, "  new  ", 0); err != nil {
+		t.Fatal(err)
+	}
+	same(order("new"), "c")
+
+	// Bad input changes nothing.
+	var ve *ValidationError
+	if err := s.MoveHost(a, strings.Repeat("g", 101), 0); !errors.As(err, &ve) {
+		t.Fatalf("long group: %v", err)
+	}
+	if err := s.MoveHost(a, "x\ny", 0); !errors.As(err, &ve) {
+		t.Fatalf("line break: %v", err)
+	}
+	if err := s.MoveHost(9999, "g1", 0); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("missing host: %v", err)
+	}
+	same(order("g2"), "b", "a")
+
+	// The moves are stored, not just in memory.
+	_ = s.Close()
+	again, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer again.Close()
+	list, _ := again.List()
+	if len(list) != 4 {
+		t.Fatalf("hosts after reopen = %d", len(list))
+	}
+	for _, h := range list {
+		if h.Name == "c" && h.Group != "new" {
+			t.Fatalf("c is in %q after reopen", h.Group)
+		}
 	}
 }

@@ -122,6 +122,17 @@ class HostStore {
     }
   }
 
+  /** Moves a host into a group ("" for none), before host `before` (0: at the end). */
+  async moveHost(id: number, group: string, before: number) {
+    try {
+      await HostService.MoveHost(id, group, before)
+      this.error = null
+    } catch (e) {
+      this.error = errorMessage(e)
+    }
+    await this.load()
+  }
+
   /** Saves the login user for a host. */
   async setUser(id: number, user: string) {
     await HostService.SetUser(id, user)

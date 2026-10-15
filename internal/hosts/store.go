@@ -70,6 +70,8 @@ var migrations = []string{
 	`ALTER TABLE hosts ADD COLUMN protocol TEXT NOT NULL DEFAULT 'ssh'`,
 	`ALTER TABLE hosts ADD COLUMN rdp TEXT NOT NULL DEFAULT '{}'`,
 	`ALTER TABLE hosts ADD COLUMN rdp_cert TEXT NOT NULL DEFAULT ''`,
+	// Order inside a group, set by dragging; ties (and never-moved hosts) sort by name.
+	`ALTER TABLE hosts ADD COLUMN position INTEGER NOT NULL DEFAULT 0`,
 }
 
 // DefaultPath returns $XDG_DATA_HOME/tuxshell/hosts.db.
@@ -171,9 +173,9 @@ func scanHost(row scanner) (Host, error) {
 	return h, nil
 }
 
-// List returns all hosts ordered by group, then name.
+// List returns all hosts ordered by group, then the order set by dragging, then name.
 func (s *Store) List() ([]Host, error) {
-	rows, err := s.db.Query(`SELECT ` + columns + ` FROM hosts ORDER BY grp = '', grp COLLATE NOCASE, name COLLATE NOCASE`)
+	rows, err := s.db.Query(`SELECT ` + columns + ` FROM hosts ORDER BY grp = '', grp COLLATE NOCASE, position, name COLLATE NOCASE`)
 	if err != nil {
 		return nil, err
 	}
@@ -245,6 +247,64 @@ func (s *Store) Delete(id int64) error {
 		s.OnDelete([]int64{id})
 	}
 	return nil
+}
+
+// MoveHost puts host id into group just before host `before` (0, or a host
+// that isn't in the group, means at the end), in one transaction: the group may
+// change, and the group's hosts are renumbered so the order sticks. "" means
+// no group.
+func (s *Store) MoveHost(id int64, group string, before int64) error {
+	group = strings.TrimSpace(group)
+	if len(group) > 100 || strings.ContainsAny(group, "\n\r") {
+		return &ValidationError{Field: "group", Message: "Group name is too long or has a line break"}
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	var exists int
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM hosts WHERE id = ?`, id).Scan(&exists); err != nil {
+		return err
+	}
+	if exists == 0 {
+		return ErrNotFound
+	}
+	// The group's hosts as listed now (case-insensitive, like the list), without id.
+	rows, err := tx.Query(`SELECT id FROM hosts WHERE grp = ? COLLATE NOCASE AND id <> ? ORDER BY position, name COLLATE NOCASE`, group, id)
+	if err != nil {
+		return err
+	}
+	var ids []int64
+	for rows.Next() {
+		var other int64
+		if err := rows.Scan(&other); err != nil {
+			_ = rows.Close()
+			return err
+		}
+		ids = append(ids, other)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	_ = rows.Close()
+	index := len(ids)
+	for i, other := range ids {
+		if other == before {
+			index = i
+			break
+		}
+	}
+	ids = append(ids[:index], append([]int64{id}, ids[index:]...)...)
+	if _, err := tx.Exec(`UPDATE hosts SET grp = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND grp <> ?`, group, id, group); err != nil {
+		return err
+	}
+	for i, hid := range ids {
+		if _, err := tx.Exec(`UPDATE hosts SET position = ? WHERE id = ?`, i+1, hid); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 // SetRDPCert records the certificate fingerprint trusted for a remote desktop.

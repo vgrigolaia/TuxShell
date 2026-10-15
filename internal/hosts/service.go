@@ -26,6 +26,12 @@ func (s *Service) Delete(id int64) error {
 	return s.store.Delete(id)
 }
 
+// MoveHost moves a host into a group (maybe another one, or "" for none), just
+// before the host `before`, or at the end when that is 0.
+func (s *Service) MoveHost(id int64, group string, before int64) error {
+	return s.store.MoveHost(id, group, before)
+}
+
 // ServiceShutdown closes the database when the app quits.
 func (s *Service) ServiceShutdown() error {
 	return s.store.Close()

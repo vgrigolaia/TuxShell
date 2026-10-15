@@ -36,6 +36,14 @@ export function List(): $CancellablePromise<$models.Host[] | null> {
 }
 
 /**
+ * MoveHost moves a host into a group (maybe another one, or "" for none), just
+ * before the host `before`, or at the end when that is 0.
+ */
+export function MoveHost(id: number, group: string, before: number): $CancellablePromise<void> {
+    return $Call.ByID(2152484431, id, group, before);
+}
+
+/**
  * Save creates or updates a host. Validation failures come back as a
  * ValidationError naming the offending field.
  */
