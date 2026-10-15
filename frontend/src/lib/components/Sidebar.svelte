@@ -217,7 +217,9 @@
     </div>
   {/if}
 
-  <nav aria-label="Saved hosts" class="-mx-1 flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-1">
+  <!-- Reaches into the panel's right padding, so the scrollbar (drawn over
+       the content in WebKitGTK) runs there instead of over the buttons. -->
+  <nav aria-label="Saved hosts" class="-mr-2.5 -ml-1 flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto pr-2.5 pl-1">
     {#if hostStore.error}
       <p role="alert" class="m-2 text-xs text-warning">Could not load hosts: {hostStore.error}</p>
     {:else if hostStore.loaded && hostStore.list.length === 0}
