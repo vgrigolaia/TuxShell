@@ -515,7 +515,7 @@
 
 {#if closer.pending}
   {@const pending = closer.pending}
-  <ConfirmDialog title={pending.title} message={pending.message} confirmLabel="Close" onConfirm={pending.run} onClose={() => (closer.pending = null)} />
+  <ConfirmDialog title={pending.title} message={pending.message} confirmLabel="Close" onConfirm={pending.run} onClose={() => (closer.pending = null)} onDontAsk={() => closer.stopAsking()} />
 {/if}
 
 {#if deleting}

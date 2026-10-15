@@ -231,6 +231,12 @@ class Preferences {
     }
   }
 
+  /** Saves pending changes right away (e.g. before the window closes). */
+  saveNow() {
+    clearTimeout(this.timer)
+    return this.flush()
+  }
+
   private queueSave() {
     this.edits++
     clearTimeout(this.timer)
