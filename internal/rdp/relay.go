@@ -29,6 +29,7 @@ type Relay struct {
 
 	mu      sync.Mutex
 	tickets map[string]*ticket
+	tabs    map[string]*tabFiles // open tabs, by their files key
 }
 
 type ticket struct {
@@ -36,6 +37,7 @@ type ticket struct {
 	serverName  string
 	fingerprint string // "" accepts any certificate (old RDP security has none)
 	tunnel      *exec.Cmd
+	filesKey    string // the tab's key for copying files, live while connected
 	expires     time.Time
 }
 
@@ -48,9 +50,11 @@ func StartRelay() (*Relay, error) {
 	if err != nil {
 		return nil, err
 	}
-	r := &Relay{ln: ln, tickets: map[string]*ticket{}}
+	r := &Relay{ln: ln, tickets: map[string]*ticket{}, tabs: map[string]*tabFiles{}}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/rdp", r.serve)
+	mux.HandleFunc("/file", r.serveFile)
+	mux.HandleFunc("/save", r.saveFile)
 	r.srv = &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	go func() { _ = r.srv.Serve(ln) }()
 	go r.expire()
@@ -135,6 +139,10 @@ func (r *Relay) serve(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	defer killTunnel(t.tunnel)
+	if t.filesKey != "" {
+		r.openTab(t.filesKey)
+		defer r.closeTab(t.filesKey)
+	}
 	if err := relay(ws, t, pdu.X224); err != nil {
 		log.Printf("rdp tab: %v", err)
 	}
@@ -252,6 +260,10 @@ type TabSession struct {
 	User        string `json:"user"`
 	Domain      string `json:"domain"`
 	Name        string `json:"name"`
+	// Files is the relay's address for copying files, and FilesKey this tab's
+	// key there (empty when the host doesn't share the clipboard).
+	Files    string `json:"files"`
+	FilesKey string `json:"filesKey"`
 }
 
 // UseRelay lets s open remote desktops in tabs. A function, so it isn't bound.
@@ -268,9 +280,13 @@ func (s *Service) OpenTab(ctx context.Context, hostID int64, trust string) (TabS
 	if err != nil {
 		return TabSession{}, err
 	}
-	tok := s.relay.issue(&ticket{addr: net.JoinHostPort(p.server, strconv.Itoa(p.port)), serverName: p.host.Hostname, fingerprint: p.fingerprint, tunnel: p.tunnel})
+	key := ""
+	if p.host.RDP.Clipboard {
+		key = newKey()
+	}
+	tok := s.relay.issue(&ticket{addr: net.JoinHostPort(p.server, strconv.Itoa(p.port)), serverName: p.host.Hostname, fingerprint: p.fingerprint, tunnel: p.tunnel, filesKey: key})
 	return TabSession{
 		Proxy: s.relay.URL(), Token: tok, Destination: net.JoinHostPort(p.host.Hostname, strconv.Itoa(p.host.Port)),
-		User: p.host.User, Domain: p.host.RDP.Domain, Name: p.host.Name,
+		User: p.host.User, Domain: p.host.RDP.Domain, Name: p.host.Name, Files: s.relay.base(), FilesKey: key,
 	}, nil
 }

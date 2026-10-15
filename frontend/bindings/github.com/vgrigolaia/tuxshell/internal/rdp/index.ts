@@ -10,6 +10,8 @@ export type {
     Client,
     ClientInfo,
     ConnectOptions,
+    FilesEvent,
+    Offered,
     Session,
     TabSession
 } from "./models.js";

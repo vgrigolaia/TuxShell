@@ -86,6 +86,7 @@ type Service struct {
 	emit      func(name string, data any)
 
 	pickFolder func() (string, error)
+	pickFiles  func() ([]string, error)
 	relay      *Relay
 
 	seq      atomic.Uint64

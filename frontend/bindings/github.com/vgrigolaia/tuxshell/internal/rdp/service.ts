@@ -57,12 +57,26 @@ export function Log(id: string): $CancellablePromise<string[] | null> {
 }
 
 /**
+ * OpenDownloads shows the Downloads folder in the file manager.
+ */
+export function OpenDownloads(): $CancellablePromise<void> {
+    return $Call.ByID(2647103020);
+}
+
+/**
  * OpenTab prepares a remote desktop for a TuxShell tab: the same certificate
  * check and SSH tunnel as Connect, then a ticket for the relay. The password
  * is typed into the tab and goes from the page straight to the server.
  */
 export function OpenTab(hostID: number, trust: string): $CancellablePromise<$models.TabSession> {
     return $Call.ByID(1798239066, hostID, trust);
+}
+
+/**
+ * PickFiles asks for files to paste on the remote desktop in tab key.
+ */
+export function PickFiles(key: string): $CancellablePromise<$models.Offered[] | null> {
+    return $Call.ByID(4268400005, key);
 }
 
 /**

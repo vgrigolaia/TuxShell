@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -46,6 +47,7 @@ func init() {
 	application.RegisterEvent[application.Void](tunnels.EventChanged)
 	application.RegisterEvent[application.Void](hosts.EventHistoryChanged)
 	application.RegisterEvent[application.Void](rdp.EventChanged)
+	application.RegisterEvent[rdp.FilesEvent](rdp.EventFiles)
 	application.RegisterEvent[login.PasswordRequest](login.EventPassword)
 	application.RegisterEvent[string](login.EventDone)
 }
@@ -174,6 +176,10 @@ func main() {
 		return app.Dialog.OpenFile().CanChooseDirectories(true).CanChooseFiles(false).
 			SetTitle("Folder to share with the remote desktop").SetButtonText("Share").PromptForSingleSelection()
 	})
+	rdp.UseFilePicker(remoteDesktops, func() ([]string, error) {
+		return app.Dialog.OpenFile().CanChooseFiles(true).
+			SetTitle("Send files to the remote desktop").SetButtonText("Send").PromptForMultipleSelection()
+	})
 
 	terminals := terminal.NewService(func(name string, data any) {
 		app.Event.Emit(name, data)
@@ -263,7 +269,23 @@ func main() {
 	// Files dropped on the file panel are uploaded to the folder it shows.
 	window.OnWindowEvent(events.Common.WindowFilesDropped, func(e *application.WindowEvent) {
 		target := e.Context().DropTargetDetails()
-		if target == nil || target.ElementID != "file-panel" {
+		if target == nil {
+			return
+		}
+		// Files dropped on a remote desktop tab are offered for pasting there.
+		if key, ok := strings.CutPrefix(target.ElementID, rdp.DropPrefix); ok {
+			paths := e.Context().DroppedFiles()
+			go func() {
+				offered, err := rdp.Dropped(remoteDesktops, key, paths)
+				ev := rdp.FilesEvent{Key: key, Files: offered}
+				if err != nil {
+					ev.Error = err.Error()
+				}
+				app.Event.Emit(rdp.EventFiles, ev)
+			}()
+			return
+		}
+		if target.ElementID != "file-panel" {
 			return
 		}
 		if paths := e.Context().DroppedFiles(); len(paths) > 0 {

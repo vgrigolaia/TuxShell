@@ -119,7 +119,7 @@
         >
       {/each}
     </div>
-    {#if inTab}<p class="mt-2 text-[11px] text-subtle">Drawn inside TuxShell. Copying and pasting text works; files, shared folders, sound and saved passwords only work in its own window for now.</p>{/if}
+    {#if inTab}<p class="mt-2 text-[11px] text-subtle">Drawn inside TuxShell. Copying text and files works (drop files on it, or Send files); shared folders, sound and saved passwords only work in its own window for now.</p>{/if}
   </div>
   <div class="px-5 py-4">
     {#if missing}

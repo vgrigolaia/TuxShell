@@ -20,8 +20,10 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import type { UserInteraction } from '@devolutions/iron-remote-desktop'
-  import { remoteDesktops, type TabSession } from '../rdp.svelte'
-  import { Clipboard } from '@wailsio/runtime'
+  import type { DroppedFile, FileInfo, RdpFileTransferProvider } from '@devolutions/iron-remote-desktop-rdp'
+  import { remoteDesktops, type Offered, type TabSession } from '../rdp.svelte'
+  import { Clipboard, Events } from '@wailsio/runtime'
+  import { errorMessage } from '../hosts.svelte'
   import { hostStore } from '../hosts.svelte'
   import Icon from './Icon.svelte'
 
@@ -48,6 +50,15 @@
   // Measured for the first screen: how long until the desktop showed.
   let firstFrameMs = $state(0)
   const clipboard = $derived(host?.rdp.clipboard ?? true)
+  // Shared folders need the remote desktop's own window (FreeRDP).
+  const wantsFolders = $derived(!!host && (host.rdp.homeFolder || (host.rdp.folders?.length ?? 0) > 0))
+
+  // Copying files: Go serves what was picked or dropped and saves what
+  // Windows copied (see internal/rdp/transfer.go).
+  let files = $state<{ base: string; key: string } | null>(null)
+  let provider: RdpFileTransferProvider | undefined
+  type Transfer = { kind: 'offer'; files: FileInfo[] } | { kind: 'busy' | 'ready' | 'error'; text: string } | { kind: 'saved'; text: string }
+  let transfer = $state<Transfer | null>(null)
 
   onMount(() => {
     // The connect window may have handed us a ticket and the typed password.
@@ -102,6 +113,17 @@
         .build()
       ui.setEnableClipboard(clipboard)
       ui.setEnableAutoClipboard(false)
+      files = session.filesKey ? { base: session.files, key: session.filesKey } : null
+      transfer = null
+      if (files) {
+        provider = new rdp.RdpFileTransferProvider()
+        provider.on('files-available', (list) => {
+          if (list.some((f) => !f.isDirectory)) transfer = { kind: 'offer', files: list }
+        })
+        provider.on('error', (e) => (transfer = { kind: 'error', text: e.message }))
+        // The two packages' types disagree on private fields; the object fits.
+        ui.enableFileTransfer(provider as unknown as Parameters<UserInteraction['enableFileTransfer']>[0])
+      }
       // Copied on the remote desktop: put it on this computer's clipboard.
       ui.onClipboardRemoteUpdateCallback(() => {
         void ui
@@ -119,11 +141,14 @@
       onStart?.()
       const end = await info.run()
       phase = 'ended'
+      files = null
+      transfer = null
       error = end.reason() === 'Session closed' ? '' : end.reason()
       onExit?.(0)
     } catch (e) {
       password = ''
       phase = 'ended'
+      files = null
       error = describe(e)
       onExit?.(1)
     }
@@ -139,6 +164,71 @@
     lastClip = text
     await ui.sendClipboardData().catch(() => {})
   }
+
+  // Windows → here: each file streams to Go, which writes it under Downloads.
+  async function saveFiles(list: FileInfo[]) {
+    const f = files
+    if (!provider || !f) return
+    const todo = list.map((info, i) => ({ info, i })).filter((x) => !x.info.isDirectory)
+    try {
+      for (const [n, { info, i }] of todo.entries()) {
+        transfer = { kind: 'busy', text: `Saving ${n + 1} of ${todo.length}: ${info.name}` }
+        const blob = await provider.downloadFile(info, i).completion
+        const q = new URLSearchParams({ k: f.key, path: info.path ?? '', name: info.name })
+        const res = await fetch(`${f.base}/save?${q}`, { method: 'POST', body: blob })
+        if (!res.ok) throw new Error((await res.text()).trim() || `Couldn't save ${info.name}`)
+      }
+      transfer = { kind: 'saved', text: todo.length === 1 ? `Saved ${todo[0].info.name} to Downloads` : `Saved ${todo.length} files to Downloads` }
+    } catch (e) {
+      transfer = { kind: 'error', text: errorMessage(e) }
+    }
+  }
+
+  // Here → Windows: read what Go offered, then announce it on the remote
+  // clipboard; Ctrl+V there pastes it.
+  async function sendFiles(offered: Offered[]) {
+    if (!provider || !offered.length) return
+    const count = offered.filter((o) => !o.dir).length
+    transfer = { kind: 'busy', text: `Reading ${count} file${count === 1 ? '' : 's'}…` }
+    try {
+      const list: DroppedFile[] = []
+      for (const o of offered) {
+        const path = o.path || undefined
+        if (o.dir) {
+          list.push({ file: null, name: o.name, size: 0, lastModified: o.modified, path, isDirectory: true })
+          continue
+        }
+        const res = await fetch(o.url)
+        if (!res.ok) throw new Error(`Couldn't read ${o.name}`)
+        const file = new File([await res.blob()], o.name, { lastModified: o.modified })
+        list.push({ file, name: o.name, size: o.size, lastModified: o.modified, path })
+      }
+      // So coming back to the tab doesn't replace the files with old text.
+      lastClip = (await Clipboard.Text().catch(() => '')) ?? ''
+      provider.uploadFiles(list)
+      transfer = { kind: 'ready', text: `${count === 1 ? offered.find((o) => !o.dir)?.name : `${count} files`} ready: press Ctrl+V on the remote desktop` }
+    } catch (e) {
+      transfer = { kind: 'error', text: errorMessage(e) }
+    }
+  }
+
+  async function pickFiles() {
+    if (!files) return
+    try {
+      await sendFiles(await remoteDesktops.pickFiles(files.key))
+    } catch (e) {
+      transfer = { kind: 'error', text: errorMessage(e) }
+    }
+  }
+
+  // Files dropped on this tab (Go gets the drop and offers them).
+  onMount(() =>
+    Events.On('rdp:files', (ev) => {
+      if (!files || ev.data.key !== files.key) return
+      if (ev.data.error) transfer = { kind: 'error', text: ev.data.error }
+      else void sendFiles(ev.data.files ?? [])
+    }),
+  )
 
   // IronRDP's errors carry a kind; turn it into words.
   function describe(e: unknown): string {
@@ -189,12 +279,42 @@
   <!-- Its own row, so it never covers the remote desktop's own buttons. -->
   <div class="flex h-8 shrink-0 items-center justify-end gap-1 border-b border-line px-2">
     {#if phase === 'open'}
-      {#if firstFrameMs}<span class="mr-auto px-1 font-mono text-[10px] text-subtle" title="Time until the desktop showed">{firstFrameMs} ms</span>{/if}
+      {#if firstFrameMs}<span class="px-1 font-mono text-[10px] text-subtle" title="Time until the desktop showed">{firstFrameMs} ms</span>{/if}
+      <div class="mr-auto flex min-w-0 items-center gap-1.5 px-1 text-[11px]" aria-live="polite">
+        {#if transfer?.kind === 'offer'}
+          {@const n = transfer.files.filter((f) => !f.isDirectory).length}
+          <Icon name="download" size={12} />
+          <span class="truncate text-muted">{n === 1 ? transfer.files.find((f) => !f.isDirectory)?.name : `${n} files`} copied on the remote desktop</span>
+          <button class="shrink-0 rounded-md bg-accent-chip px-2 py-0.5 font-semibold text-accent-ink hover:bg-accent/20" onclick={() => transfer?.kind === 'offer' && saveFiles(transfer.files)}>Save to Downloads</button>
+        {:else if transfer?.kind === 'saved'}
+          <span class="truncate text-success">{transfer.text}</span>
+          <button class="shrink-0 rounded-md px-2 py-0.5 font-medium text-muted hover:bg-raised hover:text-fg" onclick={() => remoteDesktops.openDownloads()}>Open folder</button>
+        {:else if transfer}
+          <span class="truncate {transfer.kind === 'error' ? 'text-warning' : 'text-muted'}" role={transfer.kind === 'error' ? 'alert' : undefined}>{transfer.text}</span>
+        {:else if wantsFolders}
+          <span class="truncate text-subtle" title="Shared folders appear under This PC only in the remote desktop's own window. In a tab, copy files instead: drop them here or use Send files.">Shared folders work in Own window</span>
+        {/if}
+        {#if transfer && transfer.kind !== 'busy'}
+          <button class="grid size-5 shrink-0 place-items-center rounded text-subtle hover:text-fg" aria-label="Dismiss" onclick={() => (transfer = null)}><Icon name="x" size={11} /></button>
+        {/if}
+      </div>
+      {#if files}
+        <button class="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted hover:bg-raised hover:text-fg" title="Copy files from this computer (or drop them on the remote desktop)" onclick={pickFiles}
+          ><Icon name="upload" size={12} />Send files…</button
+        >
+      {/if}
       <button class="rounded-md px-2 py-1 text-[11px] font-medium text-muted hover:bg-raised hover:text-fg" title="Send Ctrl+Alt+Del" onclick={() => ui?.ctrlAltDel()}>Ctrl+Alt+Del</button>
       <button class="rounded-md px-2 py-1 text-[11px] font-medium text-muted hover:bg-raised hover:text-fg" title="Disconnect" onclick={() => ui?.shutdown()}>Disconnect</button>
     {/if}
   </div>
-  <div bind:this={box} class="min-h-0 w-full flex-1" class:invisible={phase !== 'open'} onfocusin={() => void sendClipboard()}>
+  <div
+    bind:this={box}
+    id={files ? `rdp-drop-${files.key}` : undefined}
+    data-file-drop-target={files ? '' : undefined}
+    class="rdp-screen min-h-0 w-full flex-1"
+    class:invisible={phase !== 'open'}
+    onfocusin={() => void sendClipboard()}
+  >
     {#if rdp}<iron-remote-desktop scale="fit" flexcenter="true" module={rdp.Backend} onready={onReady}></iron-remote-desktop>{/if}
   </div>
 
@@ -227,3 +347,11 @@
     </div>
   {/if}
 </div>
+
+<style>
+  /* Wails adds this class while files are dragged over the remote desktop. */
+  :global(.rdp-screen.file-drop-target-active) {
+    outline: 2px dashed var(--color-accent);
+    outline-offset: -4px;
+  }
+</style>

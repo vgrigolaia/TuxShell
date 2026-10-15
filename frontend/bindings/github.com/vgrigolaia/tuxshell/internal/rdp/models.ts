@@ -44,6 +44,39 @@ export interface ConnectOptions {
 }
 
 /**
+ * FilesEvent tells a tab that files were dropped on it.
+ */
+export interface FilesEvent {
+    "key": string;
+    "files": Offered[] | null;
+    "error": string;
+}
+
+/**
+ * Offered is a local file (or folder) the tab can paste on the remote desktop.
+ */
+export interface Offered {
+    "name": string;
+
+    /**
+     * Path is the folder inside what was dropped, with `\` (the RDP convention); "" at the top.
+     */
+    "path": string;
+    "size": number;
+
+    /**
+     * ms since the epoch
+     */
+    "modified": number;
+    "dir": boolean;
+
+    /**
+     * URL reads the file once (empty for folders).
+     */
+    "url": string;
+}
+
+/**
  * Session is one remote desktop window.
  */
 export interface Session {
@@ -90,4 +123,11 @@ export interface TabSession {
     "user": string;
     "domain": string;
     "name": string;
+
+    /**
+     * Files is the relay's address for copying files, and FilesKey this tab's
+     * key there (empty when the host doesn't share the clipboard).
+     */
+    "files": string;
+    "filesKey": string;
 }

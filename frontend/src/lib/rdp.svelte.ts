@@ -1,9 +1,9 @@
 import { Events } from '@wailsio/runtime'
 import * as RDP from '../../bindings/github.com/vgrigolaia/tuxshell/internal/rdp/service'
-import type { ClientInfo, Session, TabSession } from '../../bindings/github.com/vgrigolaia/tuxshell/internal/rdp/models'
+import type { ClientInfo, Offered, Session, TabSession } from '../../bindings/github.com/vgrigolaia/tuxshell/internal/rdp/models'
 import { errorMessage, type Host } from './hosts.svelte'
 
-export type { ClientInfo, Session, TabSession }
+export type { ClientInfo, Offered, Session, TabSession }
 
 /** What rdp.CertError carries when a certificate needs the user's OK. */
 export interface CertProblem {
@@ -103,6 +103,15 @@ class RemoteDesktops {
 
   forget(id: string) {
     void RDP.Forget(id)
+  }
+
+  /** Asks for local files to paste in the tab with this files key. */
+  pickFiles(key: string) {
+    return RDP.PickFiles(key).then((f) => f ?? [])
+  }
+
+  openDownloads() {
+    void RDP.OpenDownloads()
   }
 
   log(id: string) {
