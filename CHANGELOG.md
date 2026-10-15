@@ -3,6 +3,17 @@
 All notable changes to TuxShell are listed here. Versions follow
 [Semantic Versioning](https://semver.org).
 
+## [1.2.1] - 2026-10-15
+
+### Fixed
+
+- Typing, switching tabs and resizing the window no longer lag while a terminal prints a lot
+  (logs, builds, `top`). Output now reaches the screen once per frame instead of in thousands of
+  tiny pieces.
+- Changing a setting, such as hiding the hosts panel, no longer redraws every open terminal.
+- Maximizing or restoring the window resizes each terminal once, when it settles, instead of on
+  every frame of the animation.
+
 ## [1.2.0] - 2026-10-15
 
 ### Added
@@ -194,6 +205,7 @@ First release.
 - Dark and light themes, or follow the system.
 - Packages for Fedora/RHEL (.rpm), Debian/Ubuntu (.deb) and an AppImage.
 
+[1.2.1]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.2.1
 [1.2.0]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.2.0
 [1.1.9]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.9
 [1.1.8]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.1.8
