@@ -3,6 +3,7 @@
   import type { Preview, Result, Row } from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/hostio/models'
   import { describe, errorMessage, hostStore } from '../hosts.svelte'
   import HostBadge from './HostBadge.svelte'
+  import Icon from './Icon.svelte'
 
   interface Props {
     /** A preview just opened by HostIO.Open. */
@@ -44,9 +45,22 @@
   const columns = $derived(preview.columns ?? [])
   const importable = (r: Row) => !r.error && !r.sameAs
   const selected = $derived(rows.filter((r) => importable(r) && chosen[r.line]))
-  const choosable = $derived(rows.filter(importable))
+  // Search narrows the list; select all acts on what's shown. Rows ticked
+  // earlier stay ticked while hidden (the Import button counts them).
+  let query = $state('')
+  const shown = $derived.by(() => {
+    const words = query.toLowerCase().split(/\s+/).filter(Boolean)
+    if (!words.length) return rows
+    return rows.filter((r) => {
+      const h = r.host
+      const text = [h.name, h.hostname, h.user, h.group || group, h.proxyJump, h.os, h.protocol, ...(h.tags ?? []), describe(h)].join(' ').toLowerCase()
+      return words.every((w) => text.includes(w))
+    })
+  })
+  const choosable = $derived(shown.filter(importable))
+  const shownSelected = $derived(choosable.filter((r) => chosen[r.line]).length)
 
-  // The header box: ticks or clears every row that can be imported.
+  // The header box: ticks or clears every shown row that can be imported.
   function chooseAll(on: boolean) {
     for (const r of choosable) chosen[r.line] = on
   }
@@ -172,7 +186,15 @@
       </div>
     </div>
 
-    <table class="mt-4 w-full text-left text-xs">
+    <div class="mt-4 flex items-center gap-3">
+      <label class="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md border border-line bg-ground px-2 text-subtle focus-within:border-accent">
+        <Icon name="search" size={13} />
+        <input class="h-full min-w-0 flex-1 bg-transparent text-xs text-fg placeholder:text-subtle focus:outline-none" type="search" placeholder="Search name, address, user or group" aria-label="Search the hosts in this file" bind:value={query} />
+      </label>
+      <span class="shrink-0 text-xs text-subtle">{query ? `${shown.length} of ${rows.length} shown · ` : ''}{selected.length} selected</span>
+    </div>
+
+    <table class="mt-2 w-full text-left text-xs">
       <caption class="sr-only">Hosts in {preview.file}</caption>
       <thead class="text-subtle">
         <tr class="border-b border-line">
@@ -183,8 +205,8 @@
               aria-label="Select all"
               title="Select all / none"
               disabled={choosable.length === 0}
-              checked={choosable.length > 0 && selected.length === choosable.length}
-              indeterminate={selected.length > 0 && selected.length < choosable.length}
+              checked={choosable.length > 0 && shownSelected === choosable.length}
+              indeterminate={shownSelected > 0 && shownSelected < choosable.length}
               onchange={(e) => chooseAll(e.currentTarget.checked)}
             />
           </th>
@@ -196,7 +218,7 @@
         </tr>
       </thead>
       <tbody>
-        {#each rows as r (r.line)}
+        {#each shown as r (r.line)}
           {@const st = status(r)}
           <tr class="border-b border-line last:border-0" class:opacity-60={!importable(r)}>
             <td class="py-1.5">
@@ -208,6 +230,8 @@
             <td class="max-w-28 truncate py-1.5 text-muted">{r.host.group || group}</td>
             <td class="max-w-56 truncate py-1.5 {st.tone}" title={st.text}>{st.text}</td>
           </tr>
+        {:else}
+          <tr><td colspan="6" class="py-6 text-center text-muted">No hosts match “{query}”</td></tr>
         {/each}
       </tbody>
     </table>
