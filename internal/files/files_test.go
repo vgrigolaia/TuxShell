@@ -88,6 +88,9 @@ func checkListing(t *testing.T, l Listing, dir string) {
 }
 
 func TestRemoteBackend(t *testing.T) {
+	if !gnuHost() {
+		t.Skip("the remote scripts target Linux servers with GNU tools")
+	}
 	dir := populate(t)
 	b := remote{shRunner{}}
 	ctx := context.Background()
