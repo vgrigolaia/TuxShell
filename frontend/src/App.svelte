@@ -22,6 +22,8 @@
   import PromptDialog from './lib/components/PromptDialog.svelte'
   import { prefs } from './lib/settings.svelte'
   import { closer } from './lib/close.svelte'
+  import type { TabActions } from './lib/tabbar.svelte'
+  import OpenTabs from './lib/components/OpenTabs.svelte'
   import { hostStatus } from './lib/status.svelte'
   import { tunnels } from './lib/tunnels.svelte'
   import { snippets } from './lib/snippets.svelte'
@@ -112,6 +114,11 @@
   const active = $derived(workspace.activePane)
   const activeHost = $derived(active?.source.kind === 'host' ? hostStore.get(active.source.hostId) : undefined)
   const activeHostId = $derived(active?.source.kind === 'host' ? active.source.hostId : null)
+  function firstHost(paneId: number): { hostId: number | null; kind: Source['kind'] } {
+    const src = workspace.pane(paneId)?.source
+    if (src?.kind === 'host' || src?.kind === 'rdp') return { hostId: src.hostId, kind: src.kind }
+    return { hostId: null, kind: src?.kind ?? 'shell' }
+  }
   const tabInfos = $derived<TabInfo[]>(
     workspace.tabs.map((t) => ({
       key: t.key,
@@ -119,10 +126,29 @@
       exited: t.paneIds.every((id) => workspace.pane(id)?.exited),
       bell: t.paneIds.some((id) => workspace.pane(id)?.bell),
       panes: t.paneIds.length,
+      ...firstHost(t.paneIds[0]),
     })),
   )
 
   const tab = $derived(workspace.activeTab)
+
+  // Where the open tabs show: the left panel (or the icon rail), or the title bar.
+  const tabsLeft = $derived(prefs.value.tabsPosition !== 'top')
+  const tabActions: TabActions = {
+    select: (key) => (workspace.activeKey = key),
+    close: (key) => closer.closeTabs([key]),
+    closeMany: (keys) => closer.closeTabs(keys),
+    merge: (keys, orientation) => workspace.mergeTabs(keys, orientation),
+    split: (key, orientation) => openQuick({ key, orientation }),
+    unsplit: (key) => workspace.unsplit(key),
+    rename: (key) => {
+      const t = workspace.tabs.find((x) => x.key === key)
+      if (t) renamingTab = { key, name: workspace.tabTitle(t) }
+    },
+    move: (key, index) => workspace.moveTab(key, index),
+    newShell: () => workspace.openTab({ kind: 'shell' }, 'Local shell'),
+    home: () => (workspace.activeKey = HOME),
+  }
   const home = $derived(workspace.activeKey === HOME)
 
   const arrows: Record<string, Direction> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' }
@@ -341,7 +367,12 @@
         onNew={() => (panel = { kind: 'host', host: emptyHost() })}
         onImport={() => openImport()}
         onOpenTiles={openSplit}
+        openTabs={tabsLeft ? openTabsList : undefined}
       />
+{/snippet}
+
+{#snippet openTabsList()}
+  <OpenTabs tabs={tabInfos} activeKey={workspace.activeKey} homeActive={home} actions={tabActions} variant="list" />
 {/snippet}
 
 <div class="flex h-full flex-col gap-2.5 p-2.5">
@@ -353,22 +384,12 @@
     onToggleHosts={toggleHosts}
     filesOpen={panel.kind === 'files'}
     onToggleFiles={toggleFiles}
-    onSelect={(key) => (workspace.activeKey = key)}
-    onClose={(key) => closer.closeTabs([key])}
-    onCloseMany={(keys) => closer.closeTabs(keys)}
-    onMerge={(keys, orientation) => workspace.mergeTabs(keys, orientation)}
-    onSplit={(key, orientation) => openQuick({ key, orientation })}
-    onUnsplit={(key) => workspace.unsplit(key)}
-    onRename={(key) => {
-      const t = workspace.tabs.find((x) => x.key === key)
-      if (t) renamingTab = { key, name: workspace.tabTitle(t) }
-    }}
-    onNew={() => workspace.openTab({ kind: 'shell' }, 'Local shell')}
+    showTabs={!tabsLeft}
+    actions={tabActions}
     onSearch={() => openQuick(null)}
     onToggleClipboard={toggleClipboard}
     onPreferences={() => (prefsOpen = true)}
     homeActive={home}
-    onHome={() => (workspace.activeKey = HOME)}
   />
 
   <main class="relative flex min-h-0 flex-1 gap-2.5">
@@ -382,6 +403,7 @@
         onImport={openImport}
         onOpenHostList={openHostList}
         onPreferences={() => (prefsOpen = true)}
+        openTabs={tabsLeft ? openTabsList : undefined}
       >
         {#snippet editor()}
           {#if panel.kind === 'host'}
@@ -396,6 +418,9 @@
     <!-- Terminals stay mounted while Home shows, so sessions keep running. -->
     {#if hostsOpen && !home}
       {@render hostList()}
+    {:else if tabsLeft && !home}
+      <!-- Hosts hidden: the open tabs shrink to a strip of icons. -->
+      <OpenTabs tabs={tabInfos} activeKey={workspace.activeKey} homeActive={home} actions={tabActions} variant="rail" />
     {/if}
 
     <section aria-label="Terminals" class:hidden={home} class="relative flex min-w-0 flex-1 flex-col gap-2.5 rounded-panel border border-line bg-panel p-2.5">

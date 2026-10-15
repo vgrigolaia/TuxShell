@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { Browser, Window } from '@wailsio/runtime'
-  import { SvelteSet } from 'svelte/reactivity'
   import Icon from './Icon.svelte'
   import Logo from './Logo.svelte'
-  import ContextMenu, { type MenuItem } from './ContextMenu.svelte'
+  import ContextMenu from './ContextMenu.svelte'
+  import { tabMenu, tabPicker, type TabActions } from '../tabbar.svelte'
   import type { TabInfo } from '../tabs'
   import { theme } from '../theme.svelte'
   import { prefs } from '../settings.svelte'
@@ -13,8 +13,6 @@
   import { remoteDesktops } from '../rdp.svelte'
   import { hostStore } from '../hosts.svelte'
   import RdpSessions from './RdpSessions.svelte'
-  import type { Orientation } from '../layout'
-  import { MAX_PANES } from '../layout'
 
   interface Props {
     tabs: TabInfo[]
@@ -24,37 +22,26 @@
     onToggleHosts: () => void
     filesOpen: boolean
     onToggleFiles: () => void
-    onSelect: (key: number) => void
-    onClose: (key: number) => void
-    onCloseMany: (keys: number[]) => void
-    onMerge: (keys: number[], orientation: Orientation) => void
-    onSplit: (key: number, orientation: Orientation) => void
-    onUnsplit: (key: number) => void
-    onRename: (key: number) => void
-    onNew: () => void
+    /** Tabs show here only when Preferences → Open tabs is "In the title bar". */
+    showTabs: boolean
+    actions: TabActions
     onSearch: () => void
     onToggleClipboard: () => void
     onPreferences: () => void
     /** The Home screen (hosts launchpad) is showing. */
     homeActive: boolean
-    onHome: () => void
   }
 
-  let { tabs, activeKey, clipboardOpen, hostsOpen, onToggleHosts, filesOpen, onToggleFiles, onSelect, onClose, onCloseMany, onMerge, onSplit, onUnsplit, onRename, onNew, onSearch, onToggleClipboard, onPreferences, homeActive, onHome }: Props = $props()
+  let { tabs, activeKey, clipboardOpen, hostsOpen, onToggleHosts, filesOpen, onToggleFiles, showTabs, actions, onSearch, onToggleClipboard, onPreferences, homeActive }: Props = $props()
 
   let rdpOpen = $state(false)
 
   let maximised = $state(false)
-  let strip: HTMLDivElement
+  let strip = $state<HTMLDivElement>()
   let menu = $state<{ x: number; y: number; key: number } | null>(null)
-  // Ctrl+click builds a multi-tab selection for bulk actions.
-  const picked = new SvelteSet<number>()
+  const picked = tabPicker.picked
 
-  // Forget selections for tabs that were closed.
-  $effect(() => {
-    const keys = new Set(tabs.map((t) => t.key))
-    for (const k of picked) if (!keys.has(k)) picked.delete(k)
-  })
+  $effect(() => tabPicker.prune(tabs))
 
   // Keep the active tab visible when the strip overflows.
   $effect(() => {
@@ -65,55 +52,15 @@
   // A vertical mouse wheel scrolls the strip sideways.
   function onWheel(e: WheelEvent) {
     if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-      strip.scrollLeft += e.deltaY
+      if (strip) strip.scrollLeft += e.deltaY
       e.preventDefault()
     }
-  }
-
-  function onTabClick(e: MouseEvent, key: number) {
-    if (e.ctrlKey || e.metaKey) {
-      if (picked.has(key)) picked.delete(key)
-      else picked.add(key)
-      // Ctrl+clicking starts a selection that includes the current tab.
-      if (picked.size && !picked.has(activeKey)) picked.add(activeKey)
-      return
-    }
-    picked.clear()
-    onSelect(key)
   }
 
   function openMenu(e: MouseEvent, key: number) {
     e.preventDefault()
     if (!picked.has(key)) picked.clear()
     menu = { x: e.clientX, y: e.clientY, key }
-  }
-
-  function menuItems(key: number): MenuItem[] {
-    const i = tabs.findIndex((t) => t.key === key)
-    const others = tabs.filter((t) => t.key !== key).map((t) => t.key)
-    const right = tabs.slice(i + 1).map((t) => t.key)
-    const tab = tabs[i]
-    const items: MenuItem[] = []
-    if (picked.size > 1) {
-      const sel = [...picked]
-      const total = tabs.filter((t) => picked.has(t.key)).reduce((n, t) => n + t.panes, 0)
-      if (total <= MAX_PANES) {
-        items.push({ label: `Split selected side by side (${sel.length})`, run: () => (onMerge(sel, 'row'), picked.clear()) })
-        if (total < 4) items.push({ label: `Split selected stacked (${sel.length})`, run: () => (onMerge(sel, 'column'), picked.clear()) })
-      }
-      items.push({ label: `Close selected (${sel.length})`, run: () => (onCloseMany(sel), picked.clear()) })
-    }
-    if (tab.panes < MAX_PANES) {
-      items.push({ label: 'Split right…', run: () => onSplit(key, 'row') })
-      items.push({ label: 'Split down…', run: () => onSplit(key, 'column') })
-    }
-    if (tab.panes > 1) items.push({ label: 'Unsplit into tabs', run: () => onUnsplit(key) })
-    items.push({ label: 'Rename tab…', separator: true, run: () => onRename(key) })
-    items.push({ label: 'Close', run: () => onClose(key) })
-    if (others.length) items.push({ label: 'Close others', run: () => onCloseMany(others) })
-    if (right.length) items.push({ label: 'Close tabs to the right', run: () => onCloseMany(right) })
-    items.push({ label: `Close all (${tabs.length})`, run: () => onCloseMany(tabs.map((t) => t.key)), danger: true })
-    return items
   }
 
   async function syncMaximised() {
@@ -132,7 +79,7 @@
     if (!step) return
     e.preventDefault()
     const next = tabs[(index + step + tabs.length) % tabs.length]
-    onSelect(next.key)
+    actions.select(next.key)
     document.getElementById(`tab-${next.key}`)?.focus()
   }
 
@@ -179,10 +126,12 @@
         tabindex={homeActive ? 0 : -1}
         class="flex h-[30px] shrink-0 items-center gap-2 rounded-[9px] px-3 text-[13px] transition-colors {homeActive ? 'tab-current bg-tab text-fg' : 'text-muted hover:text-fg'}"
         title="Home: all hosts"
-        onclick={onHome}
+        onclick={actions.home}
       >
         <span class={homeActive ? 'text-accent-text' : ''}><Icon name="home" size={14} /></span>Home
       </button>
+      <!-- With tabs in the left panel, Home (and +) stay here on their own. -->
+      {#if showTabs}
       {#each tabs as tab, i (tab.key)}
         {@const current = tab.key === activeKey}
         <!-- Middle-click closes, like browser and terminal tabs. -->
@@ -191,7 +140,7 @@
           class="group flex h-[30px] shrink-0 items-center rounded-[9px] transition-colors {current
             ? 'tab-current bg-tab text-fg'
             : 'text-muted hover:text-fg'} {picked.has(tab.key) ? 'ring-1 ring-accent' : ''}"
-          onauxclick={(e) => e.button === 1 && (e.preventDefault(), onClose(tab.key))}
+          onauxclick={(e) => e.button === 1 && (e.preventDefault(), actions.close(tab.key))}
           oncontextmenu={(e) => openMenu(e, tab.key)}
         >
           <button
@@ -202,7 +151,7 @@
             tabindex={current ? 0 : -1}
             class="flex h-full max-w-56 items-center gap-2 pr-1 pl-3 text-[13px]"
             title="{tab.title}{tab.exited ? ' (disconnected)' : ''} — Ctrl+click to select, right-click to split or close"
-            onclick={(e) => onTabClick(e, tab.key)}
+            onclick={(e) => tabPicker.click(e, tab.key, activeKey, actions.select)}
             onkeydown={(e) => onTabKey(e, i)}
           >
             <span class="font-mono text-[11px] {current ? 'text-accent-text' : ''}">{i + 1}</span>
@@ -215,14 +164,15 @@
             class="mr-1.5 grid size-5 place-items-center rounded text-subtle opacity-0 group-hover:opacity-100 hover:bg-line hover:text-fg focus-visible:opacity-100"
             aria-label="Close {tab.title}"
             tabindex="-1"
-            onclick={() => onClose(tab.key)}
+            onclick={() => actions.close(tab.key)}
           >
             <Icon name="x" size={11} />
           </button>
         </div>
       {/each}
+      {/if}
     </div>
-    <button class="grid size-[30px] shrink-0 place-items-center rounded-[9px] text-muted hover:bg-tab hover:text-fg" aria-label="New local shell tab" title="New local shell tab" onclick={onNew}>
+    <button class="grid size-[30px] shrink-0 place-items-center rounded-[9px] text-muted hover:bg-tab hover:text-fg" aria-label="New local shell tab" title="New local shell tab" onclick={actions.newShell}>
       <Icon name="plus" size={14} />
     </button>
   </div>
@@ -316,7 +266,7 @@
 </header>
 
 {#if menu}
-  <ContextMenu x={menu.x} y={menu.y} label="Tab actions" items={menuItems(menu.key)} onClose={() => (menu = null)} />
+  <ContextMenu x={menu.x} y={menu.y} label="Tab actions" items={tabMenu(tabs, menu.key, actions)} onClose={() => (menu = null)} />
 {/if}
 
 <style>

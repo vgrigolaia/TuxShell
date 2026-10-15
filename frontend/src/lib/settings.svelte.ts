@@ -62,6 +62,7 @@ const BUNDLED_CSS = '"JetBrains Mono Variable"'
 const defaults = (): Settings => ({
   theme: 'dark',
   hostsSidebar: true,
+  tabsPosition: 'left',
   hostStatus: true,
   updateCheck: true,
   savePasswords: true,
@@ -206,6 +207,11 @@ class Preferences {
 
   setUpdateCheck(on: boolean) {
     this.value.updateCheck = on
+    this.queueSave()
+  }
+
+  setTabsPosition(where: 'left' | 'top') {
+    this.value.tabsPosition = where
     this.queueSave()
   }
 

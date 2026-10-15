@@ -10,6 +10,7 @@
   import ContextMenu, { type MenuItem } from './ContextMenu.svelte'
   import ConfirmDialog from './ConfirmDialog.svelte'
   import Icon from './Icon.svelte'
+  import type { Snippet } from 'svelte'
 
   interface Props {
     selectedId: number | null
@@ -22,8 +23,10 @@
     onImport: () => void
     /** Opens the selected hosts as tiles of one tab. */
     onOpenTiles: (hosts: Host[]) => void
+    /** The open tabs, shown above the hosts (Preferences → Open tabs). */
+    openTabs?: Snippet
   }
-  let { selectedId, onConnect, onEdit, onConnectAs, onDuplicate, onDelete, onNew, onImport, onOpenTiles }: Props = $props()
+  let { selectedId, onConnect, onEdit, onConnectAs, onDuplicate, onDelete, onNew, onImport, onOpenTiles, openTabs }: Props = $props()
 
   const COLLAPSED_KEY = 'tuxshell.sidebar.collapsed'
 
@@ -166,6 +169,10 @@
 </script>
 
 <aside aria-label="Hosts" class="flex w-60 shrink-0 flex-col gap-3.5 overflow-hidden rounded-panel border border-line bg-panel px-2.5 py-3.5">
+  {#if openTabs}
+    <!-- At most 40% of the panel, so the hosts stay reachable with many tabs open. -->
+    <div class="flex max-h-[40%] min-h-0 shrink-0 flex-col border-b border-line pb-3">{@render openTabs()}</div>
+  {/if}
   <div class="flex items-center gap-1 px-1.5">
     <h2 class="font-display text-[15px] font-semibold">Hosts</h2>
     <span class="ml-auto font-mono text-[11px] whitespace-nowrap text-subtle">{hostStore.list.length}{up ? ` · ${up} up` : ''}</span>

@@ -28,4 +28,8 @@ export interface TabInfo {
   /** A pane in the tab rang its bell. */
   bell: boolean
   panes: number
+  /** The saved host of the tab's first pane, for its icon (null for shells and user@host). */
+  hostId: number | null
+  /** What the first pane runs. */
+  kind: Source['kind']
 }

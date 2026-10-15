@@ -20,6 +20,8 @@ type Settings struct {
 	Theme string `json:"theme"`
 	// HostsSidebar shows the hosts sidebar.
 	HostsSidebar bool `json:"hostsSidebar"`
+	// TabsPosition puts the open tabs in the left panel ("left") or the title bar ("top").
+	TabsPosition string `json:"tabsPosition"`
 	// HostStatus pings saved hosts in the background to show which are up.
 	HostStatus bool `json:"hostStatus"`
 	// UpdateCheck asks GitHub for a newer release at startup (on by default;
@@ -174,6 +176,7 @@ func Defaults() Settings {
 		Theme:         "dark",
 		HostsSidebar:  true,
 		HostStatus:    true,
+		TabsPosition:  "left",
 		UpdateCheck:   true,
 		SavePasswords: true,
 		Terminal: Terminal{
@@ -256,6 +259,7 @@ func (s *Settings) normalize() {
 	oneOf(&s.Theme, d.Theme, "dark", "light", "system")
 	s.Terminal.Profile.normalize()
 	oneOf(&s.RDPClient, d.RDPClient, "auto", "x11", "sdl")
+	oneOf(&s.TabsPosition, d.TabsPosition, "left", "top")
 	if s.History.Days == 0 {
 		s.History.Days = d.History.Days
 	}

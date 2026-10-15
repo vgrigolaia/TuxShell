@@ -171,6 +171,11 @@ export interface Settings {
     "hostsSidebar": boolean;
 
     /**
+     * TabsPosition puts the open tabs in the left panel ("left") or the title bar ("top").
+     */
+    "tabsPosition": string;
+
+    /**
      * HostStatus pings saved hosts in the background to show which are up.
      */
     "hostStatus": boolean;

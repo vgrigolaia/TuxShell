@@ -30,6 +30,8 @@
     onImport: (start?: 'sshconfig') => void
     /** The host editor, shown on the right when a host is selected. */
     editor?: Snippet
+    /** The open tabs, under the sections (Preferences → Open tabs). */
+    openTabs?: Snippet
     /** Double-clicking Hosts opens the terminal view with the host list. */
     onOpenHostList: () => void
     /** Opens Preferences. */
@@ -37,7 +39,7 @@
     /** Which Home section shows. */
     page?: 'hosts' | 'snippets' | 'tunnels' | 'history'
   }
-  let { selectedId, onSelect, onConnect, onConnectTarget, onNew, onImport, onOpenHostList, onPreferences, editor, page = $bindable('hosts') }: Props = $props()
+  let { selectedId, onSelect, onConnect, onConnectTarget, onNew, onImport, onOpenHostList, onPreferences, editor, openTabs, page = $bindable('hosts') }: Props = $props()
 
   let query = $state('')
   let group = $state<string | null>(null)
@@ -116,6 +118,9 @@
     <span class="flex h-10 cursor-default items-center gap-3 px-3 text-sm font-medium text-subtle" title="1Password integration arrives in a later version">
       <Icon name="shield" size={17} />Keychain<span class="ml-auto rounded-full bg-hop px-2 py-0.5 text-[10.5px]">soon</span>
     </span>
+    {#if openTabs}
+      <div class="-mx-1 mt-3 flex min-h-0 flex-col border-t border-line px-1 pt-3">{@render openTabs()}</div>
+    {/if}
 
     <div class="mt-auto flex flex-col gap-2 rounded-2xl border border-line bg-panel p-3.5">
       <div class="flex items-center gap-2 text-[13px] font-bold">

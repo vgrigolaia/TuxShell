@@ -180,6 +180,16 @@ class Workspace {
     if (tab.maximized === paneId || tab.paneIds.length < 2) tab.maximized = null
   }
 
+  /** Moves tab key to position index (clamped), keeping the active tab. */
+  moveTab(key: number, index: number) {
+    const from = this.tabs.findIndex((t) => t.key === key)
+    if (from < 0) return
+    const to = Math.max(0, Math.min(index, this.tabs.length - 1))
+    if (to === from) return
+    const [tab] = this.tabs.splice(from, 1)
+    this.tabs.splice(to, 0, tab)
+  }
+
   /** Closes tabs and their panes, keeping at least one tab open. */
   closeTabs(keys: number[]) {
     const drop = new Set(keys)
