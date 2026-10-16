@@ -3,6 +3,21 @@
 All notable changes to TuxShell are listed here. Versions follow
 [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+### Added
+
+- Remmina import brings the connections' passwords along: those Remmina keeps in the system
+  keyring and those in its own files. They're saved in your keyring when "Allow saving
+  passwords" is on, like passwords from other imports.
+- For hosts you already have, the import can now "Only add their passwords", which leaves the
+  hosts themselves as they are. It's the default when the file has passwords to save.
+
+### Fixed
+
+- After a Remmina import, TuxShell no longer suggests deleting the file because of passwords in
+  plain text (Remmina's aren't).
+
 ## [1.4.0] - 2026-10-15
 
 ### Added

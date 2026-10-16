@@ -74,6 +74,8 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
   inventories, with a preview of every host before it's saved. A ready-to-fill CSV template
   is included. Export as TuxShell JSON, CSV or ssh_config (Preferences → Hosts). Exports never
   contain passwords; imported passwords are kept only if you allow saving passwords.
+  Remmina passwords come along too (from Remmina's keyring entry or its own file), and
+  importing again can add passwords to hosts you already saved without changing them.
   Home reminds you of `~/.ssh/config` hosts you haven't saved; its × hides the reminder until
   new ones appear.
 - **Clipboard history** (Ctrl+Shift+H): encrypted at rest with a key in your keyring.
