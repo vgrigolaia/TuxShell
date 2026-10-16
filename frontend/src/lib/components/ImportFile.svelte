@@ -15,7 +15,8 @@
   // svelte-ignore state_referenced_locally
   let preview = $state<Preview>(initial)
   let chosen = $state<Record<number, boolean>>({})
-  let duplicate = $state<'skip' | 'update' | 'copy'>('skip')
+  // svelte-ignore state_referenced_locally
+  let duplicate = $state<'skip' | 'update' | 'copy' | 'passwords'>(initial.passwords && initial.savePasswords ? 'passwords' : 'skip')
   // svelte-ignore state_referenced_locally
   let group = $state(initial.tabular ? 'Imported' : '')
   let busy = $state(false)
@@ -131,7 +132,7 @@
         <p class="text-xs text-muted">{result.passwords} {result.passwords === 1 ? 'password was' : 'passwords were'} saved in your system keyring.</p>
       {/if}
       {#if preview.passwords}
-        <p class="text-xs text-muted">{preview.savePasswords ? '' : "Passwords weren't imported. "}Consider deleting <span class="font-mono">{preview.file}</span> now: it holds passwords in plain text.</p>
+        {#if preview.source !== 'remmina'}<p class="text-xs text-muted">{preview.savePasswords ? '' : "Passwords weren't imported. "}Consider deleting <span class="font-mono">{preview.file}</span> now: it holds passwords in plain text.</p>{/if}
       {/if}
     </div>
   {:else}
@@ -180,6 +181,7 @@
         <label class="mb-1 block text-xs font-medium text-muted" for="{id}-dup">Hosts you already have ({existing})</label>
         <select id="{id}-dup" class="h-8 w-full rounded-md border border-line bg-ground px-1.5 text-xs text-fg focus:border-accent focus:outline-none" bind:value={duplicate} disabled={!existing}>
           <option value="skip">Skip them</option>
+          {#if preview.passwords && preview.savePasswords}<option value="passwords">Only add their passwords</option>{/if}
           <option value="update">Update them from the file</option>
           <option value="copy">Import them as copies</option>
         </select>
