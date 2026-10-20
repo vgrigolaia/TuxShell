@@ -178,10 +178,9 @@
 
   onMount(() => {
     void hostStore.load()
-    // The startup update check is on by default (Preferences → About).
-    void prefs.load().then(() => {
-      if (prefs.value.updateCheck) void updates.check()
-    })
+    // The startup update check is on by default (Preferences → About); the
+    // Flatpak leaves updates to Flathub.
+    void prefs.load().then(() => updates.atStartup(prefs.value.updateCheck))
     const offStatus = hostStatus.start()
     const offTunnels = tunnels.start()
     const offLogins = logins.start()

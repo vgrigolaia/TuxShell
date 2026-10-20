@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"sync"
+
+	"github.com/vgrigolaia/tuxshell/internal/platform"
 )
 
 // Bundled fonts are always available, so they're not in the system list.
@@ -78,6 +80,9 @@ func (s *Service) Shell() string {
 	defer s.mu.Unlock()
 	return s.current.Terminal.Shell
 }
+
+// File is the settings file, with ~ for the home folder, for Preferences.
+func (s *Service) File() string { return platform.Tilde(s.path) }
 
 // Shells lists the login shells from /etc/shells.
 func (s *Service) Shells() []string {

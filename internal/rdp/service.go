@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -17,6 +16,7 @@ import (
 	"time"
 
 	"github.com/vgrigolaia/tuxshell/internal/hosts"
+	"github.com/vgrigolaia/tuxshell/internal/platform"
 	"github.com/vgrigolaia/tuxshell/internal/sshcmd"
 )
 
@@ -255,8 +255,8 @@ func (s *Service) Connect(ctx context.Context, hostID int64, opts ConnectOptions
 		stop()
 		return Session{}, err
 	}
-	cmd := exec.Command(client.Path, "/args-from:stdin")
-	cmd.Env = append(os.Environ(), "WLOG_LEVEL=WARN")
+	// On the host in a Flatpak; the options still only go through stdin.
+	cmd := platform.HostCommand(context.Background(), []string{"WLOG_LEVEL=WARN"}, "", client.Path, "/args-from:stdin")
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		stop()
@@ -276,7 +276,8 @@ func (s *Service) Connect(ctx context.Context, hostID int64, opts ConnectOptions
 	_, werr := io.WriteString(stdin, strings.Join(args, "\n")+"\n")
 	_ = stdin.Close()
 	if werr != nil {
-		_ = cmd.Process.Kill()
+		// SIGTERM, which flatpak-spawn passes on to FreeRDP.
+		_ = cmd.Process.Signal(syscall.SIGTERM)
 		stop()
 		return Session{}, werr
 	}

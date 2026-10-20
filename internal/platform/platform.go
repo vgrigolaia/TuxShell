@@ -34,3 +34,18 @@ func AddToolDirs() {
 	}
 	_ = os.Setenv("PATH", strings.Join(path, string(os.PathListSeparator)))
 }
+
+// Tilde writes path with ~ for the home folder, for showing in the app.
+func Tilde(path string) string {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return path
+	}
+	if path == home {
+		return "~"
+	}
+	if rest, ok := strings.CutPrefix(path, home+string(filepath.Separator)); ok {
+		return "~/" + rest
+	}
+	return path
+}

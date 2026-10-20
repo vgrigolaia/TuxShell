@@ -1,0 +1,94 @@
+# Flatpak manifest for TuxShell. Local test build (from this checkout):
+#   flatpak-builder --user --install --force-clean <build-dir> build/flatpak/io.github.vgrigolaia.TuxShell.yml
+# The copy on Flathub builds a release tag instead of this folder.
+#
+# Sources for the offline build, regenerate after dependency changes:
+#   go.mod.yml + modules.txt: flatpak-go-mod -out build/flatpak .
+#   node-sources.json: flatpak-node-generator npm frontend/package-lock.json -o build/flatpak/node-sources.json
+#     (run on a copy of package.json + package-lock.json, without node_modules)
+id: io.github.vgrigolaia.TuxShell
+runtime: org.gnome.Platform
+runtime-version: '51'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.golang
+  - org.freedesktop.Sdk.Extension.node22
+command: tuxshell
+
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # The terminal bell.
+  - --socket=pulseaudio
+  # SSH, RDP, tunnels and the host status ping.
+  - --share=network
+  # The ssh agent (keys), and the 1Password agent socket under ~/.1password.
+  - --socket=ssh-auth
+  # ~/.ssh (config, keys, known_hosts), the local file browser, uploads and
+  # downloads, and importing host lists from any folder.
+  - --filesystem=home
+  # Saved passwords and the clipboard history key, in the system keyring.
+  - --talk-name=org.freedesktop.secrets
+  # Local shell tabs, the 1Password CLI and FreeRDP run on the host
+  # (flatpak-spawn --host); ssh itself runs inside the sandbox.
+  - --talk-name=org.freedesktop.Flatpak
+
+modules:
+  # ping for the host status dots; the GNOME runtime has none.
+  - name: iputils
+    buildsystem: meson
+    config-opts:
+      - -DBUILD_ARPING=false
+      - -DBUILD_CLOCKDIFF=false
+      - -DBUILD_TRACEPATH=false
+      - -DBUILD_MANS=false
+      - -DUSE_CAP=false
+      - -DUSE_IDN=false
+      - -DUSE_GETTEXT=false
+      - -DSKIP_TESTS=true
+      - -DNO_SETCAP_OR_SUID=true
+    cleanup:
+      - /share
+    sources:
+      - type: archive
+        url: https://github.com/iputils/iputils/releases/download/20250605/iputils-20250605.tar.xz
+        sha256: 6f213700dbf96b5cc4499ca70cb15ecd69c09f405b06785bb4a1a10b572b6276
+
+  - name: tuxshell
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/golang/bin:/usr/lib/sdk/node22/bin
+      env:
+        GOTOOLCHAIN: local
+        GOFLAGS: -mod=vendor
+        GOCACHE: /run/build/tuxshell/go-cache
+        XDG_CACHE_HOME: /run/build/tuxshell/flatpak-node/cache
+        npm_config_cache: /run/build/tuxshell/flatpak-node/npm-cache
+        npm_config_offline: 'true'
+    build-commands:
+      - npm ci --prefix=frontend --offline
+      - npm run --prefix=frontend build
+      - go build -tags production -trimpath -buildvcs=false -ldflags="-w -s" -o tuxshell .
+      - install -Dm755 tuxshell /app/bin/tuxshell
+      # Desktop file, icons and AppStream data named after the app ID.
+      - install -Dm644 build/linux/tuxshell.desktop /app/share/applications/${FLATPAK_ID}.desktop
+      - desktop-file-edit --set-icon=${FLATPAK_ID} /app/share/applications/${FLATPAK_ID}.desktop
+      - install -Dm644 build/appicon.svg /app/share/icons/hicolor/scalable/apps/${FLATPAK_ID}.svg
+      - for s in 64 128 256 512; do install -Dm644 build/linux/icons/tuxshell-$s.png /app/share/icons/hicolor/${s}x${s}/apps/${FLATPAK_ID}.png; done
+      - install -Dm644 build/linux/${FLATPAK_ID}.metainfo.xml /app/share/metainfo/${FLATPAK_ID}.metainfo.xml
+      - sed -i 's|<icon type="stock">tuxshell</icon>|<icon type="stock">'${FLATPAK_ID}'</icon>|' /app/share/metainfo/${FLATPAK_ID}.metainfo.xml
+    sources:
+      - type: dir
+        path: ../..
+        skip:
+          - .git
+          - .task
+          - bin
+          - frontend/node_modules
+          - frontend/dist
+          - .flatpak-builder
+          - docs/brand
+      - go.mod.yml
+      - node-sources.json

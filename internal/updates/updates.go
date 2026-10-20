@@ -15,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vgrigolaia/tuxshell/internal/platform"
 )
 
 // LatestURL is GitHub's "latest release" endpoint for this repo. It skips
@@ -47,6 +49,10 @@ type Service struct {
 func NewService() *Service {
 	return &Service{url: LatestURL, client: &http.Client{Timeout: 10 * time.Second}}
 }
+
+// Managed says Flathub keeps TuxShell up to date (it runs as a Flatpak), so
+// the app doesn't check GitHub or offer its own downloads.
+func (s *Service) Managed() bool { return platform.Flatpak }
 
 // Check compares the running version with the latest release.
 func (s *Service) Check(ctx context.Context, current string) (Result, error) {
