@@ -64,6 +64,11 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="1.4.1" date="2026-10-20">
+      <description>
+        <p>Change, turn off or reset any shortcut in Preferences, tabs close by themselves when you log out, clicking a host on Home no longer opens the editor (right-click does), and Remmina imports bring their passwords along.</p>
+      </description>
+    </release>
     <release version="1.4.0" date="2026-10-15">
       <description>
         <p>TuxShell now also runs on macOS (beta). On Linux, Preferences shows the real settings and recordings folders.</p>

@@ -5,6 +5,8 @@ All notable changes to TuxShell are listed here. Versions follow
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-10-20
+
 ### Added
 
 - Remmina import brings the connections' passwords along: those Remmina keeps in the system
@@ -269,6 +271,7 @@ First release.
 - Dark and light themes, or follow the system.
 - Packages for Fedora/RHEL (.rpm), Debian/Ubuntu (.deb) and an AppImage.
 
+[1.4.1]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.4.1
 [1.4.0]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.4.0
 [1.3.0]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.3.0
 [1.2.1]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.2.1
