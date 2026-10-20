@@ -28,7 +28,7 @@
       <li>Encrypted clipboard history</li>
       <li>Dark and light themes</li>
     </ul>
-    <p>TuxShell is free and open source. Its only network request is an optional check for a newer version at startup (on by default, off in Preferences → About). It never downloads or installs anything itself.</p>
+    <p>TuxShell is free and open source. Apart from your own connections, its only network request is an optional check for a newer version at startup (on by default, off in Preferences → About; the Flathub version leaves updates to Flathub). It never downloads or installs anything itself.</p>
   </description>
 
   <launchable type="desktop-id">io.github.vgrigolaia.TuxShell.desktop</launchable>
@@ -62,6 +62,34 @@
     <display_length compare="ge">760</display_length>
   </requires>
   <content_rating type="oars-1.1"/>
+
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/vgrigolaia/TuxShell/v1.4.1/docs/screenshots/split-view.png</image>
+      <caption>Split view with the open tabs and hosts in the left panel</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/vgrigolaia/TuxShell/v1.4.1/docs/screenshots/home.png</image>
+      <caption>Home with your hosts, grouped and with live status</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/vgrigolaia/TuxShell/v1.4.1/docs/screenshots/files.png</image>
+      <caption>File panel next to a terminal</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/vgrigolaia/TuxShell/v1.4.1/docs/screenshots/remote-desktop.png</image>
+      <caption>Adding a remote desktop host</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/vgrigolaia/TuxShell/v1.4.1/docs/screenshots/light-theme.png</image>
+      <caption>Light theme</caption>
+    </screenshot>
+  </screenshots>
+
+  <branding>
+    <color type="primary" scheme_preference="light">#d9d3ff</color>
+    <color type="primary" scheme_preference="dark">#2b2459</color>
+  </branding>
 
   <releases>
     <release version="1.4.1" date="2026-10-20">
