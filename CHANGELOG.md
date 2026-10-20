@@ -12,6 +12,9 @@ All notable changes to TuxShell are listed here. Versions follow
   passwords" is on, like passwords from other imports.
 - For hosts you already have, the import can now "Only add their passwords", which leaves the
   hosts themselves as they are. It's the default when the file has passwords to save.
+- Shortcuts can be changed: Preferences → Shortcuts → Change, then press the new keys. Each can
+  also be turned off or reset. TuxShell warns when a combo is already used or when the shell
+  uses it too, and keeps Ctrl+C, Ctrl+D and Ctrl+Z for the terminal.
 - A tab closes by itself when you log out (exit or logout). If the connection fails or drops,
   it stays open so you can read why and reconnect. Turn it off in Preferences.
 

@@ -72,6 +72,7 @@ const defaults = (): Settings => ({
   profiles: [],
   history: { enabled: true, days: 90, max: 1000 },
   rdpClient: 'auto',
+  keybindings: {},
   terminal: {
     ...defaultProfile(),
     confirmClose: true,
@@ -232,6 +233,20 @@ class Preferences {
 
   setTabsPosition(where: 'left' | 'top') {
     this.value.tabsPosition = where
+    this.queueSave()
+  }
+
+  /** Sets one shortcut ("" turns it off); null goes back to the default. */
+  setKeybinding(id: string, combo: string | null) {
+    const next = { ...(this.value.keybindings ?? {}) }
+    if (combo === null) delete next[id]
+    else next[id] = combo
+    this.value.keybindings = next
+    this.queueSave()
+  }
+
+  resetKeybindings() {
+    this.value.keybindings = {}
     this.queueSave()
   }
 

@@ -154,3 +154,39 @@ func TestHiddenSSHConfigHostsCleaned(t *testing.T) {
 		t.Fatalf("hidden = %q", got)
 	}
 }
+
+func TestKeybindingsCleaned(t *testing.T) {
+	s := Defaults()
+	s.Keybindings = map[string]string{
+		"toggleHosts": "Ctrl+Shift+L",
+		"zoomIn":      "Ctrl+=",
+		"focusLeft":   "Cmd+Shift+Left",
+		"rename":      "Alt+F2",
+		"backslash":   `Ctrl+Alt+\`,
+		"broadcast":   "", // turned off
+		"split":       "Shift+Ctrl+A",
+		"bad id":      "Ctrl+K",
+		"Upper":       "Ctrl+K",
+		"twoKeys":     "Ctrl+K+L",
+		"lower":       "Ctrl+k",
+		"noKey":       "Ctrl+Shift+",
+		"control":     "Ctrl+\x00",
+	}
+	s.normalize()
+	want := map[string]string{
+		"toggleHosts": "Ctrl+Shift+L",
+		"zoomIn":      "Ctrl+=",
+		"focusLeft":   "Cmd+Shift+Left",
+		"rename":      "Alt+F2",
+		"backslash":   `Ctrl+Alt+\`,
+		"broadcast":   "",
+	}
+	if !reflect.DeepEqual(s.Keybindings, want) {
+		t.Fatalf("keybindings = %q", s.Keybindings)
+	}
+	s.Keybindings = nil
+	s.normalize()
+	if s.Keybindings == nil {
+		t.Fatal("nil keybindings should become an empty map")
+	}
+}

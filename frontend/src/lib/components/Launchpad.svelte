@@ -5,7 +5,6 @@
 </script>
 
 <script lang="ts">
-  import { keys } from '../platform'
   import type { Snippet } from 'svelte'
   import { onMount } from 'svelte'
   import * as SshConfig from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/sshconfig/service'
@@ -23,6 +22,7 @@
   import { tunnels } from '../tunnels.svelte'
   import { onePassword } from '../onepassword.svelte'
   import { prefs } from '../settings.svelte'
+  import { keybindings } from '../keybindings.svelte'
 
   interface Props {
     /** The host open in the editor. */
@@ -214,7 +214,7 @@
           onkeydown={(e) => e.key === 'Escape' && (query = '')}
         />
       </label>
-      <span class="kbd">{keys('Ctrl K')}</span>
+      {#if keybindings.label('quickConnect')}<span class="kbd">{keybindings.label('quickConnect')}</span>{/if}
     </form>
 
     {#if found > 0}

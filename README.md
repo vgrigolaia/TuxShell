@@ -92,9 +92,11 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
   updates on request and at startup (on by default; turn it off in Preferences → About). TuxShell only
   links to the new release; it never downloads or installs anything itself.
 
-All shortcuts are listed in Preferences → Shortcuts. On macOS the app's shortcuts use ⌘ where
-this page says Ctrl (Ctrl+Shift+L becomes ⇧⌘L), and the terminal copies and pastes with ⌘C and
-⌘V, so Ctrl stays with the programs in the terminal.
+All shortcuts are listed in Preferences → Shortcuts, where you can change them or turn them off
+(click Change and press the new keys). A shortcut needs Ctrl, Alt or an F key, and keys the
+terminal needs, like Ctrl+C, can't be taken. On macOS the app's shortcuts use ⌘ where this page
+says Ctrl (Ctrl+Shift+L becomes ⇧⌘L), and the terminal copies and pastes with ⌘C and ⌘V, so Ctrl
+stays with the programs in the terminal.
 
 ## Install
 

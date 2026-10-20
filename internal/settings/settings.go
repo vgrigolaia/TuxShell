@@ -50,6 +50,10 @@ type Settings struct {
 	History History `json:"history"`
 	// RDPClient picks the FreeRDP program: "auto", "x11" or "sdl".
 	RDPClient string `json:"rdpClient"`
+	// Keybindings maps an app action ("toggleHosts") to a key combo
+	// ("Ctrl+Shift+L"). Actions not listed keep their default; "" turns one off.
+	// The actions and their defaults live in the frontend.
+	Keybindings map[string]string `json:"keybindings"`
 }
 
 // History says whether and how long connections are remembered.
@@ -205,6 +209,7 @@ func Defaults() Settings {
 		HiddenSSHConfigHosts: []string{},
 		History:              History{Enabled: true, Days: 90, Max: 1000},
 		RDPClient:            "auto",
+		Keybindings:          map[string]string{},
 	}
 }
 
@@ -280,6 +285,7 @@ func (s *Settings) normalize() {
 	oneOf(&s.TabsPosition, d.TabsPosition, "left", "top")
 	s.GroupOrder = cleanGroupOrder(s.GroupOrder)
 	s.HiddenSSHConfigHosts = cleanGroupOrder(s.HiddenSSHConfigHosts)
+	s.Keybindings = cleanKeybindings(s.Keybindings)
 	if s.History.Days == 0 {
 		s.History.Days = d.History.Days
 	}
@@ -399,6 +405,30 @@ func cleanGroupOrder(in []string) []string {
 		}
 		seen[g] = true
 		out = append(out, g)
+	}
+	return out
+}
+
+// MaxKeybindings caps the keybindings map; there are far fewer actions.
+const MaxKeybindings = 100
+
+var (
+	actionIDRe = regexp.MustCompile(`^[a-z][A-Za-z0-9]{0,39}$`)
+	// A combo is its modifiers in this order, then one key: "Ctrl+Shift+L".
+	comboRe = regexp.MustCompile(`^(Ctrl\+)?(Alt\+)?(Cmd\+)?(Shift\+)?([A-Z0-9]|F[1-9]|F1[0-9]|F2[0-4]|Up|Down|Left|Right|Insert|Delete|Home|End|PageUp|PageDown|Tab|Enter|Space|Backspace|[,./;'\[\]\\\x60=-])$`)
+)
+
+// cleanKeybindings drops entries with a malformed action or combo, so those
+// actions fall back to their default.
+func cleanKeybindings(in map[string]string) map[string]string {
+	out := map[string]string{}
+	for id, combo := range in {
+		if len(out) == MaxKeybindings {
+			break
+		}
+		if actionIDRe.MatchString(id) && (combo == "" || comboRe.MatchString(combo)) {
+			out[id] = combo
+		}
 	}
 	return out
 }

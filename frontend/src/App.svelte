@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { isMac, keys, modKey } from './lib/platform'
+  import { keybindings, type ActionId } from './lib/keybindings.svelte'
   import { onMount } from 'svelte'
   import { Events, Window } from '@wailsio/runtime'
   import * as Terminals from '../bindings/github.com/vgrigolaia/tuxshell/internal/terminal/service'
@@ -31,7 +31,7 @@
   import { emptyHost, hostStore, type Host } from './lib/hosts.svelte'
   import { HOME, workspace } from './lib/workspace.svelte'
   import Launchpad from './lib/components/Launchpad.svelte'
-  import { MAX_PANES, type Orientation, type Direction } from './lib/layout'
+  import { MAX_PANES, type Orientation } from './lib/layout'
   import type { PaneActions, Source, TabInfo } from './lib/tabs'
 
   type Panel = { kind: 'none' } | { kind: 'clipboard' } | { kind: 'files' } | { kind: 'host'; host: Host }
@@ -152,7 +152,29 @@
   }
   const home = $derived(workspace.activeKey === HOME)
 
-  const arrows: Record<string, Direction> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' }
+  // What each shortcut does (Preferences → Shortcuts changes the keys).
+  const run: Record<Exclude<ActionId, 'copy' | 'paste'>, () => void> = {
+    quickConnect: () => !importOpen && openQuick(null),
+    preferences: () => (prefsOpen = true),
+    toggleHosts: () => toggleHosts(),
+    toggleFiles: () => toggleFiles(),
+    toggleClipboard: () => toggleClipboard(),
+    broadcast: () => workspace.activeTab && workspace.toggleBroadcast(workspace.activeTab.key),
+    splitAuto: () => active && splitSame(active.id, 'auto'),
+    splitDown: () => active && splitSame(active.id, 'column'),
+    newTab: () => active && newTabSame(active.id),
+    maximize: () => active && workspace.toggleMaximized(active.id),
+    scrollbar: () => active && workspace.updatePane(active.id, { showScrollbar: !active.showScrollbar }),
+    rename: () => active && (renaming = { paneId: active.id, title: active.title }),
+    closePane: () => active && closer.closePane(active.id),
+    focusLeft: () => workspace.moveFocus('left'),
+    focusRight: () => workspace.moveFocus('right'),
+    focusUp: () => workspace.moveFocus('up'),
+    focusDown: () => workspace.moveFocus('down'),
+    zoomIn: () => prefs.zoomBy(1),
+    zoomOut: () => prefs.zoomBy(-1),
+    zoomReset: () => (prefs.zoom = 0),
+  }
 
   onMount(() => {
     void hostStore.load()
@@ -175,54 +197,14 @@
         await Window.Close()
       }),
     )
-    // Capture phase, so shortcuts win over the focused terminal.
+    // Capture phase, so shortcuts win over the focused terminal. Copy and
+    // paste are left to the terminal, which knows about the selection.
     const onKey = (e: KeyboardEvent) => {
-      if (!modKey(e)) return
-      const key = e.key.toLowerCase()
-      let handled = true
-      if (e.altKey) {
-        // Ctrl+Alt+W: set the pane title (Terminator's key).
-        if (key === 'w' && active) renaming = { paneId: active.id, title: active.title }
-        else handled = false
-      } else if (!e.shiftKey && key === ',') {
-        prefsOpen = true
-      } else if (key === '=' || key === '+') {
-        prefs.zoomBy(1)
-      } else if (!e.shiftKey && key === '-') {
-        prefs.zoomBy(-1)
-      } else if (!e.shiftKey && key === '0') {
-        prefs.zoom = 0
-      } else if (!e.shiftKey && key === 'k') {
-        if (!importOpen) openQuick(null)
-      } else if (e.shiftKey && key === 'w') {
-        if (active) closer.closePane(active.id)
-      } else if (e.shiftKey && key === 'a') {
-        if (active) splitSame(active.id, 'auto')
-      } else if (e.shiftKey && key === 'o') {
-        if (active) splitSame(active.id, 'column')
-      } else if (e.shiftKey && key === 't') {
-        if (active) newTabSame(active.id)
-      } else if (e.shiftKey && key === 'x') {
-        if (active) workspace.toggleMaximized(active.id)
-      } else if (e.shiftKey && key === 's') {
-        if (active) workspace.updatePane(active.id, { showScrollbar: !active.showScrollbar })
-      } else if (e.shiftKey && key === 'b') {
-        if (workspace.activeTab) workspace.toggleBroadcast(workspace.activeTab.key)
-      } else if (e.shiftKey && key === 'e') {
-        toggleFiles()
-      } else if (e.shiftKey && key === 'l') {
-        toggleHosts()
-      } else if (e.shiftKey && key === 'h') {
-        toggleClipboard()
-      } else if (e.shiftKey && arrows[e.key]) {
-        workspace.moveFocus(arrows[e.key])
-      } else {
-        handled = false
-      }
-      if (handled) {
-        e.preventDefault()
-        e.stopPropagation()
-      }
+      const id = keybindings.match(e)
+      if (!id || id === 'copy' || id === 'paste') return
+      e.preventDefault()
+      e.stopPropagation()
+      run[id]()
     }
     window.addEventListener('keydown', onKey, { capture: true })
     return () => {
@@ -441,8 +423,8 @@
           {/if}
           <button
             class="ml-auto h-7 rounded-lg bg-accent px-3 text-xs font-semibold text-on-accent hover:bg-accent/90"
-            aria-keyshortcuts="{isMac ? 'Meta' : 'Control'}+Shift+B"
-            title="Stop multi-exec ({keys('Ctrl+Shift+B')})"
+            aria-keyshortcuts={keybindings.aria('broadcast')}
+            title={keybindings.title('Stop multi-exec', 'broadcast')}
             onclick={() => workspace.toggleBroadcast(tab.key)}>Stop</button
           >
         </div>
@@ -479,7 +461,8 @@
     {#if tunnels.running}<span>{tunnels.running} {tunnels.running === 1 ? 'tunnel' : 'tunnels'}</span>{/if}
     <span>{workspace.tabs.length} {workspace.tabs.length === 1 ? 'tab' : 'tabs'} · {workspace.panes.filter((p) => !p.exited).length} live</span>
     {#if workspace.activeTab && workspace.activeTab.paneIds.length > 1}
-      <span>{keys('Ctrl+Shift+')}arrows: move between tiles</span>
+      {@const moves = (['focusLeft', 'focusRight', 'focusUp', 'focusDown'] as const).map((id) => keybindings.label(id)).filter(Boolean)}
+      {#if moves.length}<span>{moves.join(' ')}: move between tiles</span>{/if}
     {/if}
     <span class="ml-auto font-mono">{['UTF-8', active?.size, displayServer].filter(Boolean).join(' · ')}</span>
   </footer>

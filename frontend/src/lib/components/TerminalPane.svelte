@@ -1,5 +1,6 @@
 <script lang="ts">
   import { isMac } from '../platform'
+  import { keybindings } from '../keybindings.svelte'
   import { onMount } from 'svelte'
   import { Terminal, type FontWeight } from '@xterm/xterm'
   import { FitAddon } from '@xterm/addon-fit'
@@ -179,17 +180,15 @@
           typed(keyCode)
           return false
         }
-        const key = e.key.toLowerCase()
-        // macOS: ⌘C and ⌘V, so Ctrl+C still interrupts; Linux: Ctrl+Shift+C/V.
-        const cmd = isMac && e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey
-        const copy = (cmd && key === 'c') || (e.ctrlKey && e.shiftKey && key === 'c') || (e.ctrlKey && !e.shiftKey && key === 'insert')
-        const paste = (cmd && key === 'v') || (e.ctrlKey && e.shiftKey && key === 'v') || (e.shiftKey && !e.ctrlKey && key === 'insert')
-        if (copy) {
+        // Copy and paste keys come from Preferences → Shortcuts (by default
+        // Ctrl+Shift+C/V, so Ctrl+C still interrupts; ⌘C/⌘V on macOS).
+        const action = keybindings.match(e)
+        if (action === 'copy') {
           e.preventDefault()
           copySelection()
           return false
         }
-        if (paste) {
+        if (action === 'paste') {
           e.preventDefault()
           pasteClipboard()
           return false
@@ -397,8 +396,8 @@
     const live = !asking && exited === null
     const a = actions
     const items: MenuItem[] = [
-      { label: 'Copy', icon: 'copy', hint: isMac ? 'Cmd+C' : 'Ctrl+Shift+C', disabled: !term?.hasSelection(), run: copySelection },
-      { label: 'Paste', icon: 'clipboard', hint: isMac ? 'Cmd+V' : 'Ctrl+Shift+V', disabled: !live || readOnly, run: pasteClipboard },
+      { label: 'Copy', icon: 'copy', shortcut: keybindings.combo('copy'), disabled: !term?.hasSelection(), run: copySelection },
+      { label: 'Paste', icon: 'clipboard', shortcut: keybindings.combo('paste'), disabled: !live || readOnly, run: pasteClipboard },
       { label: 'Select all', icon: 'selectAll', run: () => term?.selectAll() },
       { label: 'Clear scrollback', icon: 'eraser', run: () => term?.clear() },
       recording
@@ -406,28 +405,28 @@
         : { label: 'Start recording', icon: 'record', disabled: !live || !liveSession, run: () => void startRecording() },
     ]
     if (!a) return items
-    items.push({ label: 'Set title…', icon: 'tag', hint: 'Ctrl+Alt+W', separator: true, run: a.rename })
+    items.push({ label: 'Set title…', icon: 'tag', shortcut: keybindings.combo('rename'), separator: true, run: a.rename })
     if (a.split) {
       const sp = a.split
       items.push(
-        { label: 'Split auto', icon: 'splitAuto', hint: 'Ctrl+Shift+A', run: () => sp('auto') },
+        { label: 'Split auto', icon: 'splitAuto', shortcut: keybindings.combo('splitAuto'), run: () => sp('auto') },
         { label: 'Split right', icon: 'splitRight', run: () => sp('row') },
-        { label: 'Split down', icon: 'splitDown', hint: 'Ctrl+Shift+O', run: () => sp('column') },
+        { label: 'Split down', icon: 'splitDown', shortcut: keybindings.combo('splitDown'), run: () => sp('column') },
       )
     }
     if (a.splitOther) items.push({ label: 'Split with another host…', icon: 'server', run: a.splitOther })
     items.push(
-      { label: 'Open in new tab', icon: 'tab', hint: 'Ctrl+Shift+T', run: a.newTab },
-      { label: 'Close', icon: 'x', hint: 'Ctrl+Shift+W', separator: true, run: a.close },
+      { label: 'Open in new tab', icon: 'tab', shortcut: keybindings.combo('newTab'), run: a.newTab },
+      { label: 'Close', icon: 'x', shortcut: keybindings.combo('closePane'), separator: true, run: a.close },
     )
-    if (split) items.push({ label: maximized ? 'Restore split' : 'Maximize pane', icon: maximized ? 'restore' : 'maximize', hint: 'Ctrl+Shift+X', run: a.toggleMaximized })
+    if (split) items.push({ label: maximized ? 'Restore split' : 'Maximize pane', icon: maximized ? 'restore' : 'maximize', shortcut: keybindings.combo('maximize'), run: a.toggleMaximized })
     items.push(
       { label: 'Read only', checked: readOnly, separator: !split, run: a.toggleReadOnly },
-      { label: 'Show scrollbar', hint: 'Ctrl+Shift+S', checked: showScrollbar, run: a.toggleScrollbar },
-      { label: 'Zoom in', icon: 'zoomIn', hint: 'Ctrl+=', separator: true, run: () => prefs.zoomBy(1) },
-      { label: 'Zoom out', icon: 'zoomOut', hint: 'Ctrl+-', run: () => prefs.zoomBy(-1) },
-      { label: 'Reset zoom', icon: 'zoomReset', hint: 'Ctrl+0', disabled: prefs.zoom === 0, run: () => (prefs.zoom = 0) },
-      { label: 'Preferences…', icon: 'gear', hint: 'Ctrl+,', separator: true, run: a.preferences },
+      { label: 'Show scrollbar', shortcut: keybindings.combo('scrollbar'), checked: showScrollbar, run: a.toggleScrollbar },
+      { label: 'Zoom in', icon: 'zoomIn', shortcut: keybindings.combo('zoomIn'), separator: true, run: () => prefs.zoomBy(1) },
+      { label: 'Zoom out', icon: 'zoomOut', shortcut: keybindings.combo('zoomOut'), run: () => prefs.zoomBy(-1) },
+      { label: 'Reset zoom', icon: 'zoomReset', shortcut: keybindings.combo('zoomReset'), disabled: prefs.zoom === 0, run: () => (prefs.zoom = 0) },
+      { label: 'Preferences…', icon: 'gear', shortcut: keybindings.combo('preferences'), separator: true, run: a.preferences },
     )
     return items
   }
