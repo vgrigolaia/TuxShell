@@ -9,6 +9,18 @@ class Updates {
   checking = $state(false)
   result = $state<Result | null>(null)
   error = $state<string | null>(null)
+  /** True in the Flatpak: Flathub and the software center keep TuxShell up to date. */
+  managed = $state(false)
+
+  /** The check at startup when it's on, unless Flathub does the updating. */
+  async atStartup(on: boolean) {
+    try {
+      this.managed = await UpdateService.Managed()
+    } catch {
+      // Older Go side or a binding error: behave as before.
+    }
+    if (on && !this.managed) await this.check()
+  }
 
   async check() {
     if (this.checking) return

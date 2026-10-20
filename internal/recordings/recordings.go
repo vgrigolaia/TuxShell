@@ -312,3 +312,6 @@ func (s *Service) OpenFolder() error {
 
 // Dir is where recordings are saved, for display.
 func (s *Service) Dir() string { return s.dir }
+
+// Folder is where recordings are saved, with ~ for the home folder, for Preferences.
+func (s *Service) Folder() string { return platform.Tilde(s.dir) }

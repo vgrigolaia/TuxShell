@@ -15,6 +15,13 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 import * as $models from "./models.js";
 
 /**
+ * File is the settings file, with ~ for the home folder, for Preferences.
+ */
+export function File(): $CancellablePromise<string> {
+    return $Call.ByID(4255515416);
+}
+
+/**
  * Fonts lists installed monospace font families (via fontconfig), sorted,
  * without the bundled ones.
  */

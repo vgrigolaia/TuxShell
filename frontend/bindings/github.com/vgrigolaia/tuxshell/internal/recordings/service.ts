@@ -29,6 +29,13 @@ export function Dir(): $CancellablePromise<string> {
 }
 
 /**
+ * Folder is where recordings are saved, with ~ for the home folder, for Preferences.
+ */
+export function Folder(): $CancellablePromise<string> {
+    return $Call.ByID(491937137);
+}
+
+/**
  * List returns the recordings, newest first.
  */
 export function List(): $CancellablePromise<$models.Recording[] | null> {

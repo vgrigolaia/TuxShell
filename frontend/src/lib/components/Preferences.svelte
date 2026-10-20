@@ -18,6 +18,8 @@
   import * as Login from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/login/service'
   import { hostStore } from '../hosts.svelte'
   import * as HostIO from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/hostio/service'
+  import * as SettingsService from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/settings/service'
+  import * as Recordings from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/recordings/service'
 
   const REPO = 'https://github.com/vgrigolaia/TuxShell'
 
@@ -153,10 +155,20 @@
   const fontMissing = $derived(!!fonts && !!t.fontFamily && t.fontFamily !== BUNDLED_FONT && !fonts.includes(t.fontFamily))
   const weights = [100, 200, 300, 400, 500, 600, 700, 800, 900]
 
+  // Where settings and recordings are kept (in ~/.var/app/… for the Flatpak).
+  let files = $state({
+    settings: isMac ? '~/Library/Application Support/TuxShell/settings.json' : '~/.config/tuxshell/settings.json',
+    recordings: isMac ? '~/Library/Application Support/TuxShell/recordings' : '~/.local/share/tuxshell/recordings',
+  })
+
   onMount(() => {
     dialog.showModal()
     void systemFonts().then((l) => (fonts = l))
     void loginShells().then((l) => (shells = l))
+    void Promise.all([SettingsService.File(), Recordings.Folder()]).then(
+      ([settings, recordings]) => (files = { settings, recordings }),
+      () => {},
+    )
   })
 
   function setNumber(key: keyof Profile, raw: string, [lo, hi]: readonly [number, number]) {
@@ -519,7 +531,7 @@
             <input type="checkbox" class="mt-0.5 accent-accent" checked={t.record} onchange={(e) => setP({ record: e.currentTarget.checked })} />
             <span
               >Record sessions automatically<span class={hint}
-                >Saves what the terminal shows (never your keystrokes) to {isMac ? '~/Library/Application Support/TuxShell/recordings' : '~/.local/share/tuxshell/recordings'}, readable only by you. Watch them under Home → History → Recordings. Anything shown on screen, such as a password printed by a command, ends up in the file.</span
+                >Saves what the terminal shows (never your keystrokes) to {files.recordings}, readable only by you. Watch them under Home → History → Recordings. Anything shown on screen, such as a password printed by a command, ends up in the file.</span
               ></span
             >
           </label>
@@ -817,27 +829,33 @@
 
         <section class="mt-6 border-t border-line pt-5" aria-labelledby="{id}-updates">
           <h4 id="{id}-updates" class={label}>Updates</h4>
-          <div class="flex flex-wrap items-center gap-3">
-            <button
-              class="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-on-accent hover:bg-accent/90 disabled:opacity-60"
-              disabled={updates.checking}
-              onclick={() => void updates.check()}>{updates.checking ? 'Checking…' : 'Check for updates'}</button
-            >
-            <span class="text-[13px]" aria-live="polite">
-              {#if updates.error}
-                <span class="text-warning">{updates.error}</span>
-              {:else if updates.result?.newer}
-                TuxShell <span class="font-mono">{updates.result.latest}</span> is available.
-                <button class="ml-1 text-accent underline-offset-2 hover:underline" onclick={() => void Browser.OpenURL(updates.result!.url)}>Download</button>
-              {:else if updates.result}
-                <span class="text-success">You're up to date.</span>
-              {/if}
-            </span>
-          </div>
-          <label class="{check} mt-4">
-            <input type="checkbox" class="mt-0.5 accent-accent" checked={prefs.value.updateCheck} onchange={(e) => prefs.setUpdateCheck(e.currentTarget.checked)} />
-            <span>Check for updates at startup<span class={hint}>Asks GitHub for the latest release once when TuxShell starts. Nothing is downloaded or installed.</span></span>
-          </label>
+          {#if updates.managed}
+            <p class="text-[13px] text-muted">
+              This is the Flathub version: updates come through your software center (GNOME Software, Discover) or <span class="font-mono">flatpak update</span>.
+            </p>
+          {:else}
+            <div class="flex flex-wrap items-center gap-3">
+              <button
+                class="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-on-accent hover:bg-accent/90 disabled:opacity-60"
+                disabled={updates.checking}
+                onclick={() => void updates.check()}>{updates.checking ? 'Checking…' : 'Check for updates'}</button
+              >
+              <span class="text-[13px]" aria-live="polite">
+                {#if updates.error}
+                  <span class="text-warning">{updates.error}</span>
+                {:else if updates.result?.newer}
+                  TuxShell <span class="font-mono">{updates.result.latest}</span> is available.
+                  <button class="ml-1 text-accent underline-offset-2 hover:underline" onclick={() => void Browser.OpenURL(updates.result!.url)}>Download</button>
+                {:else if updates.result}
+                  <span class="text-success">You're up to date.</span>
+                {/if}
+              </span>
+            </div>
+            <label class="{check} mt-4">
+              <input type="checkbox" class="mt-0.5 accent-accent" checked={prefs.value.updateCheck} onchange={(e) => prefs.setUpdateCheck(e.currentTarget.checked)} />
+              <span>Check for updates at startup<span class={hint}>Asks GitHub for the latest release once when TuxShell starts. Nothing is downloaded or installed.</span></span>
+            </label>
+          {/if}
         </section>
       {:else}
         <ShortcutsSettings />
@@ -850,7 +868,7 @@
       {#if prefs.error && prefs.error.field !== 'shell'}
         <span class="text-warning">Not saved: {prefs.error.message}</span>
       {:else}
-        Changes apply right away · saved in <span class="font-mono">{isMac ? '~/Library/Application Support/TuxShell/settings.json' : '~/.config/tuxshell/settings.json'}</span>
+        Changes apply right away · saved in <span class="font-mono">{files.settings}</span>
       {/if}
     </span>
     {#if confirmReset}
