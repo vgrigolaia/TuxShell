@@ -37,6 +37,8 @@
     onTitle?: (title: string) => void
     onSize?: (cols: number, rows: number) => void
     onExit?: (code: number) => void
+    /** The session ended the way a user ends it (exit, logout), not with an error. */
+    onEnded?: () => void
     /** The shell reported its folder (OSC 7, or a "user@host:path" title). */
     onCwd?: (path: string) => void
     /** The bell rang and the profile marks it with an icon. */
@@ -51,7 +53,7 @@
     actions?: PaneActions
   }
 
-  let { source, visible, focused, onStart, onInput, onLogin, onTitle, onSize, onExit, onBell, onCwd, readOnly = false, showScrollbar = true, split = false, maximized = false, actions }: Props = $props()
+  let { source, visible, focused, onStart, onInput, onLogin, onTitle, onSize, onExit, onEnded, onBell, onCwd, readOnly = false, showScrollbar = true, split = false, maximized = false, actions }: Props = $props()
 
   let host: HTMLDivElement
   let term: Terminal | undefined
@@ -313,6 +315,12 @@
       if (!asking) await connect()
     }
 
+    // ssh exits 255 for its own errors (refused, lost connection, failed login);
+    // other codes come from the remote shell. A run-once command keeps its
+    // output on screen.
+    const endedByUser = (code: number) =>
+      code >= 0 && (source.kind === 'shell' || code !== 255) && !(source.kind !== 'shell' && profile.command && !profile.keepShell)
+
     const connect = async () => {
       if (!term) return
       if (exited !== null) term.write('\r\n\x1b[90m── reconnecting ──\x1b[0m\r\n')
@@ -354,6 +362,7 @@
           recording = ''
           exited = code
           onExit?.(code)
+          if (endedByUser(code)) onEnded?.()
         },
       })
       if (focused) term.focus()

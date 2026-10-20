@@ -75,6 +75,7 @@ const defaults = (): Settings => ({
   terminal: {
     ...defaultProfile(),
     confirmClose: true,
+    closeOnExit: true,
     copyOnSelect: false,
     rightClickPaste: false,
     ctrlWheelZoom: true,

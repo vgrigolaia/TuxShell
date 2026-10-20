@@ -72,6 +72,9 @@ type Terminal struct {
 	CtrlWheelZoom bool `json:"ctrlWheelZoom"`
 	// ConfirmClose asks before closing tabs or the window with live sessions.
 	ConfirmClose bool `json:"confirmClose"`
+	// CloseOnExit closes a pane when its session ends with exit or logout;
+	// errors (ssh's own exit code 255) keep it open with Reconnect.
+	CloseOnExit bool `json:"closeOnExit"`
 	// Shell runs in local tabs; empty means $SHELL. Must be listed in /etc/shells.
 	Shell string `json:"shell"`
 }
@@ -194,6 +197,7 @@ func Defaults() Settings {
 		Terminal: Terminal{
 			Profile:       DefaultProfile(),
 			ConfirmClose:  true,
+			CloseOnExit:   true,
 			CtrlWheelZoom: true,
 		},
 		Profiles:             []NamedProfile{},

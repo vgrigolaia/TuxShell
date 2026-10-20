@@ -630,6 +630,14 @@
             <input type="checkbox" class="mt-0.5 accent-accent" checked={g.confirmClose} onchange={(e) => prefs.update({ confirmClose: e.currentTarget.checked })} />
             <span>Ask before closing running sessions<span class={hint}>When closing a pane, tabs or the window.</span></span>
           </label>
+          <label class={check}>
+            <input type="checkbox" class="mt-0.5 accent-accent" checked={g.closeOnExit} onchange={(e) => prefs.update({ closeOnExit: e.currentTarget.checked })} />
+            <span
+              >Close the tab when you log out<span class={hint}
+                >After exit or logout the pane closes by itself. If the connection fails or drops, it stays open so you can read why and reconnect.</span
+              ></span
+            >
+          </label>
 
           <fieldset class="flex flex-col gap-3 border-t border-line pt-4">
             <legend class="{label} pt-4">Connection history</legend>

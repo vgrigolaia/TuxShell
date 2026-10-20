@@ -9,6 +9,7 @@
   import type { PaneActions } from '../tabs'
   import { isTerminalReport } from '../broadcast'
   import { closer } from '../close.svelte'
+  import { prefs } from '../settings.svelte'
   import { profileBackground } from '../schemes'
   import { backgroundImages, paneProfile } from '../profiles.svelte'
 
@@ -232,6 +233,7 @@
                 workspace.updatePane(pane.id, pane.source.kind === 'shell' && !pane.customTitle ? { title, termTitle: title } : { termTitle: title })}
               onSize={(cols, rows) => workspace.updatePane(pane.id, { size: `${cols}×${rows}` })}
               onExit={() => workspace.updatePane(pane.id, { exited: true })}
+              onEnded={() => prefs.value.terminal.closeOnExit && workspace.closePane(pane.id)}
               onCwd={(cwd) => cwd !== pane.cwd && workspace.updatePane(pane.id, { cwd })}
               onBell={() => {
                 if (!(at.visible && at.focused)) workspace.updatePane(pane.id, { bell: true })

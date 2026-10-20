@@ -347,6 +347,12 @@ export interface Terminal {
     "confirmClose": boolean;
 
     /**
+     * CloseOnExit closes a pane when its session ends with exit or logout;
+     * errors (ssh's own exit code 255) keep it open with Reconnect.
+     */
+    "closeOnExit": boolean;
+
+    /**
      * Shell runs in local tabs; empty means $SHELL. Must be listed in /etc/shells.
      */
     "shell": string;
