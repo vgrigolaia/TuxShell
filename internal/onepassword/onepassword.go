@@ -13,11 +13,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/vgrigolaia/tuxshell/internal/platform"
 )
 
 // readTimeout leaves time to approve the request in the 1Password app.
@@ -72,23 +73,20 @@ type Client struct {
 // from a desktop launcher or an AppImage.
 var candidates = []string{"/usr/bin/op", "/usr/local/bin/op", "/opt/homebrew/bin/op", "/opt/1Password/op"}
 
+// path finds op, on the host when TuxShell runs in a Flatpak.
 func (c Client) path() (string, error) {
 	if c.Path != "" {
 		return c.Path, nil
-	}
-	if p, err := exec.LookPath("op"); err == nil {
-		return p, nil
 	}
 	list := candidates
 	if home, err := os.UserHomeDir(); err == nil {
 		list = append(list, filepath.Join(home, ".local", "bin", "op"), filepath.Join(home, "bin", "op"))
 	}
-	for _, p := range list {
-		if st, err := os.Stat(p); err == nil && st.Mode().IsRegular() && st.Mode()&0o111 != 0 {
-			return p, nil
-		}
+	p, err := platform.LookHostPath("op", list...)
+	if err != nil {
+		return "", ErrNotInstalled
 	}
-	return "", ErrNotInstalled
+	return p, nil
 }
 
 // Read returns the secret ref points to.
@@ -103,7 +101,7 @@ func (c Client) Read(ctx context.Context, ref string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 	var stdout, stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, bin, "read", "--no-newline", "--", ref)
+	cmd := platform.HostCommand(ctx, nil, "", bin, "read", "--no-newline", "--", ref)
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {
 		if ctx.Err() != nil {
@@ -125,7 +123,7 @@ func (c Client) Version(ctx context.Context) (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, bin, "--version").Output()
+	out, err := platform.HostCommand(ctx, nil, "", bin, "--version").Output()
 	if err != nil {
 		return "", fmt.Errorf("running op: %w", err)
 	}

@@ -4,6 +4,8 @@ package settings
 
 import (
 	"bufio"
+	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +14,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/vgrigolaia/tuxshell/internal/platform"
 )
@@ -433,6 +436,15 @@ func cleanKeybindings(in map[string]string) map[string]string {
 	return out
 }
 
+func readShells(path string) ([]byte, error) {
+	if platform.Flatpak && path == "/etc/shells" {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		return platform.HostCommand(ctx, nil, "", "cat", "/etc/shells").Output()
+	}
+	return os.ReadFile(path)
+}
+
 func clamp(v, lo, hi int) int { return min(max(v, lo), hi) }
 
 // weight rounds to a CSS weight step (100–900).
@@ -494,16 +506,16 @@ func save(path string, s Settings) error {
 	return os.Rename(tmp.Name(), path)
 }
 
-// shells lists the login shells in /etc/shells.
+// shells lists the login shells in /etc/shells (the host's in a Flatpak,
+// where local tabs run on the host).
 func shells(etcShells string) ([]string, error) {
-	f, err := os.Open(etcShells)
+	data, err := readShells(etcShells)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
 	var out []string
 	seen := map[string]bool{}
-	sc := bufio.NewScanner(f)
+	sc := bufio.NewScanner(bytes.NewReader(data))
 	for sc.Scan() {
 		line := strings.TrimSpace(sc.Text())
 		if line == "" || strings.HasPrefix(line, "#") || !filepath.IsAbs(line) || seen[line] {

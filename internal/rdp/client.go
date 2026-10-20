@@ -3,12 +3,12 @@ package rdp
 import (
 	"context"
 	"errors"
-	"os"
-	"os/exec"
 	"regexp"
 	"runtime"
 	"strconv"
 	"time"
+
+	"github.com/vgrigolaia/tuxshell/internal/platform"
 )
 
 // Client is an installed FreeRDP program.
@@ -31,7 +31,7 @@ var candidates = map[string][]string{
 
 var versionRe = regexp.MustCompile(`FreeRDP version (\d+)\.(\d+)\.(\d+)`)
 
-// FindClient returns the FreeRDP client to use. prefer is "auto", "x11" or
+// FindClient returns the FreeRDP client to use (the host's, in a Flatpak). prefer is "auto", "x11" or
 // "sdl"; auto uses the X11 client (the most complete, and it runs on Wayland
 // through XWayland) and falls back to the SDL one.
 func FindClient(prefer string) (Client, error) {
@@ -42,7 +42,7 @@ func FindClient(prefer string) (Client, error) {
 	}
 	for _, kind := range order {
 		for _, name := range candidates[kind] {
-			path, err := exec.LookPath(name)
+			path, err := platform.LookHostPath(name)
 			if err != nil {
 				continue
 			}
@@ -58,9 +58,7 @@ func FindClient(prefer string) (Client, error) {
 func version(path string) (string, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, path, "/version")
-	cmd.Env = append(os.Environ(), "WLOG_LEVEL=OFF")
-	out, _ := cmd.CombinedOutput()
+	out, _ := platform.HostCommand(ctx, []string{"WLOG_LEVEL=OFF"}, "", path, "/version").CombinedOutput()
 	m := versionRe.FindSubmatch(out)
 	if m == nil {
 		return "", false

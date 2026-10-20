@@ -3,6 +3,7 @@
 package terminal
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -190,10 +191,9 @@ func (s *Service) StartShell(cols, rows int) (string, error) {
 	if shell == "" {
 		shell = "/bin/sh"
 	}
-	cmd := exec.Command(shell, "-l")
-	if home, err := os.UserHomeDir(); err == nil {
-		cmd.Dir = home
-	}
+	home, _ := os.UserHomeDir()
+	// In a Flatpak the shell runs on the host, so it gets the terminal type there.
+	cmd := platform.HostCommand(context.Background(), []string{"TERM=xterm-256color", "COLORTERM=truecolor"}, home, shell, "-l")
 	return s.start(cmd, cols, rows, visit{})
 }
 
