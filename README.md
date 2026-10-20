@@ -232,7 +232,7 @@ On macOS you need the Xcode Command Line Tools (`xcode-select --install`) instea
 packages. `task dev` works the same, and `task darwin:package:universal` builds `bin/tuxshell.app`
 for Apple silicon and Intel. The release `.dmg` is built by the
 [macOS workflow](.github/workflows/macos.yml) on GitHub Actions, which also runs the tests on
-macOS for every release tag.
+macOS for every release tag and adds the `.dmg` to that release.
 
 ## Contributing
 
