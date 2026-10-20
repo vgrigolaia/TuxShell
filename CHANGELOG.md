@@ -12,6 +12,13 @@ All notable changes to TuxShell are listed here. Versions follow
   passwords" is on, like passwords from other imports.
 - For hosts you already have, the import can now "Only add their passwords", which leaves the
   hosts themselves as they are. It's the default when the file has passwords to save.
+- A tab closes by itself when you log out (exit or logout). If the connection fails or drops,
+  it stays open so you can read why and reconnect. Turn it off in Preferences.
+
+### Changed
+
+- On Home, clicking a host card only selects it. Double-click or Enter connects, and the
+  right-click menu (or the pencil on the card) edits it.
 
 ### Fixed
 

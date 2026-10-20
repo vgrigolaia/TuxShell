@@ -397,8 +397,11 @@
     {#if home}
       <Launchpad
         selectedId={panel.kind === 'host' ? panel.host.id : null}
-        onSelect={(host) => (panel = { kind: 'host', host })}
+        onEdit={(host) => (panel = { kind: 'host', host })}
         onConnect={connect}
+        onConnectAs={connectAs}
+        onDuplicate={duplicate}
+        onDelete={(host) => (deleting = host)}
         onConnectTarget={(target) => open({ kind: 'target', target }, target)}
         onNew={() => (panel = { kind: 'host', host: emptyHost() })}
         onImport={openImport}
