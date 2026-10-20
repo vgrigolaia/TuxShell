@@ -22,8 +22,8 @@ export function Check(current: string): $CancellablePromise<$models.Result> {
 }
 
 /**
- * Managed says Flathub keeps TuxShell up to date (it runs as a Flatpak), so
- * the app doesn't check GitHub or offer its own downloads.
+ * Managed says a software store (Flathub) keeps this build up to date, so the
+ * app doesn't check GitHub or offer its own downloads.
  */
 export function Managed(): $CancellablePromise<boolean> {
     return $Call.ByID(1705700888);
