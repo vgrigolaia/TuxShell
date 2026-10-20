@@ -282,3 +282,38 @@ func mustList(t *testing.T, s *hosts.Store) []hosts.Host {
 	}
 	return l
 }
+
+// "Only add their passwords" saves passwords for hosts that are already saved
+// and leaves the hosts themselves alone.
+func TestImportOnlyPasswordsForExisting(t *testing.T) {
+	s, store := newService(t)
+	saved := map[int64]string{}
+	UsePasswords(s, func() bool { return true }, func(id int64, pw string) error { saved[id] = pw; return nil })
+	p, _ := s.load(SourceCSV, writeFile(t, "a.csv", "Name,Host,User\nweb,10.0.0.5,root\nnopw,10.0.0.7,root\n"))
+	if _, err := s.Import(p.ID, lines(p), DuplicateSkip, ""); err != nil {
+		t.Fatal(err)
+	}
+	var web hosts.Host
+	for _, h := range mustList(t, store) {
+		if h.Name == "web" {
+			web = h
+			web.Name = "renamed in TuxShell"
+			if _, err := store.Save(web); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	csv := "Name,Host,User,Password\nweb,10.0.0.5,root,Sup3r-secret!\nnopw,10.0.0.7,root,\n"
+	p, _ = s.load(SourceCSV, writeFile(t, "b.csv", csv))
+	res, err := s.Import(p.ID, lines(p), DuplicatePasswords, "")
+	if err != nil || res.Imported != 0 || res.Updated != 0 || res.Skipped != 1 || res.Passwords != 1 {
+		t.Fatalf("res = %+v, %v", res, err)
+	}
+	if saved[web.ID] != "Sup3r-secret!" || len(saved) != 1 { // gitleaks:allow
+		t.Errorf("saved = %d passwords", len(saved))
+	}
+	if h, _ := store.Get(web.ID); h.Name != "renamed in TuxShell" || len(mustList(t, store)) != 2 {
+		t.Errorf("host changed: %+v", h)
+	}
+}

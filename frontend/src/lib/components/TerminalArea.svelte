@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { keys } from '../platform'
   import TerminalPane from './TerminalPane.svelte'
   import RdpPane from './RdpPane.svelte'
   import Icon from './Icon.svelte'
@@ -9,6 +8,8 @@
   import type { PaneActions } from '../tabs'
   import { isTerminalReport } from '../broadcast'
   import { closer } from '../close.svelte'
+  import { prefs } from '../settings.svelte'
+  import { keybindings } from '../keybindings.svelte'
   import { profileBackground } from '../schemes'
   import { backgroundImages, paneProfile } from '../profiles.svelte'
 
@@ -174,7 +175,7 @@
                   class={tileBtn}
                   aria-label="Multi-exec: type into all tiles"
                   aria-pressed={at.tab.broadcast}
-                  title="Multi-exec: type into all tiles ({keys('Ctrl+Shift+B')})"
+                  title={keybindings.title('Multi-exec: type into all tiles', 'broadcast')}
                   onclick={() => workspace.toggleBroadcast(at.tab.key)}
                 >
                   <Icon name="broadcast" size={13} />
@@ -183,7 +184,7 @@
                   class={tileBtn}
                   aria-label="{at.maximized ? 'Restore split' : 'Maximize'} {pane.title}"
                   aria-pressed={at.maximized}
-                  title="{at.maximized ? 'Restore split' : 'Maximize pane'} ({keys('Ctrl+Shift+X')})"
+                  title={keybindings.title(at.maximized ? 'Restore split' : 'Maximize pane', 'maximize')}
                   onclick={() => workspace.toggleMaximized(pane.id)}
                 >
                   <Icon name={at.maximized ? 'restore' : 'maximize'} size={12} />
@@ -192,7 +193,7 @@
                   <Icon name="detach" size={12} />
                 </button>
               {/if}
-              <button class={tileBtn} aria-label="Close {pane.title}" title="Close ({keys('Ctrl+Shift+W')})" onclick={() => closer.closePane(pane.id)}>
+              <button class={tileBtn} aria-label="Close {pane.title}" title={keybindings.title('Close', 'closePane')} onclick={() => closer.closePane(pane.id)}>
                 <Icon name="x" size={12} />
               </button>
             </span>
@@ -232,6 +233,7 @@
                 workspace.updatePane(pane.id, pane.source.kind === 'shell' && !pane.customTitle ? { title, termTitle: title } : { termTitle: title })}
               onSize={(cols, rows) => workspace.updatePane(pane.id, { size: `${cols}×${rows}` })}
               onExit={() => workspace.updatePane(pane.id, { exited: true })}
+              onEnded={() => prefs.value.terminal.closeOnExit && workspace.closePane(pane.id)}
               onCwd={(cwd) => cwd !== pane.cwd && workspace.updatePane(pane.id, { cwd })}
               onBell={() => {
                 if (!(at.visible && at.focused)) workspace.updatePane(pane.id, { bell: true })

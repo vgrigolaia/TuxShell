@@ -138,15 +138,26 @@ func remminaDirs() []string {
 func scanRemmina() (*table, string, error) {
 	t := newFixedTable()
 	found := ""
+	// The keyring is opened only when a connection keeps its password there.
+	var lookup func(string) string
+	done := func() {}
+	defer func() { done() }()
+	fromKeyring := func(file string) string {
+		if lookup == nil {
+			lookup, done = remminaKeyring()
+		}
+		return lookup(file)
+	}
 	for _, dir := range remminaDirs() {
 		files, _ := filepath.Glob(filepath.Join(dir, "*.remmina"))
 		sort.Strings(files)
+		pw := &remminaPasswords{secret: remminaSecret(remminaPrefFile(dir)), lookup: fromKeyring}
 		for _, f := range files {
 			data, err := readFile(f)
 			if err != nil {
 				continue
 			}
-			if addRemmina(t, data) && found == "" {
+			if addRemmina(t, data, func(v string) string { return pw.password(f, v) }) && found == "" {
 				found = dir
 			}
 		}
@@ -158,8 +169,8 @@ func scanRemmina() (*table, string, error) {
 }
 
 // addRemmina adds one connection file if it's an SSH or RDP connection.
-// Remmina keeps passwords in its own keyring entry, so they aren't imported.
-func addRemmina(t *table, data []byte) bool {
+// password turns the file's password= value into the password itself.
+func addRemmina(t *table, data []byte, password func(value string) string) bool {
 	v := map[string]string{}
 	in := false
 	for _, l := range textLines(data) {
@@ -172,12 +183,13 @@ func addRemmina(t *table, data []byte) bool {
 		}
 	}
 	if strings.EqualFold(v["protocol"], "RDP") {
-		addRemminaRDP(t, v)
+		addRemminaRDP(t, v, password(v["password"]))
 		return true
 	}
 	if !strings.EqualFold(v["protocol"], "SSH") {
 		return false
 	}
+	pw := password(v["password"])
 	server := v["server"]
 	if server == "" {
 		server = v["ssh_server"]
@@ -188,13 +200,13 @@ func addRemmina(t *table, data []byte) bool {
 	}
 	t.add(func(r []string) {
 		r[colName], r[colGroup], r[colHostname], r[colUser] = v["name"], v["group"], server, user
-		r[colIdentityFile] = v["ssh_privatekey"]
+		r[colIdentityFile], r[colPassword] = v["ssh_privatekey"], pw
 	})
 	return true
 }
 
 // addRemminaRDP turns a Remmina RDP connection into a remote desktop host.
-func addRemminaRDP(t *table, v map[string]string) {
+func addRemminaRDP(t *table, v map[string]string, password string) {
 	r := hosts.DefaultRDP()
 	// resolution_mode 0 is a custom size; 1 and 2 follow the window.
 	if v["resolution_mode"] == "0" {
@@ -256,6 +268,7 @@ func addRemminaRDP(t *table, v map[string]string) {
 	t.add(func(row []string) {
 		row[colName], row[colGroup], row[colHostname], row[colUser] = v["name"], v["group"], v["server"], v["username"]
 		row[colProxyJump], row[colProtocol], row[colDomain], row[colRDP] = jump, hosts.ProtocolRDP, v["domain"], string(options)
+		row[colPassword] = password
 		if row[colName] == "" {
 			row[colName] = v["server"]
 		}

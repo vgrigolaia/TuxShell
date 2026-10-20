@@ -74,6 +74,8 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
   inventories, with a preview of every host before it's saved. A ready-to-fill CSV template
   is included. Export as TuxShell JSON, CSV or ssh_config (Preferences → Hosts). Exports never
   contain passwords; imported passwords are kept only if you allow saving passwords.
+  Remmina passwords come along too (from Remmina's keyring entry or its own file), and
+  importing again can add passwords to hosts you already saved without changing them.
   Home reminds you of `~/.ssh/config` hosts you haven't saved; its × hides the reminder until
   new ones appear.
 - **Clipboard history** (Ctrl+Shift+H): encrypted at rest with a key in your keyring.
@@ -90,9 +92,11 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
   updates on request and at startup (on by default; turn it off in Preferences → About). TuxShell only
   links to the new release; it never downloads or installs anything itself.
 
-All shortcuts are listed in Preferences → Shortcuts. On macOS the app's shortcuts use ⌘ where
-this page says Ctrl (Ctrl+Shift+L becomes ⇧⌘L), and the terminal copies and pastes with ⌘C and
-⌘V, so Ctrl stays with the programs in the terminal.
+All shortcuts are listed in Preferences → Shortcuts, where you can change them or turn them off
+(click Change and press the new keys). A shortcut needs Ctrl, Alt or an F key, and keys the
+terminal needs, like Ctrl+C, can't be taken. On macOS the app's shortcuts use ⌘ where this page
+says Ctrl (Ctrl+Shift+L becomes ⇧⌘L), and the terminal copies and pastes with ⌘C and ⌘V, so Ctrl
+stays with the programs in the terminal.
 
 ## Install
 
@@ -102,17 +106,17 @@ Download TuxShell from the [releases page](https://github.com/vgrigolaia/tuxshel
 
 ```sh
 # Fedora, RHEL, AlmaLinux, Rocky Linux
-sudo dnf install ./tuxshell-1.4.0-1.x86_64.rpm
+sudo dnf install ./tuxshell-1.4.1-1.x86_64.rpm
 
 # Debian, Ubuntu
-sudo apt install ./tuxshell_1.4.0-1_amd64.deb
+sudo apt install ./tuxshell_1.4.1-1_amd64.deb
 ```
 
 Or run the AppImage on any distribution:
 
 ```sh
-chmod +x TuxShell-1.4.0-x86_64.AppImage
-./TuxShell-1.4.0-x86_64.AppImage
+chmod +x TuxShell-1.4.1-x86_64.AppImage
+./TuxShell-1.4.1-x86_64.AppImage
 ```
 
 Supported: Fedora 39+, RHEL/Alma/Rocky 10, Debian 13+ and Ubuntu 24.04+. TuxShell needs
@@ -232,7 +236,7 @@ On macOS you need the Xcode Command Line Tools (`xcode-select --install`) instea
 packages. `task dev` works the same, and `task darwin:package:universal` builds `bin/tuxshell.app`
 for Apple silicon and Intel. The release `.dmg` is built by the
 [macOS workflow](.github/workflows/macos.yml) on GitHub Actions, which also runs the tests on
-macOS for every release tag.
+macOS for every release tag and adds the `.dmg` to that release.
 
 ## Contributing
 

@@ -227,6 +227,13 @@ export interface Settings {
      * RDPClient picks the FreeRDP program: "auto", "x11" or "sdl".
      */
     "rdpClient": string;
+
+    /**
+     * Keybindings maps an app action ("toggleHosts") to a key combo
+     * ("Ctrl+Shift+L"). Actions not listed keep their default; "" turns one off.
+     * The actions and their defaults live in the frontend.
+     */
+    "keybindings": { [_ in string]?: string } | null;
 }
 
 /**
@@ -345,6 +352,12 @@ export interface Terminal {
      * ConfirmClose asks before closing tabs or the window with live sessions.
      */
     "confirmClose": boolean;
+
+    /**
+     * CloseOnExit closes a pane when its session ends with exit or logout;
+     * errors (ssh's own exit code 255) keep it open with Reconnect.
+     */
+    "closeOnExit": boolean;
 
     /**
      * Shell runs in local tabs; empty means $SHELL. Must be listed in /etc/shells.

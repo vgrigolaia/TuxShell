@@ -3,6 +3,33 @@
 All notable changes to TuxShell are listed here. Versions follow
 [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+## [1.4.1] - 2026-10-20
+
+### Added
+
+- Remmina import brings the connections' passwords along: those Remmina keeps in the system
+  keyring and those in its own files. They're saved in your keyring when "Allow saving
+  passwords" is on, like passwords from other imports.
+- For hosts you already have, the import can now "Only add their passwords", which leaves the
+  hosts themselves as they are. It's the default when the file has passwords to save.
+- Shortcuts can be changed: Preferences → Shortcuts → Change, then press the new keys. Each can
+  also be turned off or reset. TuxShell warns when a combo is already used or when the shell
+  uses it too, and keeps Ctrl+C, Ctrl+D and Ctrl+Z for the terminal.
+- A tab closes by itself when you log out (exit or logout). If the connection fails or drops,
+  it stays open so you can read why and reconnect. Turn it off in Preferences.
+
+### Changed
+
+- On Home, clicking a host card only selects it. Double-click or Enter connects, and the
+  right-click menu (or the pencil on the card) edits it.
+
+### Fixed
+
+- After a Remmina import, TuxShell no longer suggests deleting the file because of passwords in
+  plain text (Remmina's aren't).
+
 ## [1.4.0] - 2026-10-15
 
 ### Added
@@ -244,6 +271,7 @@ First release.
 - Dark and light themes, or follow the system.
 - Packages for Fedora/RHEL (.rpm), Debian/Ubuntu (.deb) and an AppImage.
 
+[1.4.1]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.4.1
 [1.4.0]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.4.0
 [1.3.0]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.3.0
 [1.2.1]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.2.1

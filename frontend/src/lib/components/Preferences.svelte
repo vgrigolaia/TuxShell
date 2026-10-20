@@ -11,6 +11,8 @@
   import { Browser } from '@wailsio/runtime'
   import Logo from './Logo.svelte'
   import ExportHosts from './ExportHosts.svelte'
+  import ShortcutsSettings from './ShortcutsSettings.svelte'
+  import { keybindings } from '../keybindings.svelte'
   import { logins } from '../logins.svelte'
   import { onePassword } from '../onepassword.svelte'
   import * as Login from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/login/service'
@@ -162,32 +164,6 @@
     if (raw.trim() !== '' && Number.isFinite(v)) setP({ [key]: Math.min(Math.max(v, lo), hi) })
   }
 
-  const shortcuts: [string, string][] = [
-    ['Ctrl+K', 'Quick connect / search hosts'],
-    ['Ctrl+,', 'Preferences'],
-    ['Ctrl+Shift+L', 'Show or hide the hosts sidebar'],
-    ['Ctrl+Shift+E', 'Files panel'],
-    ['Ctrl+Shift+H', 'Clipboard history'],
-    ['Ctrl+Shift+B', 'Broadcast typing to split panes'],
-    ['Ctrl+Shift+A', 'Split auto (same connection)'],
-    ['Ctrl+Shift+O', 'Split down (same connection)'],
-    ['Ctrl+Shift+T', 'Open the same connection in a new tab'],
-    ['Ctrl+Shift+X', 'Maximize pane / restore split'],
-    ['Ctrl+Shift+S', 'Show or hide the scrollbar'],
-    ['Ctrl+Alt+W', 'Set pane title'],
-    ['Ctrl+Shift+W', 'Close pane'],
-    ['Ctrl+Shift+Arrows', 'Move between panes'],
-    ['Alt+Up / Alt+Down', 'Move the focused host or group in the hosts list'],
-    ['Ctrl+= / Ctrl+-', 'Zoom terminal text in / out'],
-    ['Ctrl+mouse wheel', 'Zoom terminal text'],
-    ['Ctrl+0', 'Reset zoom'],
-    ['Right-click terminal', 'Copy, paste, split, title, read only, zoom, preferences'],
-    [isMac ? 'Cmd+C' : 'Ctrl+Shift+C / Ctrl+Insert', 'Copy selection'],
-    [isMac ? 'Cmd+V' : 'Ctrl+Shift+V / Shift+Insert', 'Paste'],
-    ['Middle-click tab', 'Close tab'],
-    ['Ctrl+click tab', 'Select tabs (merge, close)'],
-  ]
-
   const label = 'mb-1.5 block text-xs font-medium text-muted'
   const field = 'h-9 rounded-lg border border-line bg-ground px-2.5 text-[13px] text-fg focus:border-accent focus:outline-none'
   const check = 'flex items-start gap-2.5 text-[13px]'
@@ -199,6 +175,7 @@
   aria-labelledby="{id}-title"
   class="m-auto flex h-[min(600px,90vh)] w-[min(820px,94vw)] flex-col overflow-hidden rounded-2xl border border-line bg-panel p-0 text-fg shadow-2xl backdrop:bg-black/60"
   onclose={onClose}
+  oncancel={(e) => keybindings.recording && e.preventDefault()}
 >
   <header class="flex items-center gap-3 border-b border-line px-5 py-3.5">
     <span class="text-accent"><Icon name="gear" size={16} /></span>
@@ -330,7 +307,7 @@
             {#if prefs.zoom}
               <p class="mt-1 text-xs text-subtle">
                 Zoomed to {prefs.fontSize}px ·
-                <button class="underline hover:text-fg" onclick={() => (prefs.zoom = 0)}>reset ({keys('Ctrl+0')})</button>
+                <button class="underline hover:text-fg" onclick={() => (prefs.zoom = 0)}>{keybindings.title('reset', 'zoomReset')}</button>
               </p>
             {/if}
           </div>
@@ -490,7 +467,7 @@
           </div>
           <label class={check}>
             <input type="checkbox" class="mt-0.5 accent-accent" checked={t.scrollbar} onchange={(e) => setP({ scrollbar: e.currentTarget.checked })} />
-            <span>Show the scrollbar<span class={hint}>For new panes. {keys('Ctrl+Shift+S')} still shows or hides it per pane.</span></span>
+            <span>Show the scrollbar<span class={hint}>For new panes.{keybindings.label('scrollbar') ? ` ${keybindings.label('scrollbar')} still shows or hides it per pane.` : ''}</span></span>
           </label>
           <label class={check}>
             <input type="checkbox" class="mt-0.5 accent-accent" checked={t.scrollOnOutput} onchange={(e) => setP({ scrollOnOutput: e.currentTarget.checked })} />
@@ -629,6 +606,14 @@
           <label class={check}>
             <input type="checkbox" class="mt-0.5 accent-accent" checked={g.confirmClose} onchange={(e) => prefs.update({ confirmClose: e.currentTarget.checked })} />
             <span>Ask before closing running sessions<span class={hint}>When closing a pane, tabs or the window.</span></span>
+          </label>
+          <label class={check}>
+            <input type="checkbox" class="mt-0.5 accent-accent" checked={g.closeOnExit} onchange={(e) => prefs.update({ closeOnExit: e.currentTarget.checked })} />
+            <span
+              >Close the tab when you log out<span class={hint}
+                >After exit or logout the pane closes by itself. If the connection fails or drops, it stays open so you can read why and reconnect.</span
+              ></span
+            >
           </label>
 
           <fieldset class="flex flex-col gap-3 border-t border-line pt-4">
@@ -855,18 +840,7 @@
           </label>
         </section>
       {:else}
-        <h3 class="sr-only">Shortcuts</h3>
-        <table class="w-full text-[13px]">
-          <tbody>
-            {#each shortcuts as [combo, action] (combo)}
-              <tr class="border-b border-line last:border-0">
-                <td class="py-2 pr-4 whitespace-nowrap"><kbd class="rounded border border-line bg-ground px-1.5 py-0.5 font-mono text-[11px]">{keys(combo)}</kbd></td>
-                <td class="py-2 text-muted">{action}</td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-        <p class="mt-3 text-xs text-subtle">Custom key bindings are planned for a later version.</p>
+        <ShortcutsSettings />
       {/if}
     </div>
   </div>

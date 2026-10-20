@@ -5,7 +5,6 @@
 </script>
 
 <script lang="ts">
-  import { keys } from '../platform'
   import type { Snippet } from 'svelte'
   import { onMount } from 'svelte'
   import * as SshConfig from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/sshconfig/service'
@@ -15,6 +14,7 @@
   import HostBadge from './HostBadge.svelte'
   import StatusDot from './StatusDot.svelte'
   import Icon from './Icon.svelte'
+  import ContextMenu, { type MenuItem } from './ContextMenu.svelte'
   import SnippetsPage from './SnippetsPage.svelte'
   import TunnelsPage from './TunnelsPage.svelte'
   import HistoryPage from './HistoryPage.svelte'
@@ -22,11 +22,16 @@
   import { tunnels } from '../tunnels.svelte'
   import { onePassword } from '../onepassword.svelte'
   import { prefs } from '../settings.svelte'
+  import { keybindings } from '../keybindings.svelte'
 
   interface Props {
+    /** The host open in the editor. */
     selectedId: number | null
-    onSelect: (host: Host) => void
+    onEdit: (host: Host) => void
     onConnect: (host: Host) => void
+    onConnectAs: (host: Host) => void
+    onDuplicate: (host: Host) => void
+    onDelete: (host: Host) => void
     onConnectTarget: (target: string) => void
     onNew: () => void
     /** Opens the import window, at the ~/.ssh/config list when asked. */
@@ -42,9 +47,38 @@
     /** Which Home section shows. */
     page?: 'hosts' | 'snippets' | 'tunnels' | 'history'
   }
-  let { selectedId, onSelect, onConnect, onConnectTarget, onNew, onImport, onOpenHostList, onPreferences, editor, openTabs, page = $bindable('hosts') }: Props = $props()
+  let { selectedId, onEdit, onConnect, onConnectAs, onDuplicate, onDelete, onConnectTarget, onNew, onImport, onOpenHostList, onPreferences, editor, openTabs, page = $bindable('hosts') }: Props = $props()
 
   let query = $state('')
+  // A click only marks a card; double-click or Enter connects, right-click has the rest.
+  let marked = $state<number | null>(null)
+  let menu = $state<{ x: number; y: number; host: Host } | null>(null)
+
+  function openMenu(e: MouseEvent | KeyboardEvent, host: Host) {
+    e.preventDefault()
+    marked = host.id
+    if (e instanceof MouseEvent && e.type === 'contextmenu') {
+      menu = { x: e.clientX, y: e.clientY, host }
+    } else {
+      const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+      menu = { x: r.left + 24, y: r.top + 48, host }
+    }
+  }
+
+  function onCardKey(e: KeyboardEvent, host: Host) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      onConnect(host)
+    } else if (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) openMenu(e, host)
+  }
+
+  const menuItems = (host: Host): MenuItem[] => [
+    { label: 'Connect', run: () => onConnect(host) },
+    { label: 'Connect as…', run: () => onConnectAs(host) },
+    { label: 'Edit…', run: () => onEdit(host) },
+    { label: 'Duplicate…', run: () => onDuplicate(host) },
+    { label: 'Delete…', run: () => onDelete(host), danger: true },
+  ]
   let group = $state<string | null>(null)
   // Unsaved ~/.ssh/config aliases; the banner leaves out the ones hidden with its ×.
   let unsaved = $state<string[]>([])
@@ -180,7 +214,7 @@
           onkeydown={(e) => e.key === 'Escape' && (query = '')}
         />
       </label>
-      <span class="kbd">{keys('Ctrl K')}</span>
+      {#if keybindings.label('quickConnect')}<span class="kbd">{keybindings.label('quickConnect')}</span>{/if}
     </form>
 
     {#if found > 0}
@@ -228,13 +262,15 @@
       {#each cards as h (h.id)}
         {@const st = hostStatus.state(h.id)}
         {@const off = st === 'down'}
-        <li>
+        <li class="group relative">
           <button
-            class="card flex h-full w-full flex-col gap-3.5 rounded-[20px] p-[18px] text-left {h.id === selectedId ? 'card-selected' : ''} {off ? 'card-off' : 'bg-panel'}"
-            title="Click to edit · double-click or Enter to connect"
-            onclick={() => onSelect(h)}
+            class="card flex h-full w-full flex-col gap-3.5 rounded-[20px] p-[18px] text-left {h.id === selectedId || h.id === marked ? 'card-selected' : ''} {off ? 'card-off' : 'bg-panel'}"
+            title="Double-click or Enter to connect · right-click for more"
+            aria-haspopup="menu"
+            onclick={() => (marked = h.id)}
             ondblclick={() => onConnect(h)}
-            onkeydown={(e) => e.key === 'Enter' && (e.preventDefault(), onConnect(h))}
+            oncontextmenu={(e) => openMenu(e, h)}
+            onkeydown={(e) => onCardKey(e, h)}
           >
             <span class="flex items-center gap-3">
               <HostBadge name={h.name} os={h.os} size={44} dim={off} />
@@ -254,6 +290,14 @@
               <span class="ml-auto truncate text-subtle">{auth(h)}</span>
             </span>
           </button>
+          <button
+            class="absolute top-3 right-3 grid size-8 place-items-center rounded-lg text-subtle opacity-0 group-hover:opacity-100 hover:bg-raised hover:text-fg focus-visible:opacity-100"
+            aria-label="Edit {h.name}"
+            title="Edit"
+            onclick={() => onEdit(h)}
+          >
+            <Icon name="edit" size={15} />
+          </button>
         </li>
       {/each}
     </ul>
@@ -262,6 +306,10 @@
   {@render editor?.()}
   {/if}
 </div>
+
+{#if menu}
+  <ContextMenu x={menu.x} y={menu.y} label="Actions for {menu.host.name}" items={menuItems(menu.host)} onClose={() => (menu = null)} />
+{/if}
 
 <style>
   .search {

@@ -35,6 +35,9 @@ const (
 	DuplicateSkip   = "skip"
 	DuplicateUpdate = "update"
 	DuplicateCopy   = "copy"
+	// DuplicatePasswords leaves saved hosts as they are and only saves the
+	// passwords the file has for them.
+	DuplicatePasswords = "passwords"
 )
 
 // Filter is a file type offered in the file picker; Pattern is ";"-separated.
@@ -500,6 +503,12 @@ func (s *Service) Import(id string, lines []int, duplicate, group string) (Resul
 			} else {
 				res.Updated++
 				keepPassword(r, r.ExistingID)
+			}
+		case r.ExistingID != 0 && duplicate == DuplicatePasswords:
+			before := res.Passwords
+			keepPassword(r, r.ExistingID)
+			if res.Passwords == before {
+				res.Skipped++
 			}
 		case r.ExistingID != 0 && duplicate == DuplicateCopy:
 			copies = append(copies, r)

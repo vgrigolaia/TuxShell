@@ -1,6 +1,9 @@
 package hostio
 
 import (
+	"crypto/cipher"
+	"crypto/des" //nolint:gosec // matches Remmina's encryption
+	"encoding/base64"
 	"os"
 	"path/filepath"
 	"strings"
@@ -53,15 +56,35 @@ func TestMobaXterm(t *testing.T) {
 }
 
 func TestRemmina(t *testing.T) {
-	data := t.TempDir()
+	data, config := t.TempDir(), t.TempDir()
 	t.Setenv("XDG_DATA_HOME", data)
+	t.Setenv("XDG_CONFIG_HOME", config)
 	t.Setenv("HOME", t.TempDir())
 	dir := filepath.Join(data, "remmina")
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	for _, d := range []string{dir, filepath.Join(config, "remmina")} {
+		if err := os.MkdirAll(d, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	secret := []byte("0123456789abcdefghijklmnIVIVIVIV")
+	pref := "[remmina_pref]\nsecret=" + base64.StdEncoding.EncodeToString(secret) + "\n"
+	if err := os.WriteFile(filepath.Join(config, "remmina", "remmina.pref"), []byte(pref), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	opened := 0
+	remminaKeyring = func() (func(string) string, func()) {
+		opened++
+		return func(file string) string {
+			if file == filepath.Join(dir, "3.remmina") {
+				return "from-keyring" // gitleaks:allow
+			}
+			return ""
+		}, func() {}
+	}
+	t.Cleanup(func() { remminaKeyring = systemRemminaKeyring })
 	files := map[string]string{
-		"1.remmina": "[remmina]\nname=Jump box\ngroup=Infra\nprotocol=SSH\nserver=203.0.113.10:2200\nusername=ops\nssh_privatekey=/home/me/.ssh/id_ed25519\npassword=c2VjcmV0\n",
+		"1.remmina": "[remmina]\nname=Jump box\ngroup=Infra\nprotocol=SSH\nserver=203.0.113.10:2200\nusername=ops\nssh_privatekey=/home/me/.ssh/id_ed25519\npassword=" +
+			encryptRemmina(t, secret, "in-the-file") + "\n",
 		"2.remmina": "[remmina]\nname=Desktop\nprotocol=RDP\nserver=10.0.0.20\n",
 		// The keys and values Remmina 1.4 writes for an RDP connection.
 		"3.remmina": "[remmina]\nname=COPY 10.14.51.40-Khudadovi\ngroup=milesone-branches\nprotocol=RDP\nserver=10.14.51.40:3390\nusername=admin\ndomain=CORP\n" +
@@ -79,9 +102,18 @@ func TestRemmina(t *testing.T) {
 	if err != nil || found != dir {
 		t.Fatalf("found %q, err %v", found, err)
 	}
-	rows, plain := rowsOf(t, tb)
-	if len(rows) != 3 || plain != 0 {
-		t.Fatalf("rows = %v, plain = %d", rows, plain)
+	rows, _ := rowsOf(t, tb)
+	if len(rows) != 3 || opened != 1 {
+		t.Fatalf("rows = %v, keyring opened %d times", rows, opened)
+	}
+	fields, _ := tb.guess()
+	_, plain := buildRows(&pending{table: tb, fields: fields, header: true}, nil)
+	got := map[string]bool{}
+	for _, pw := range plain {
+		got[pw] = true
+	}
+	if len(plain) != 2 || !got["in-the-file"] || !got["from-keyring"] {
+		t.Errorf("passwords = %d, want the file's and the keyring's", len(plain))
 	}
 	expect(t, rows["Jump box"], hosts.Host{Name: "Jump box", Hostname: "203.0.113.10", User: "ops", Port: 2200, Group: "Infra", IdentityFile: "/home/me/.ssh/id_ed25519", Tags: []string{}})
 
@@ -96,6 +128,38 @@ func TestRemmina(t *testing.T) {
 		len(r.Folders) != 1 || r.Folders[0].Name != "Shared Stuff" || r.Folders[0].Path != "/home/me/Shared Stuff" ||
 		r.Gateway.Host != "gw.example.com" || r.Gateway.Port != 8443 || r.Gateway.User != "gwuser" || w.Host.ProxyJump != "ops@bastion.example.com:2222" {
 		t.Errorf("RDP row = %+v (%s)", w.Host, w.Error)
+	}
+}
+
+// encryptRemmina encrypts like Remmina does: 3DES-CBC, zero padding.
+func encryptRemmina(t *testing.T, secret []byte, pw string) string {
+	t.Helper()
+	block, err := des.NewTripleDESCipher(secret[:24])
+	if err != nil {
+		t.Fatal(err)
+	}
+	buf := []byte(pw)
+	for len(buf)%des.BlockSize != 0 {
+		buf = append(buf, 0)
+	}
+	cipher.NewCBCEncrypter(block, secret[24:32]).CryptBlocks(buf, buf)
+	return base64.StdEncoding.EncodeToString(buf)
+}
+
+func TestDecryptRemmina(t *testing.T) {
+	secret := []byte("0123456789abcdefghijklmnIVIVIVIV")
+	for _, pw := range []string{"a", "exactly8", "a longer password with spaces"} {
+		if got, ok := decryptRemmina(secret, encryptRemmina(t, secret, pw)); !ok || got != pw {
+			t.Errorf("round trip of %d bytes failed", len(pw))
+		}
+	}
+	for _, bad := range []string{"not base64!", "c2VjcmV0", base64.StdEncoding.EncodeToString(make([]byte, 8))} {
+		if _, ok := decryptRemmina(secret, bad); ok {
+			t.Errorf("%q decrypted", bad)
+		}
+	}
+	if _, ok := decryptRemmina(nil, encryptRemmina(t, secret, "x")); ok {
+		t.Error("decrypted without a secret")
 	}
 }
 
