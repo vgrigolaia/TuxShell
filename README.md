@@ -119,6 +119,19 @@ chmod +x TuxShell-1.4.2-x86_64.AppImage
 ./TuxShell-1.4.2-x86_64.AppImage
 ```
 
+Or install the Flatpak on any distribution with [Flatpak and Flathub set up](https://flathub.org/setup).
+The GNOME runtime it needs is installed from Flathub along with it:
+
+```sh
+flatpak install --user TuxShell-1.4.2-x86_64.flatpak
+flatpak run io.github.vgrigolaia.TuxShell
+```
+
+In the Flatpak, ssh runs inside the sandbox; local shell tabs, the 1Password CLI and FreeRDP run
+on your system. Its data is kept in `~/.var/app/io.github.vgrigolaia.TuxShell/`, so export your
+hosts from another TuxShell (Preferences → Hosts) and import them there. Updates: install the
+next release's `.flatpak` the same way.
+
 Supported: Fedora 39+, RHEL/Alma/Rocky 10, Debian 13+ and Ubuntu 24.04+. TuxShell needs
 GTK 4 and WebKitGTK 6.0. Remote hosts need GNU `find` for the file browser.
 

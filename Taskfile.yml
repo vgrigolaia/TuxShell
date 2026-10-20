@@ -35,6 +35,21 @@ tasks:
     cmds:
       - task: "{{.GOOS}}:package"
 
+  flatpak:
+    summary: Builds bin/TuxShell-<version>-x86_64.flatpak from this checkout (needs flatpak-builder; see build/flatpak)
+    vars:
+      VERSION:
+        sh: node -p "require('./frontend/package.json').version"
+      # Outside the checkout, which the manifest copies as its source.
+      WORK:
+        sh: echo "${XDG_CACHE_HOME:-$HOME/.cache}/tuxshell-flatpak"
+    cmds:
+      # The GNOME runtime and SDK come from Flathub; the bundle points there, so
+      # installing it fetches the runtime too. rofiles-fuse is off: it needs FUSE.
+      - flatpak-builder --user --force-clean --disable-rofiles-fuse --install-deps-from=flathub --default-branch=stable --state-dir="{{.WORK}}/state" --repo="{{.WORK}}/repo" "{{.WORK}}/build" build/flatpak/io.github.vgrigolaia.TuxShell.yml
+      - mkdir -p bin
+      - flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo "{{.WORK}}/repo" bin/TuxShell-{{.VERSION}}-x86_64.flatpak io.github.vgrigolaia.TuxShell stable
+
   run:
     summary: Runs the application
     cmds:

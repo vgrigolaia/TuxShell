@@ -5,11 +5,21 @@ All notable changes to TuxShell are listed here. Versions follow
 
 ## [Unreleased]
 
+### Added
+
+- `task flatpak` builds the `.flatpak` file that comes with each release, and the README explains
+  how to install it.
+
+### Fixed
+
+- The `.flatpak` file from GitHub releases checks for updates again. Only a Flathub build leaves
+  updates to Flathub.
+
 ## [1.4.2] - 2026-10-20
 
 ### Added
 
-- Flatpak support, as the first step towards Flathub. In the Flatpak, ssh runs inside the sandbox
+- Flatpak support: a `.flatpak` file comes with each release. In the Flatpak, ssh runs inside the sandbox
   and local shell tabs, the 1Password CLI and FreeRDP run on your system; updates come from
   Flathub, so the startup update check is left out. The manifest is in `build/flatpak/`.
 
