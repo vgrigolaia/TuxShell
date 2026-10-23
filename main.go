@@ -117,13 +117,17 @@ func main() {
 			PromptForMultipleSelection()
 	})
 	files.UseEvents(fileBrowser, func(name string, data any) { app.Event.Emit(name, data) })
-	hostFiles := hostio.NewService(store, func(title string, filters []hostio.Filter) (string, error) {
+	hostFiles := hostio.NewService(store, func(title string, filters []hostio.Filter, many bool) ([]string, error) {
 		d := app.Dialog.OpenFile().CanChooseFiles(true).SetTitle(title).SetButtonText("Open")
 		for _, f := range filters {
 			d.AddFilter(f.Name, f.Pattern)
 		}
 		d.AddFilter("All files", "*")
-		return d.PromptForSingleSelection()
+		if many {
+			return d.PromptForMultipleSelection()
+		}
+		path, err := d.PromptForSingleSelection()
+		return []string{path}, err
 	}, func(title, filename string, filters []hostio.Filter) (string, error) {
 		opts := &application.SaveFileDialogOptions{Title: title, Filename: filename, ButtonText: "Export", CanCreateDirectories: true}
 		for _, f := range filters {

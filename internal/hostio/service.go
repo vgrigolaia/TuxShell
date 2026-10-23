@@ -28,6 +28,7 @@ const (
 	SourcePuTTY     = "putty"
 	SourcePuTTYReg  = "puttyreg"
 	SourceAnsible   = "ansible"
+	SourceRDPFiles  = "rdpfiles"
 )
 
 // Duplicate modes for hosts that are already saved.
@@ -46,8 +47,9 @@ type Filter struct {
 	Pattern string
 }
 
-// PickFunc shows a file picker and returns the chosen path, or "" if cancelled.
-type PickFunc func(title string, filters []Filter) (string, error)
+// PickFunc shows a file picker and returns the chosen paths (one unless many),
+// or none if cancelled.
+type PickFunc func(title string, filters []Filter, many bool) ([]string, error)
 
 type source struct {
 	title   string
@@ -57,9 +59,18 @@ type source struct {
 	scan func() (*table, string, error)
 	// fixed sources know their columns, so the preview doesn't offer to change them.
 	fixed bool
+	// readFile adds one of several picked files to the table (named sources
+	// like .rdp files, which have no name inside); false when it has no host.
+	readFile func(t *table, filename string, data []byte) bool
 }
 
 var sources = map[string]source{
+	SourceRDPFiles: {
+		title:    "Import Remote Desktop files",
+		filters:  []Filter{{"Remote Desktop files (.rdp)", "*.rdp;*.RDP"}},
+		readFile: addRDPFile,
+		fixed:    true,
+	},
 	SourceCSV: {
 		title:   "Import hosts from a CSV or TSV file",
 		filters: []Filter{{"CSV or TSV", "*.csv;*.CSV;*.tsv;*.TSV;*.txt;*.TXT"}},
@@ -206,11 +217,34 @@ func (s *Service) Open(sourceID string) (*Preview, error) {
 		}
 		return s.adopt(sourceID, dir, t)
 	}
-	path, err := s.pick(src.title, src.filters)
-	if err != nil || path == "" {
+	paths, err := s.pick(src.title, src.filters, src.readFile != nil)
+	if err != nil || len(paths) == 0 || paths[0] == "" {
 		return nil, err
 	}
-	return s.load(sourceID, path)
+	if src.readFile != nil {
+		return s.loadFiles(sourceID, paths)
+	}
+	return s.load(sourceID, paths[0])
+}
+
+// loadFiles previews several files of a named source as one list.
+func (s *Service) loadFiles(sourceID string, paths []string) (*Preview, error) {
+	t := newFixedTable()
+	for _, path := range paths {
+		data, err := readFile(path)
+		if err != nil {
+			return nil, err
+		}
+		sources[sourceID].readFile(t, filepath.Base(path), data)
+	}
+	if len(t.rows) == 1 {
+		return nil, errors.New("no connections found in the chosen files")
+	}
+	label := paths[0]
+	if len(paths) > 1 {
+		label = strconv.Itoa(len(paths)) + " files"
+	}
+	return s.adopt(sourceID, label, t)
 }
 
 func (s *Service) load(sourceID, path string) (*Preview, error) {
