@@ -78,7 +78,7 @@ const defaults = (): Settings => ({
     ...defaultProfile(),
     confirmClose: true,
     closeOnExit: true,
-    copyOnSelect: false,
+    copyOnSelect: true,
     rightClickPaste: false,
     ctrlWheelZoom: true,
     shell: '',

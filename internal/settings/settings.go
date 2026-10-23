@@ -205,8 +205,10 @@ func Defaults() Settings {
 		UpdateCheck:   true,
 		SavePasswords: true,
 		Terminal: Terminal{
-			Profile:       DefaultProfile(),
-			ConfirmClose:  true,
+			Profile:      DefaultProfile(),
+			ConfirmClose: true,
+			// On for new installs since 2026-10-23; saved settings keep their choice.
+			CopyOnSelect:  true,
 			CloseOnExit:   true,
 			CtrlWheelZoom: true,
 		},

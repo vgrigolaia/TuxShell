@@ -5,6 +5,13 @@ All notable changes to TuxShell are listed here. Versions follow
 
 ## [Unreleased]
 
+### Changed
+
+- Copy on select is on for new installs: selecting text in a terminal copies it. Existing
+  settings keep their choice (Preferences → General → Copy on select).
+- A shortcut can be Shift with a key, such as Shift+Space for Paste, after a warning that
+  it's easy to press while typing. In text fields such a key still types.
+
 ## [1.4.3] - 2026-10-23
 
 ### Added
