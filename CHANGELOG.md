@@ -22,6 +22,14 @@ All notable changes to TuxShell are listed here. Versions follow
   macOS; Wayland doesn't let apps do that). The size is kept in `window.json` next to the
   settings.
 
+- Remote desktops in their own window can share this computer's printers and smart card
+  readers, pass USB devices through (beta; picked from a list of what's plugged in), or open
+  one program instead of the whole desktop (RemoteApp: an alias like ||notepad or a path).
+- Import Windows Remote Desktop (`.rdp`) files, several at once: address, user and domain,
+  screen, sharing, sound, gateway and RemoteApp come along. Their saved passwords are
+  encrypted with the Windows account's key, so they can't be read and are left out.
+- Remmina imports bring printer and smart card sharing along.
+
 ### Changed
 
 - The hosts sidebar can be resized: drag the gap between it and the terminals (double-click

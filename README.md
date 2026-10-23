@@ -60,10 +60,11 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
   from its right-click menu (a deleted group's hosts stay, ungrouped).
 - **Remote desktops (RDP)**: connect to Windows machines like any other host. Open them in
   their own window (FreeRDP 3: shared folders, copy and paste of text and files, sound and
-  microphone, quality presets, RD Gateway, multiple monitors) or inside a TuxShell tab (beta,
-  built in: copy and paste of text and files, resizes with the tab). Certificates are pinned
-  and you're warned if one changes. RDP hosts can go through an SSH jump host, and Remmina
-  connections import with their settings.
+  microphone, printers, smart cards, USB devices (beta), one program only (RemoteApp), quality
+  presets, RD Gateway, multiple monitors) or inside a TuxShell tab (beta, built in: copy and
+  paste of text and files, resizes with the tab). Certificates are pinned and you're warned if
+  one changes. RDP hosts can go through an SSH jump host, and Remmina connections and Windows
+  `.rdp` files import with their settings.
 - **Terminal profiles**: per-host colours, background image, pane header colour, scrolling
   and bell options, and a command to run on connect.
 - **History and recording**: Home → History lists your connections (never commands or
@@ -80,7 +81,8 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
   edit a file in your desktop editor and upload it back. Never overwrites files on either
   side unasked.
 - **Import and export**: import from `~/.ssh/config` (usernames optional), CSV/TSV, Excel
-  (.xlsx), MobaXterm, Remmina, PuTTY (Linux or a Windows .reg export) and Ansible INI
+  (.xlsx), MobaXterm, Remmina, Remote Desktop (.rdp) files, PuTTY (Linux or a Windows .reg
+  export) and Ansible INI
   inventories, with a preview of every host before it's saved. A ready-to-fill CSV template
   is included. Export as TuxShell JSON, CSV or ssh_config (Preferences → Hosts). Exports never
   contain passwords; imported passwords are kept only if you allow saving passwords.
