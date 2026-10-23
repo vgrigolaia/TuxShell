@@ -5,23 +5,22 @@ All notable changes to TuxShell are listed here. Versions follow
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-23
+
 ### Added
 
 - Saved layouts: save open tabs with their split panes (right-click a tab → Save tab as
   layout, or Home → Layouts → Save open tabs) and open them again in one go from Home →
   Layouts or Ctrl+K. One layout can open when TuxShell starts. Panes whose host was deleted
   are skipped, with a note.
-
 - Proxmox VE in a host's OS list, with its logo. Imports read "Proxmox" from an OS column too.
 - A Detect button next to a host's operating system. Only when clicked, it reads
   `/etc/os-release` through a session that's already open to the host (it never logs in for
   this), or else the ssh server's greeting, which names Ubuntu, Debian, FreeBSD and Windows.
-
 - Window options in Preferences → General: open the window as you left it (size and
   maximized), always maximized, or full screen; and keep it on top of other windows (X11 and
   macOS; Wayland doesn't let apps do that). The size is kept in `window.json` next to the
   settings.
-
 - Remote desktops in their own window can share this computer's printers and smart card
   readers, pass USB devices through (beta; picked from a list of what's plugged in), or open
   one program instead of the whole desktop (RemoteApp: an alias like ||notepad or a path).
@@ -339,6 +338,7 @@ First release.
 - Dark and light themes, or follow the system.
 - Packages for Fedora/RHEL (.rpm), Debian/Ubuntu (.deb) and an AppImage.
 
+[1.5.0]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.5.0
 [1.4.3]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.4.3
 [1.4.2]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.4.2
 [1.4.1]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.4.1
