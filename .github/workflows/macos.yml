@@ -1,5 +1,6 @@
 # Builds the macOS app (one universal .dmg for Apple silicon and Intel) and
 # runs the Go tests on macOS. The .dmg is ad-hoc signed, not notarized.
+# release/* branches build it too, so a release's .dmg is checked before its tag.
 # On a v* tag the .dmg is also added to that tag's GitHub Release (a draft is
 # created when there is none yet; the Linux packages and notes are added by hand).
 # Run it by hand with a tag (Actions → macOS → Run workflow) to build the
@@ -9,7 +10,7 @@ name: macOS
 on:
   push:
     tags: ["v*"]
-    branches: [feature/macos]
+    branches: [feature/macos, "release/*"]
   workflow_dispatch:
     inputs:
       tag:
@@ -21,7 +22,41 @@ permissions:
   contents: read
 
 jobs:
+  # The icon macOS 26 shows (Assets.car, from build/appicon.icon) can only be
+  # compiled on macOS 26 (actool 26). Older macOS uses icons.icns, so when this
+  # job fails the .dmg is still built, with a warning.
+  icon:
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.x"
+          check-latest: true
+
+      - name: Compile Assets.car
+        run: |
+          sw_vers
+          xcrun actool --version
+          go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.28
+          mkdir out
+          "$(go env GOPATH)/bin/wails3" generate icons -iconcomposerinput build/appicon.icon -macassetdir out
+          ls -l out
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: assets-car
+          path: out/Assets.car
+          if-no-files-found: error
+
   build:
+    needs: icon
+    # Also when the icon job failed (see above).
+    if: ${{ !cancelled() }}
     runs-on: macos-15
     timeout-minutes: 40
     steps:
@@ -54,6 +89,18 @@ jobs:
 
       - name: Install frontend packages
         run: npm ci --prefix frontend
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        continue-on-error: true
+        with:
+          name: assets-car
+          path: build/darwin
+
+      - name: Check the macOS 26 icon
+        run: |
+          if [ -f build/darwin/Assets.car ]; then ls -l build/darwin/Assets.car
+          else echo "::warning title=icon::No Assets.car (the icon job failed): macOS 26 shows icons.icns in a frame."
+          fi
 
       - name: Test
         shell: bash
@@ -103,7 +150,8 @@ jobs:
   # A separate job, so only this one can write to the repository's releases;
   # the build (which runs npm packages) keeps a read-only token.
   release:
-    if: startsWith(github.ref, 'refs/tags/v') || inputs.tag != ''
+    # Only the build has to succeed; a failed icon job just leaves the older-style icon.
+    if: ${{ !cancelled() && needs.build.result == 'success' && (startsWith(github.ref, 'refs/tags/v') || inputs.tag != '') }}
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
