@@ -25,6 +25,9 @@ type Settings struct {
 	Theme string `json:"theme"`
 	// HostsSidebar shows the hosts sidebar.
 	HostsSidebar bool `json:"hostsSidebar"`
+	// SidebarWidth is the hosts sidebar's width in pixels, set by dragging its
+	// edge; 0 means the default.
+	SidebarWidth int `json:"sidebarWidth"`
 	// TabsPosition puts the open tabs in the left panel ("left") or the title bar ("top").
 	TabsPosition string `json:"tabsPosition"`
 	// GroupOrder is the order of host groups chosen by dragging; groups not
@@ -60,6 +63,10 @@ type Settings struct {
 	// ("Ctrl+Shift+L"). Actions not listed keep their default; "" turns one off.
 	// The actions and their defaults live in the frontend.
 	Keybindings map[string]string `json:"keybindings"`
+	// Window holds the global window options (Preferences → General → Window).
+	Window Window `json:"window"`
+	// Layouts are saved sets of tabs and split panes, opened in one go.
+	Layouts []Layout `json:"layouts"`
 }
 
 // History says whether and how long connections are remembered.
@@ -205,8 +212,10 @@ func Defaults() Settings {
 		UpdateCheck:   true,
 		SavePasswords: true,
 		Terminal: Terminal{
-			Profile:       DefaultProfile(),
-			ConfirmClose:  true,
+			Profile:      DefaultProfile(),
+			ConfirmClose: true,
+			// On for new installs since 2026-10-23; saved settings keep their choice.
+			CopyOnSelect:  true,
 			CloseOnExit:   true,
 			CtrlWheelZoom: true,
 		},
@@ -217,6 +226,8 @@ func Defaults() Settings {
 		History:              History{Enabled: true, Days: 90, Max: 1000},
 		RDPClient:            "auto",
 		Keybindings:          map[string]string{},
+		Layouts:              []Layout{},
+		Window:               Window{Start: "last"},
 	}
 }
 
@@ -290,10 +301,15 @@ func (s *Settings) normalize() {
 	s.Terminal.Profile.normalize()
 	oneOf(&s.RDPClient, d.RDPClient, "auto", "x11", "sdl")
 	oneOf(&s.TabsPosition, d.TabsPosition, "left", "top")
+	oneOf(&s.Window.Start, d.Window.Start, "last", "maximized", "fullscreen")
+	if s.SidebarWidth != 0 && (s.SidebarWidth < MinSidebarWidth || s.SidebarWidth > MaxSidebarWidth) {
+		s.SidebarWidth = 0
+	}
 	s.GroupOrder = cleanGroupOrder(s.GroupOrder)
 	s.EmptyGroups = cleanGroupOrder(s.EmptyGroups)
 	s.HiddenSSHConfigHosts = cleanGroupOrder(s.HiddenSSHConfigHosts)
 	s.Keybindings = cleanKeybindings(s.Keybindings)
+	s.Layouts = cleanLayouts(s.Layouts)
 	if s.History.Days == 0 {
 		s.History.Days = d.History.Days
 	}
@@ -396,6 +412,12 @@ func oneOf(v *string, def string, allowed ...string) {
 	}
 	*v = def
 }
+
+// The hosts sidebar can be dragged between these widths (pixels).
+const (
+	MinSidebarWidth = 200
+	MaxSidebarWidth = 520
+)
 
 // Limits for GroupOrder, EmptyGroups and HiddenSSHConfigHosts, so a hand-edited file stays small.
 const (

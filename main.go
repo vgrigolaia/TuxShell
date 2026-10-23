@@ -20,6 +20,7 @@ import (
 	"github.com/vgrigolaia/tuxshell/internal/hosts"
 	"github.com/vgrigolaia/tuxshell/internal/login"
 	"github.com/vgrigolaia/tuxshell/internal/onepassword"
+	"github.com/vgrigolaia/tuxshell/internal/osdetect"
 	"github.com/vgrigolaia/tuxshell/internal/platform"
 	"github.com/vgrigolaia/tuxshell/internal/rdp"
 	"github.com/vgrigolaia/tuxshell/internal/recordings"
@@ -116,13 +117,17 @@ func main() {
 			PromptForMultipleSelection()
 	})
 	files.UseEvents(fileBrowser, func(name string, data any) { app.Event.Emit(name, data) })
-	hostFiles := hostio.NewService(store, func(title string, filters []hostio.Filter) (string, error) {
+	hostFiles := hostio.NewService(store, func(title string, filters []hostio.Filter, many bool) ([]string, error) {
 		d := app.Dialog.OpenFile().CanChooseFiles(true).SetTitle(title).SetButtonText("Open")
 		for _, f := range filters {
 			d.AddFilter(f.Name, f.Pattern)
 		}
 		d.AddFilter("All files", "*")
-		return d.PromptForSingleSelection()
+		if many {
+			return d.PromptForMultipleSelection()
+		}
+		path, err := d.PromptForSingleSelection()
+		return []string{path}, err
 	}, func(title, filename string, filters []hostio.Filter) (string, error) {
 		opts := &application.SaveFileDialogOptions{Title: title, Filename: filename, ButtonText: "Export", CanCreateDirectories: true}
 		for _, f := range filters {
@@ -233,6 +238,7 @@ func main() {
 			application.NewService(terminals),
 			application.NewService(logins.Service()),
 			application.NewService(hosts.NewService(store)),
+			application.NewService(osdetect.NewService(resolver)),
 			application.NewService(sshconfig.NewService(store, sshConfigPath)),
 			application.NewService(hostFiles),
 			application.NewService(clips),
@@ -264,12 +270,31 @@ func main() {
 		app.Menu.SetApplicationMenu(menu)
 	}
 
+	// Window options (Preferences → General → Window) and how the window was
+	// when TuxShell last closed.
+	windowPrefs := prefs.Get().Settings.Window
+	windowStatePath := settings.WindowStatePath(settingsPath)
+	last := settings.LoadWindowState(windowStatePath)
+	width, height := 1280, 800
+	if last.Width > 0 {
+		width, height = last.Width, last.Height
+	}
+	startState := application.WindowStateNormal
+	switch {
+	case windowPrefs.Start == "fullscreen":
+		startState = application.WindowStateFullscreen
+	case windowPrefs.Start == "maximized", windowPrefs.Start == "last" && last.Maximized:
+		startState = application.WindowStateMaximised
+	}
+
 	window := app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:     "TuxShell",
-		Width:     1280,
-		Height:    800,
-		MinWidth:  760,
-		MinHeight: 480,
+		Title:       "TuxShell",
+		Width:       width,
+		Height:      height,
+		MinWidth:    settings.MinWindowWidth,
+		MinHeight:   settings.MinWindowHeight,
+		StartState:  startState,
+		AlwaysOnTop: windowPrefs.AlwaysOnTop,
 		// Linux: our own title bar instead of the window manager's. macOS keeps
 		// its close/minimize/zoom buttons, over our title bar.
 		Frameless:        runtime.GOOS != "darwin",
@@ -285,6 +310,17 @@ func main() {
 		if n := terminals.LiveCount(); n > 0 && prefs.Get().Settings.Terminal.ConfirmClose {
 			e.Cancel()
 			app.Event.Emit(eventConfirmClose, n)
+			return
+		}
+		// Remember the size for next time. A maximized or fullscreen window keeps
+		// the last normal size, so un-maximizing later goes back to it.
+		state := settings.LoadWindowState(windowStatePath)
+		state.Maximized = window.IsMaximised()
+		if !state.Maximized && !window.IsFullscreen() {
+			state.Width, state.Height = window.Size()
+		}
+		if err := settings.SaveWindowState(windowStatePath, state); err != nil {
+			log.Printf("save window size: %v", err)
 		}
 	})
 

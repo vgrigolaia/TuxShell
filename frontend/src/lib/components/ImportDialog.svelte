@@ -31,6 +31,7 @@
       sources: [
         { id: 'mobaxterm', title: 'MobaXterm', detail: 'A session export (.mxtsessions): Settings → Export sessions' },
         { id: 'remmina', title: 'Remmina', detail: 'SSH and remote desktop (RDP) connections saved in Remmina' },
+        { id: 'rdpfiles', title: 'Remote Desktop files', detail: 'One or more .rdp files, e.g. saved from Windows Remote Desktop' },
         { id: 'putty', title: 'PuTTY', detail: 'Sessions saved by PuTTY on this computer (~/.putty)' },
         { id: 'puttyreg', title: 'PuTTY on Windows', detail: 'A .reg export of the PuTTY Sessions registry key' },
         { id: 'ansible', title: 'Ansible inventory', detail: 'An INI inventory file; groups and host variables are read' },

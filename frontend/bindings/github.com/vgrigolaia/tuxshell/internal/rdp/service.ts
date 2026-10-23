@@ -12,6 +12,10 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as hosts$0 from "../hosts/models.js";
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
 /**
@@ -84,4 +88,13 @@ export function PickFiles(key: string): $CancellablePromise<$models.Offered[] | 
  */
 export function Sessions(): $CancellablePromise<$models.Session[] | null> {
     return $Call.ByID(3365369934);
+}
+
+/**
+ * USBDevices lists the USB devices plugged into this computer that can be
+ * passed to a remote desktop, by vendor:product id. Hubs are left out. On
+ * systems without /sys (macOS) the list is empty.
+ */
+export function USBDevices(): $CancellablePromise<hosts$0.USBDevice[] | null> {
+    return $Call.ByID(729626498);
 }

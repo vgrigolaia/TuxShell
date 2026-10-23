@@ -222,6 +222,8 @@ func addRemminaRDP(t *table, v map[string]string, password string) {
 	}
 	r.Multimon = v["multimon"] == "1"
 	r.Clipboard = v["disableclipboard"] != "1"
+	r.Printers = v["shareprinter"] == "1"
+	r.SmartCards = v["sharesmartcard"] == "1"
 	switch v["sound"] {
 	case "local", "remote":
 		r.Sound = v["sound"]

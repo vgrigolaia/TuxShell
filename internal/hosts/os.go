@@ -4,12 +4,14 @@ import "strings"
 
 // OSes are the operating systems a host can be marked with; the frontend has
 // a logo for each. "" means not set.
-var OSes = []string{"ubuntu", "debian", "rhel", "almalinux", "rocky", "fedora", "centos", "opensuse", "arch", "alpine", "freebsd", "windows", "linux"}
+var OSes = []string{"ubuntu", "debian", "rhel", "almalinux", "rocky", "fedora", "centos", "opensuse", "arch", "alpine", "freebsd", "proxmox", "windows", "linux"}
 
 // osWords maps words found in free text ("Ubuntu 24.04", "Red Hat
 // Enterprise Linux 9") to an OS id. Checked in order, so specific names come
 // before the generic "linux".
 var osWords = []struct{ word, os string }{
+	// Before "debian": Proxmox VE is Debian-based and often described as both.
+	{"proxmox", "proxmox"},
 	{"ubuntu", "ubuntu"},
 	{"debian", "debian"},
 	{"alma", "almalinux"},

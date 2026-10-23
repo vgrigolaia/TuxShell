@@ -90,7 +90,7 @@ func TestRemmina(t *testing.T) {
 		"3.remmina": "[remmina]\nname=COPY 10.14.51.40-Khudadovi\ngroup=milesone-branches\nprotocol=RDP\nserver=10.14.51.40:3390\nusername=admin\ndomain=CORP\n" +
 			"password=.\nresolution_mode=0\nresolution_width=1920\nresolution_height=1080\nviewmode=4\nmultimon=1\ndisableclipboard=0\nsound=local\n" +
 			"quality=9\ncolordepth=99\ndrive=/home/me/Shared Stuff/\ngateway_server=gw.example.com:8443\ngateway_username=gwuser\n" +
-			"ssh_tunnel_enabled=1\nssh_tunnel_server=bastion.example.com:2222\nssh_tunnel_username=ops\n",
+			"ssh_tunnel_enabled=1\nssh_tunnel_server=bastion.example.com:2222\nssh_tunnel_username=ops\nshareprinter=1\nsharesmartcard=0\n",
 		"4.remmina": "[remmina]\nname=VNC box\nprotocol=VNC\nserver=10.0.0.30\n",
 	}
 	for n, body := range files {
@@ -126,7 +126,8 @@ func TestRemmina(t *testing.T) {
 	if w.Error != "" || w.Host.Protocol != hosts.ProtocolRDP || w.Host.Hostname != "10.14.51.40" || w.Host.Port != 3390 || w.Host.Group != "milesone-branches" ||
 		r.Domain != "CORP" || r.Size != "fixed" || r.Width != 1920 || r.Window != "fullscreen" || !r.Multimon || r.Sound != "local" || r.Quality != "best" ||
 		len(r.Folders) != 1 || r.Folders[0].Name != "Shared Stuff" || r.Folders[0].Path != "/home/me/Shared Stuff" ||
-		r.Gateway.Host != "gw.example.com" || r.Gateway.Port != 8443 || r.Gateway.User != "gwuser" || w.Host.ProxyJump != "ops@bastion.example.com:2222" {
+		r.Gateway.Host != "gw.example.com" || r.Gateway.Port != 8443 || r.Gateway.User != "gwuser" || w.Host.ProxyJump != "ops@bastion.example.com:2222" ||
+		!r.Printers || r.SmartCards {
 		t.Errorf("RDP row = %+v (%s)", w.Host, w.Error)
 	}
 }

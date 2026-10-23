@@ -243,6 +243,11 @@ class Keybindings {
   /** The action a key press runs, if any. */
   match(e: KeyboardEvent): ActionId | null {
     if (this.recording) return null
+    // A Shift-only shortcut (allowed with a warning) keeps typing in text fields;
+    // the terminal's own input (xterm's textarea) still gets the shortcut.
+    const t = e.target
+    if (!e.ctrlKey && !e.altKey && !e.metaKey && !/^F\d+$/.test(e.code) && t instanceof HTMLElement)
+      if (t.matches('input, textarea, select, [contenteditable]') && !t.classList.contains('xterm-helper-textarea')) return null
     const c = comboOf(e)
     return c ? (this.table.get(c) ?? null) : null
   }
@@ -293,10 +298,16 @@ export function checkCombo(combo: string): {
   const only = (...mods: string[]) => parts.length === mods.length && mods.every(has)
   const shown = formatCombo(combo)
   if (/^F\d+$/.test(key)) return {}
-  if (!has('Ctrl') && !has('Alt') && !has('Cmd'))
+  if (!has('Ctrl') && !has('Alt') && !has('Cmd')) {
+    if (!has('Shift'))
+      return {
+        error: `${shown} alone would stop that key from typing. Add ${isMac ? '⌘, ⌥ or ⌃' : 'Ctrl or Alt'}, or use an F key.`,
+      }
+    // Allowed, but it's easy to press while typing with Shift held for capitals.
     return {
-      error: `${shown} alone would stop that key from typing. Add ${isMac ? '⌘, ⌥ or ⌃' : 'Ctrl or Alt'}, or use an F key.`,
+      warning: `${shown} is easy to press while typing (Shift held for capitals); the terminal won't get it any more. ${isMac ? '⌘, ⌥ or ⌃' : 'Ctrl or Alt'} is safer.`,
     }
+  }
   if (isMac && only('Cmd') && ['Q', 'H', 'M', 'W', 'Tab'].includes(key)) return { error: `macOS uses ${shown} itself.` }
   if (!isMac && only('Ctrl') && ['C', 'D', 'Z'].includes(key))
     return {

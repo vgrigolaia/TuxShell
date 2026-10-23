@@ -2,6 +2,7 @@ package hosts
 
 import (
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -74,6 +75,58 @@ func TestRDPHost(t *testing.T) {
 		var ve *ValidationError
 		if _, err := s.Save(h); !errors.As(err, &ve) {
 			t.Errorf("%s: saved (%v)", name, err)
+		}
+	}
+}
+
+func TestRDPPhase2Options(t *testing.T) {
+	s := openTemp(t)
+	base := func() Host {
+		return Host{Name: "win", Hostname: "10.0.5.4", Protocol: ProtocolRDP, Tags: []string{}, RDP: DefaultRDP()}
+	}
+	h := base()
+	h.RDP.Printers, h.RDP.SmartCards = true, true
+	h.RDP.USB = []USBDevice{{ID: " 046D:C52B ", Name: "Receiver"}, {ID: ""}}
+	h.RDP.RemoteApp = RemoteApp{Program: " ||notepad ", Args: " a b "}
+	saved, err := s.Save(h)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, _ := s.Get(saved.ID)
+	r := got.RDP
+	if !r.Printers || !r.SmartCards || len(r.USB) != 1 || r.USB[0].ID != "046d:c52b" || r.RemoteApp != (RemoteApp{Program: "||notepad", Args: "a b"}) {
+		t.Fatalf("stored = %+v", r)
+	}
+	// Only a name or arguments without a program is no RemoteApp.
+	h = base()
+	h.Name = "win2"
+	h.RDP.RemoteApp = RemoteApp{Name: "x"}
+	if saved, err = s.Save(h); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := s.Get(saved.ID); got.RDP.RemoteApp != (RemoteApp{}) || got.RDP.USB == nil {
+		t.Fatalf("empty remote app = %+v", got.RDP)
+	}
+
+	for name, set := range map[string]func(*RDP){
+		"usb id":    func(r *RDP) { r.USB = []USBDevice{{ID: "46d:c52b"}} },
+		"usb comma": func(r *RDP) { r.USB = []USBDevice{{ID: "046d:c52b", Name: "a,b"}} },
+		"usb many": func(r *RDP) {
+			r.USB = make([]USBDevice, 11)
+			for i := range r.USB {
+				r.USB[i].ID = "046d:c52b"
+			}
+		},
+		"app comma": func(r *RDP) { r.RemoteApp = RemoteApp{Program: `C:\a,b.exe`} },
+		"app args":  func(r *RDP) { r.RemoteApp = RemoteApp{Program: "||x", Args: "a,b"} },
+		"app break": func(r *RDP) { r.RemoteApp = RemoteApp{Program: "||x\n/v:evil"} },
+	} {
+		h := base()
+		h.Name = name
+		set(&h.RDP)
+		var ve *ValidationError
+		if _, err := s.Save(h); !errors.As(err, &ve) || !strings.HasPrefix(ve.Field, "rdp.") {
+			t.Errorf("%s: saved or wrong field (%v)", name, err)
 		}
 	}
 }

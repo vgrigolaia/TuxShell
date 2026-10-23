@@ -32,7 +32,11 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
   open the host list next to your sessions.
 - **Hosts**: saved hosts with groups, tags, jump hosts (ProxyJump) and identity files.
   Filter, bulk select and delete. Optional operating system per host, shown with its logo
-  (Ubuntu, Debian, RHEL, AlmaLinux, Rocky, Fedora and more).
+  (Ubuntu, Debian, RHEL, AlmaLinux, Rocky, Fedora, Proxmox and more). The host editor's
+  Detect button fills it in when you click it: with a session open to the host it reads
+  `/etc/os-release` through that connection (`cat /etc/os-release`, nothing else); otherwise it
+  reads the greeting the ssh server sends before login, which names Ubuntu, Debian, FreeBSD and
+  Windows. TuxShell never runs it by itself.
   Hosts without a saved user ask for one when you connect, with an option to save it.
 - **Host status**: a dot shows which hosts answer ping (up, slow or down). Checked with
   ICMP, never by opening SSH connections; can be turned off. Test a host's login from its form.
@@ -46,16 +50,21 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
   out to its own tab, maximize a pane, drag dividers to resize. Open tabs are listed in the
   left panel above your hosts (or shrink to a strip of icons when it's hidden); drag to
   reorder them. Prefer the classic strip? Preferences → General → Open tabs.
+- **Saved layouts**: save a set of tabs with their split panes (right-click a tab → Save tab
+  as layout, or Home → Layouts) and open them all again in one click, from Home or Ctrl+K.
+  One layout can open at startup. A layout keeps which hosts are open and how they're split,
+  never anything typed in them.
 - **Organize your hosts**: drag groups and hosts to put them in your own order, or into
   another group. The same with the keyboard (Alt+↑/↓) and from the right-click menu.
   Make an empty group with the folder button next to New host; rename or delete a group
   from its right-click menu (a deleted group's hosts stay, ungrouped).
 - **Remote desktops (RDP)**: connect to Windows machines like any other host. Open them in
   their own window (FreeRDP 3: shared folders, copy and paste of text and files, sound and
-  microphone, quality presets, RD Gateway, multiple monitors) or inside a TuxShell tab (beta,
-  built in: copy and paste of text and files, resizes with the tab). Certificates are pinned
-  and you're warned if one changes. RDP hosts can go through an SSH jump host, and Remmina
-  connections import with their settings.
+  microphone, printers, smart cards, USB devices (beta), one program only (RemoteApp), quality
+  presets, RD Gateway, multiple monitors) or inside a TuxShell tab (beta, built in: copy and
+  paste of text and files, resizes with the tab). Certificates are pinned and you're warned if
+  one changes. RDP hosts can go through an SSH jump host, and Remmina connections and Windows
+  `.rdp` files import with their settings.
 - **Terminal profiles**: per-host colours, background image, pane header colour, scrolling
   and bell options, and a command to run on connect.
 - **History and recording**: Home → History lists your connections (never commands or
@@ -72,7 +81,8 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
   edit a file in your desktop editor and upload it back. Never overwrites files on either
   side unasked.
 - **Import and export**: import from `~/.ssh/config` (usernames optional), CSV/TSV, Excel
-  (.xlsx), MobaXterm, Remmina, PuTTY (Linux or a Windows .reg export) and Ansible INI
+  (.xlsx), MobaXterm, Remmina, Remote Desktop (.rdp) files, PuTTY (Linux or a Windows .reg
+  export) and Ansible INI
   inventories, with a preview of every host before it's saved. A ready-to-fill CSV template
   is included. Export as TuxShell JSON, CSV or ssh_config (Preferences → Hosts). Exports never
   contain passwords; imported passwords are kept only if you allow saving passwords.
@@ -85,7 +95,8 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
   Each clip shows which host it was copied from.
 - **Preferences** (Ctrl+,): font (bundled or any installed monospace font), size, spacing,
   weights, cursor, colour schemes (Solarized, Dracula, Nord, Gruvbox, One Dark, Tango…),
-  scrollback, copy on select, right-click paste, bell, local shell. Saved to
+  scrollback, copy on select, right-click paste, bell, local shell, how the window opens
+  (as you left it, maximized or full screen) and always on top (X11 and macOS). Saved to
   `~/.config/tuxshell/settings.json` (on macOS in `~/Library/Application Support/TuxShell/`).
 - **Terminal menu** (right-click): copy, paste, set title, split, open in new tab, read
   only, scrollbar, zoom. Ctrl+mouse wheel zooms text.
@@ -96,7 +107,8 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
 
 All shortcuts are listed in Preferences → Shortcuts, where you can change them or turn them off
 (click Change and press the new keys). A shortcut needs Ctrl, Alt or an F key, and keys the
-terminal needs, like Ctrl+C, can't be taken. On macOS the app's shortcuts use ⌘ where this page
+terminal needs, like Ctrl+C, can't be taken. Shift with a key (Shift+Space) is allowed after a
+warning, since it's easy to press while typing; in text fields such a key still types. On macOS the app's shortcuts use ⌘ where this page
 says Ctrl (Ctrl+Shift+L becomes ⇧⌘L), and the terminal copies and pastes with ⌘C and ⌘V, so Ctrl
 stays with the programs in the terminal.
 
@@ -108,24 +120,24 @@ Download TuxShell from the [releases page](https://github.com/vgrigolaia/tuxshel
 
 ```sh
 # Fedora, RHEL, AlmaLinux, Rocky Linux
-sudo dnf install ./tuxshell-1.4.3-1.x86_64.rpm
+sudo dnf install ./tuxshell-1.5.0-1.x86_64.rpm
 
 # Debian, Ubuntu
-sudo apt install ./tuxshell_1.4.3-1_amd64.deb
+sudo apt install ./tuxshell_1.5.0-1_amd64.deb
 ```
 
 Or run the AppImage on any distribution:
 
 ```sh
-chmod +x TuxShell-1.4.3-x86_64.AppImage
-./TuxShell-1.4.3-x86_64.AppImage
+chmod +x TuxShell-1.5.0-x86_64.AppImage
+./TuxShell-1.5.0-x86_64.AppImage
 ```
 
 Or install the Flatpak on any distribution with [Flatpak and Flathub set up](https://flathub.org/setup).
 The GNOME runtime it needs is installed from Flathub along with it:
 
 ```sh
-flatpak install --user TuxShell-1.4.3-x86_64.flatpak
+flatpak install --user TuxShell-1.5.0-x86_64.flatpak
 flatpak run io.github.vgrigolaia.TuxShell
 ```
 

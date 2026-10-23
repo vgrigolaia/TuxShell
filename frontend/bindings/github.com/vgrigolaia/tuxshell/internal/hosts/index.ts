@@ -15,7 +15,9 @@ export type {
     Gateway,
     Host,
     RDP,
+    RemoteApp,
     Snippet,
     Tunnel,
+    USBDevice,
     Visit
 } from "./models.js";

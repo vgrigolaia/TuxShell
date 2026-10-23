@@ -50,6 +50,10 @@ export const defaultRDP = (): Host['rdp'] => ({
   microphone: false,
   quality: 'balanced',
   gateway: { host: '', port: 443, user: '', domain: '' },
+  printers: false,
+  smartCards: false,
+  usb: [],
+  remoteApp: { program: '', name: '', args: '' },
 })
 
 /** Name of the automatic group holding jump hosts. */

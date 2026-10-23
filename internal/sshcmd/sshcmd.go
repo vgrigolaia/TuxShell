@@ -2,6 +2,7 @@
 package sshcmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -288,6 +289,50 @@ func (r Resolver) ControlCommand(id int64, op string, f Forward) (*exec.Cmd, err
 		args = append(args, f[0], f[1])
 	}
 	return r.command(ssh, append(args, Args(h)...)...), nil
+}
+
+// Endpoint is where ssh would connect for a saved host.
+type Endpoint struct {
+	Hostname string
+	Port     int
+	// Proxied is true when ssh goes through a jump host or a ProxyCommand.
+	Proxied bool
+}
+
+// Endpoint asks `ssh -G` (reads the config, connects to nothing) where the
+// host's connection would go, ~/.ssh/config included.
+func (r Resolver) Endpoint(ctx context.Context, id int64) (Endpoint, error) {
+	h, err := r.host(id, nil)
+	if err != nil {
+		return Endpoint{}, err
+	}
+	ssh, err := sshPath()
+	if err != nil {
+		return Endpoint{}, err
+	}
+	out, err := exec.CommandContext(ctx, ssh, append([]string{"-G"}, Args(h)...)...).Output()
+	if err != nil {
+		return Endpoint{}, fmt.Errorf("ssh -G: %w", err)
+	}
+	return parseEndpoint(string(out)), nil
+}
+
+func parseEndpoint(out string) Endpoint {
+	var e Endpoint
+	for line := range strings.Lines(out) {
+		key, val, _ := strings.Cut(strings.TrimSpace(line), " ")
+		switch strings.ToLower(key) {
+		case "hostname":
+			e.Hostname = val
+		case "port":
+			e.Port, _ = strconv.Atoi(val)
+		case "proxyjump", "proxycommand":
+			if val != "" && val != "none" {
+				e.Proxied = true
+			}
+		}
+	}
+	return e
 }
 
 // TargetRemote returns a batch runner for an ad-hoc target.

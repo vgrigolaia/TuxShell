@@ -16,6 +16,8 @@ export interface TabActions {
   move: (key: number, index: number) => void
   newShell: () => void
   home: () => void
+  /** Saves these tabs as a layout (asks for its name). */
+  saveLayout: (keys: number[]) => void
 }
 
 /** Ctrl+click picks several tabs for bulk actions; shared by every tab view. */
@@ -60,6 +62,7 @@ export function tabMenu(tabs: TabInfo[], key: number, a: TabActions): MenuItem[]
       items.push({ label: `Split selected side by side (${sel.length})`, run: () => (a.merge(sel, 'row'), picked.clear()) })
       if (total < 4) items.push({ label: `Split selected stacked (${sel.length})`, run: () => (a.merge(sel, 'column'), picked.clear()) })
     }
+    items.push({ label: `Save selected as layout… (${sel.length})`, run: () => (a.saveLayout(tabs.filter((t) => picked.has(t.key)).map((t) => t.key)), picked.clear()) })
     items.push({ label: `Close selected (${sel.length})`, run: () => (a.closeMany(sel), picked.clear()) })
   }
   if (tab.panes < MAX_PANES) {
@@ -68,6 +71,8 @@ export function tabMenu(tabs: TabInfo[], key: number, a: TabActions): MenuItem[]
   }
   if (tab.panes > 1) items.push({ label: 'Unsplit into tabs', run: () => a.unsplit(key) })
   items.push({ label: 'Rename tab…', separator: true, run: () => a.rename(key) })
+  items.push({ label: 'Save tab as layout…', run: () => a.saveLayout([key]) })
+  if (tabs.length > 1) items.push({ label: `Save all ${tabs.length} tabs as layout…`, run: () => a.saveLayout(tabs.map((t) => t.key)) })
   items.push({ label: 'Close', run: () => a.close(key) })
   if (others.length) items.push({ label: 'Close others', run: () => a.closeMany(others) })
   if (after.length) items.push({ label: 'Close tabs after this one', run: () => a.closeMany(after) })

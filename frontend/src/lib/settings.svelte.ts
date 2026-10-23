@@ -62,9 +62,12 @@ const BUNDLED_CSS = '"JetBrains Mono Variable"'
 const defaults = (): Settings => ({
   theme: 'dark',
   hostsSidebar: true,
+  sidebarWidth: 0,
   tabsPosition: 'left',
   groupOrder: [],
   emptyGroups: [],
+  layouts: [],
+  window: { start: 'last', alwaysOnTop: false },
   hiddenSshConfigHosts: [],
   hostStatus: true,
   updateCheck: true,
@@ -78,7 +81,7 @@ const defaults = (): Settings => ({
     ...defaultProfile(),
     confirmClose: true,
     closeOnExit: true,
-    copyOnSelect: false,
+    copyOnSelect: true,
     rightClickPaste: false,
     ctrlWheelZoom: true,
     shell: '',
@@ -223,6 +226,23 @@ class Preferences {
 
   setGroupOrder(order: string[]) {
     this.value.groupOrder = order
+    this.queueSave()
+  }
+
+  /** Window options; always-on-top applies at once, the start mode next time. */
+  setWindow(patch: Partial<Settings['window']>) {
+    this.value.window = { ...this.value.window, ...patch }
+    this.queueSave()
+  }
+
+  setLayouts(list: Settings['layouts']) {
+    this.value.layouts = list
+    this.queueSave()
+  }
+
+  /** The hosts sidebar's dragged width; 0 for the default. */
+  setSidebarWidth(px: number) {
+    this.value.sidebarWidth = px
     this.queueSave()
   }
 

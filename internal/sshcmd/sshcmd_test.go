@@ -213,3 +213,16 @@ func TestAgentOnlyWhereConfigPicksNone(t *testing.T) {
 		}
 	}
 }
+
+func TestParseEndpoint(t *testing.T) {
+	e := parseEndpoint("user root\nhostname 10.0.0.5\nport 2222\nproxyjump none\n")
+	if e != (Endpoint{Hostname: "10.0.0.5", Port: 2222}) {
+		t.Fatalf("direct: %+v", e)
+	}
+	if e := parseEndpoint("hostname db\nport 22\nproxyjump bastion\n"); !e.Proxied {
+		t.Fatalf("jump: %+v", e)
+	}
+	if e := parseEndpoint("hostname db\nport 22\nproxycommand nc -X 5 %h %p\n"); !e.Proxied {
+		t.Fatalf("proxy command: %+v", e)
+	}
+}

@@ -8,10 +8,14 @@ export {
 
 export type {
     History,
+    Layout,
+    LayoutPane,
+    LayoutTab,
     Loaded,
     NamedProfile,
     Palette,
     Profile,
     Settings,
-    Terminal
+    Terminal,
+    Window
 } from "./models.js";

@@ -228,7 +228,7 @@ func TestOS(t *testing.T) {
 	for in, want := range map[string]string{
 		"Ubuntu 24.04": "ubuntu", "RHEL 9": "rhel", "Red Hat Enterprise Linux": "rhel", "AlmaLinux 10": "almalinux",
 		"Rocky Linux": "rocky", "CentOS Stream 9": "centos", "SLES 15": "opensuse", "Windows Server 2022": "windows",
-		"Linux": "linux", "debian": "debian", "": "", "Solaris": "",
+		"Linux": "linux", "debian": "debian", "": "", "Solaris": "", "Proxmox VE 8 (Debian 12)": "proxmox", "proxmox": "proxmox",
 	} {
 		if got := ParseOS(in); got != want {
 			t.Errorf("ParseOS(%q) = %q, want %q", in, got, want)
