@@ -5,6 +5,8 @@ All notable changes to TuxShell are listed here. Versions follow
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-10-23
+
 ### Added
 
 - "New group" in the hosts sidebar (the folder button next to New host) makes an empty
@@ -302,6 +304,7 @@ First release.
 - Dark and light themes, or follow the system.
 - Packages for Fedora/RHEL (.rpm), Debian/Ubuntu (.deb) and an AppImage.
 
+[1.4.3]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.4.3
 [1.4.2]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.4.2
 [1.4.1]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.4.1
 [1.4.0]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.4.0

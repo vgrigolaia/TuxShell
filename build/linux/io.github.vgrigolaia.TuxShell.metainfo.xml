@@ -92,6 +92,11 @@
   </branding>
 
   <releases>
+    <release version="1.4.3" date="2026-10-23">
+      <description>
+        <p>Make, rename and delete host groups from the sidebar. On macOS, TuxShell starts again (1.4.1 and 1.4.2 opened an empty window) and shows its own icon. The .flatpak from GitHub checks for updates again.</p>
+      </description>
+    </release>
     <release version="1.4.2" date="2026-10-20">
       <description>
         <p>Ready for Flathub: in the Flatpak, local shell tabs, the 1Password CLI and FreeRDP run on your system, and updates come from Flathub. Preferences shows where your settings and recordings are really kept.</p>
