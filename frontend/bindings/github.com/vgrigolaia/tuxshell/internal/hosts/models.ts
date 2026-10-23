@@ -131,6 +131,44 @@ export interface RDP {
      * Gateway is an RD Gateway to connect through (empty Host for none).
      */
     "gateway": Gateway;
+
+    /**
+     * Printers shares this computer's printers with the remote one.
+     */
+    "printers": boolean;
+
+    /**
+     * SmartCards passes this computer's smart card readers through (needs pcscd).
+     */
+    "smartCards": boolean;
+
+    /**
+     * USB lists USB devices passed through to the remote computer (beta).
+     */
+    "usb": USBDevice[] | null;
+
+    /**
+     * RemoteApp opens one program instead of the whole desktop (empty Program: off).
+     */
+    "remoteApp": RemoteApp;
+}
+
+/**
+ * RemoteApp is a program published on the remote computer: a path
+ * ("C:\Windows\notepad.exe") or a registered alias ("||notepad").
+ */
+export interface RemoteApp {
+    "program": string;
+
+    /**
+     * Name is the window's name (optional).
+     */
+    "name": string;
+
+    /**
+     * Args are the program's command-line arguments (optional).
+     */
+    "args": string;
 }
 
 /**
@@ -159,6 +197,15 @@ export interface Tunnel {
     "bindPort": number;
     "targetHost": string;
     "targetPort": number;
+}
+
+/**
+ * USBDevice is a USB device by vendor and product id ("046d:c52b"). Name is
+ * only for showing it.
+ */
+export interface USBDevice {
+    "id": string;
+    "name": string;
 }
 
 /**

@@ -40,6 +40,31 @@ type RDP struct {
 	Quality string `json:"quality"`
 	// Gateway is an RD Gateway to connect through (empty Host for none).
 	Gateway Gateway `json:"gateway"`
+	// Printers shares this computer's printers with the remote one.
+	Printers bool `json:"printers"`
+	// SmartCards passes this computer's smart card readers through (needs pcscd).
+	SmartCards bool `json:"smartCards"`
+	// USB lists USB devices passed through to the remote computer (beta).
+	USB []USBDevice `json:"usb"`
+	// RemoteApp opens one program instead of the whole desktop (empty Program: off).
+	RemoteApp RemoteApp `json:"remoteApp"`
+}
+
+// USBDevice is a USB device by vendor and product id ("046d:c52b"). Name is
+// only for showing it.
+type USBDevice struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// RemoteApp is a program published on the remote computer: a path
+// ("C:\Windows\notepad.exe") or a registered alias ("||notepad").
+type RemoteApp struct {
+	Program string `json:"program"`
+	// Name is the window's name (optional).
+	Name string `json:"name"`
+	// Args are the program's command-line arguments (optional).
+	Args string `json:"args"`
 }
 
 // Folder is a shared folder: the name the remote computer sees and the
@@ -59,7 +84,7 @@ type Gateway struct {
 
 // DefaultRDP is a new remote desktop host's options.
 func DefaultRDP() RDP {
-	return RDP{Window: "window", Size: "fit", Width: 1600, Height: 900, Clipboard: true, Sound: "local", Quality: "balanced", Folders: []Folder{}}
+	return RDP{Window: "window", Size: "fit", Width: 1600, Height: 900, Clipboard: true, Sound: "local", Quality: "balanced", Folders: []Folder{}, USB: []USBDevice{}}
 }
 
 // UnmarshalJSON fills options missing from stored JSON with the defaults.
@@ -76,6 +101,7 @@ func (r *RDP) UnmarshalJSON(b []byte) error {
 var (
 	// Share names: FreeRDP separates its arguments with commas.
 	folderNameRe = regexp.MustCompile(`^[\p{L}\p{N} _.-]{1,32}$`)
+	usbIDRe      = regexp.MustCompile(`^[0-9a-f]{4}:[0-9a-f]{4}$`)
 	domainRe     = regexp.MustCompile(`^[\p{L}\p{N}_.-]{0,64}$`)
 )
 
@@ -115,6 +141,20 @@ func (r *RDP) normalize() {
 	if r.Gateway.Host != "" && r.Gateway.Port == 0 {
 		r.Gateway.Port = 443
 	}
+	usb := []USBDevice{}
+	for _, d := range r.USB {
+		d.ID, d.Name = strings.ToLower(strings.TrimSpace(d.ID)), strings.TrimSpace(d.Name)
+		if d.ID != "" {
+			usb = append(usb, d)
+		}
+	}
+	r.USB = usb
+	r.RemoteApp.Program = strings.TrimSpace(r.RemoteApp.Program)
+	r.RemoteApp.Name = strings.TrimSpace(r.RemoteApp.Name)
+	r.RemoteApp.Args = strings.TrimSpace(r.RemoteApp.Args)
+	if r.RemoteApp.Program == "" {
+		r.RemoteApp = RemoteApp{}
+	}
 }
 
 // noBreak rejects characters that would split a FreeRDP argument.
@@ -143,6 +183,24 @@ func (r *RDP) validate() error {
 			return invalid("rdp.folders", "%q: choose a folder (its path can't contain commas)", f.Name)
 		}
 		seen[strings.ToLower(f.Name)] = true
+	}
+	if len(r.USB) > 10 {
+		return invalid("rdp.usb", "At most 10 USB devices")
+	}
+	for _, d := range r.USB {
+		if !usbIDRe.MatchString(d.ID) || len(d.Name) > 100 || !noBreak(d.Name) {
+			return invalid("rdp.usb", "USB devices are chosen from the list (vendor:product, like 046d:c52b)")
+		}
+	}
+	if a := r.RemoteApp; a.Program != "" {
+		switch {
+		case len(a.Program) > 260 || !noBreak(a.Program):
+			return invalid("rdp.remoteApp", "The program can't contain commas or line breaks (up to 260 characters)")
+		case len(a.Name) > 100 || !noBreak(a.Name):
+			return invalid("rdp.remoteApp", "The window name can't contain commas or line breaks")
+		case len(a.Args) > 500 || !noBreak(a.Args):
+			return invalid("rdp.remoteApp", "FreeRDP can't pass arguments with commas or line breaks")
+		}
 	}
 	if g := r.Gateway; g.Host != "" {
 		switch {

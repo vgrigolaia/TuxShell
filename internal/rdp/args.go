@@ -64,8 +64,18 @@ func Args(h hosts.Host, c Connection) ([]string, error) {
 		args = append(args, "/t:"+c.Title)
 	}
 
-	// Display.
+	// Display. A RemoteApp shows only the program's own windows, so the
+	// desktop's window options don't apply.
 	switch {
+	case r.RemoteApp.Program != "":
+		app := "/app:program:" + r.RemoteApp.Program
+		if r.RemoteApp.Name != "" {
+			app += ",name:" + r.RemoteApp.Name
+		}
+		if r.RemoteApp.Args != "" {
+			app += ",cmd:" + r.RemoteApp.Args
+		}
+		args = append(args, app)
 	case r.Window == "fullscreen":
 		args = append(args, "/f", "/floatbar:sticky:off,default:visible,show:fullscreen")
 		if r.Multimon {
@@ -91,6 +101,19 @@ func Args(h hosts.Host, c Connection) ([]string, error) {
 	}
 	if r.HomeFolder {
 		args = append(args, "+home-drive")
+	}
+	if r.Printers {
+		args = append(args, "/printer")
+	}
+	if r.SmartCards {
+		args = append(args, "/smartcard")
+	}
+	if len(r.USB) > 0 {
+		ids := make([]string, len(r.USB))
+		for i, d := range r.USB {
+			ids[i] = d.ID
+		}
+		args = append(args, "/usb:id:"+strings.Join(ids, "#"))
 	}
 
 	// Sound.

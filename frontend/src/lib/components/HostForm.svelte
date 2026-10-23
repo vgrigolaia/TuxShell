@@ -26,7 +26,14 @@
     ...host,
     protocol: host.protocol || 'ssh',
     tags: [...(host.tags ?? [])],
-    rdp: { ...defaultRDP(), ...host.rdp, folders: (host.rdp?.folders ?? []).map((f) => ({ ...f })), gateway: { ...defaultRDP().gateway, ...host.rdp?.gateway } },
+    rdp: {
+      ...defaultRDP(),
+      ...host.rdp,
+      folders: (host.rdp?.folders ?? []).map((f) => ({ ...f })),
+      gateway: { ...defaultRDP().gateway, ...host.rdp?.gateway },
+      usb: (host.rdp?.usb ?? []).map((d) => ({ ...d })),
+      remoteApp: { ...defaultRDP().remoteApp, ...host.rdp?.remoteApp },
+    },
   })
   const isRDP = $derived(draft.protocol === 'rdp')
 
@@ -112,6 +119,16 @@
     } finally {
       detecting = false
     }
+  }
+
+  // USB devices plugged in here, listed when "Add a USB device" is opened.
+  let usbChoices = $state<{ id: string; name: string }[] | null>(null)
+  async function listUSB() {
+    usbChoices = (await RDP.USBDevices()) ?? []
+  }
+  function toggleUSB(d: { id: string; name: string }, on: boolean) {
+    const rest = (draft.rdp.usb ?? []).filter((x) => x.id !== d.id)
+    draft.rdp.usb = on ? [...rest, { ...d }] : rest
   }
 
   // Asks 1Password for the reference; only "worked" or the reason comes back.
@@ -284,6 +301,52 @@
         </fieldset>
 
         <fieldset class={box}>
+          <legend class="sr-only">Devices</legend>
+          <p class={head} aria-hidden="true"><span class="text-muted"><Icon name="server" size={14} /></span>Devices</p>
+          <label class={check}>
+            <input type="checkbox" class="mt-0.5 accent-accent" bind:checked={r.printers} />
+            <span>Share my printers<span class="mt-0.5 block text-[11.5px] text-subtle">The printers set up on this computer.</span></span>
+          </label>
+          <label class={check}>
+            <input type="checkbox" class="mt-0.5 accent-accent" bind:checked={r.smartCards} />
+            <span>Use my smart card readers<span class="mt-0.5 block text-[11.5px] text-subtle">For smart card sign-in; needs the pcscd service running here.</span></span>
+          </label>
+          <p class="text-xs font-semibold text-text">USB devices <span class="font-normal text-subtle">(beta)</span></p>
+          {#if r.usb?.length}
+            <ul class="flex flex-col gap-1.5" aria-label="USB devices passed through">
+              {#each r.usb as d (d.id)}
+                <li class="flex items-center gap-2 text-xs">
+                  <span class="min-w-0 flex-1 truncate">{d.name || 'USB device'} <span class="font-mono text-[11px] text-subtle">{d.id}</span></span>
+                  <button type="button" class="grid size-7 shrink-0 place-items-center rounded-lg text-subtle hover:bg-raised hover:text-fg" aria-label="Stop passing {d.name || d.id} through"
+                    onclick={() => toggleUSB(d, false)}><Icon name="x" size={12} /></button>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+          {#if usbChoices === null}
+            <button type="button" class="self-start rounded-lg border border-strong px-2.5 py-1.5 text-xs font-semibold hover:bg-raised" onclick={listUSB}>+ Add a USB device…</button>
+          {:else if usbChoices.length === 0}
+            <p class="text-[11.5px] text-subtle">No USB devices found on this computer.</p>
+          {:else}
+            <ul class="flex max-h-40 flex-col gap-1 overflow-y-auto rounded-lg border border-line p-2" aria-label="USB devices on this computer">
+              {#each usbChoices as d (d.id)}
+                <li>
+                  <label class="flex items-center gap-2 text-xs">
+                    <input type="checkbox" class="accent-accent" checked={!!r.usb?.some((x) => x.id === d.id)} onchange={(e) => toggleUSB(d, e.currentTarget.checked)} />
+                    <span class="min-w-0 flex-1 truncate">{d.name}</span><span class="font-mono text-[11px] text-subtle">{d.id}</span>
+                  </label>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+          {@render field('rdp.usb')}
+          <p class="text-[11.5px] leading-normal text-subtle">
+            While connected, the remote computer uses the device instead of this one. FreeRDP may need permission to open it (udev rules). Devices, printers and smart cards work in
+            the own-window mode, not in a tab.
+          </p>
+        </fieldset>
+
+        <fieldset class={box}>
           <legend class="sr-only">Sound and quality</legend>
           <p class={head} aria-hidden="true"><span class="text-muted"><Icon name="gear" size={14} /></span>Sound and quality</p>
           <label class="text-xs font-semibold text-text" for="rdp-sound">Sound</label>
@@ -324,6 +387,31 @@
             <div class="col-span-3">{@render field('rdp.gateway')}</div>
           </div>
           <p class="mt-2 text-[11.5px] leading-normal text-subtle">The gateway logs in with the host's password.</p>
+        </details>
+
+        <details class="rounded-2xl border border-line bg-ground/60 px-4 py-3" open={!!r.remoteApp?.program}>
+          <summary class="cursor-pointer text-[13px] font-bold">One program only (RemoteApp) <span class="font-normal text-subtle">(optional)</span></summary>
+          <div class="mt-3 flex flex-col gap-2.5">
+            <div>
+              <label class={label} for="host-rdp.remoteApp">Program</label>
+              <input id="host-rdp.remoteApp" class={input} bind:value={r.remoteApp.program} placeholder="||notepad or C:\Program Files\App\app.exe" autocomplete="off" spellcheck="false"
+                aria-invalid={!!fieldError('rdp.remoteApp')} aria-describedby="host-rdp.remoteApp-error" />
+            </div>
+            <div class="grid grid-cols-2 gap-2.5">
+              <div>
+                <label class={label} for="rdp-app-name">Window name</label>
+                <input id="rdp-app-name" class={input} bind:value={r.remoteApp.name} autocomplete="off" spellcheck="false" />
+              </div>
+              <div>
+                <label class={label} for="rdp-app-args">Arguments</label>
+                <input id="rdp-app-args" class={input} bind:value={r.remoteApp.args} autocomplete="off" spellcheck="false" />
+              </div>
+            </div>
+            {@render field('rdp.remoteApp')}
+          </div>
+          <p class="mt-2 text-[11.5px] leading-normal text-subtle">
+            Opens just this program in its own window instead of the whole desktop. Use its alias (||name) or its full path; the server must allow it. Own-window mode only.
+          </p>
         </details>
       {/snippet}
 
@@ -493,7 +581,7 @@
         <p id="host-passwordRef-hint" class="text-[11.5px] leading-normal text-accent-ink/80">
           Only the reference is stored, never the value. When the server asks for a password, TuxShell gets it from
           1Password, which may ask you to approve. In 1Password, copy it with <span class="font-medium">Copy Secret Reference</span>
-          on the field.{#if isRDP} Remote desktops in a tab still ask each time.{/if}
+          on the field.{#if isRDP}{' '}Remote desktops in a tab still ask each time.{/if}
         </p>
       </fieldset>
 

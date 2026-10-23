@@ -143,3 +143,31 @@ func TestFetchCertificate(t *testing.T) {
 		t.Errorf("ssh server: %v", err)
 	}
 }
+
+func TestArgsPhase2(t *testing.T) {
+	h := rdpHost()
+	h.RDP.Printers, h.RDP.SmartCards = true, true
+	h.RDP.USB = []hosts.USBDevice{{ID: "046d:c52b", Name: "Logitech receiver"}, {ID: "1050:0407", Name: "YubiKey"}}
+	args, err := Args(h, Connection{Server: "10.0.5.4", Port: 3389})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"/printer", "/smartcard", "/usb:id:046d:c52b#1050:0407", "/size:80%"} {
+		if !slices.Contains(args, want) {
+			t.Errorf("missing %q in %q", want, args)
+		}
+	}
+
+	// A RemoteApp replaces the desktop's window options.
+	h.RDP.Window = "fullscreen"
+	h.RDP.RemoteApp = hosts.RemoteApp{Program: `C:\Program Files\App\app.exe`, Name: "App", Args: "/safe"}
+	args, _ = Args(h, Connection{Server: "10.0.5.4", Port: 3389})
+	if !slices.Contains(args, `/app:program:C:\Program Files\App\app.exe,name:App,cmd:/safe`) || slices.Contains(args, "/f") || slices.Contains(args, "/size:80%") {
+		t.Errorf("remote app args: %q", args)
+	}
+	h.RDP.RemoteApp = hosts.RemoteApp{Program: "||notepad"}
+	args, _ = Args(h, Connection{Server: "10.0.5.4", Port: 3389})
+	if !slices.Contains(args, "/app:program:||notepad") {
+		t.Errorf("alias: %q", args)
+	}
+}
