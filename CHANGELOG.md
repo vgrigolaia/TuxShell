@@ -16,6 +16,8 @@ All notable changes to TuxShell are listed here. Versions follow
 ### Fixed
 
 - macOS: 1.4.1 and 1.4.2 opened an empty window. TuxShell starts again.
+- macOS: the app and the `.dmg` showed the icon and artwork of the framework TuxShell is built
+  with. They show TuxShell's own icon now, also in the macOS 26 style.
 - If the app ever fails to start, the window shows what went wrong, with a button to copy
   the details, instead of staying empty.
 - The `.flatpak` file from GitHub releases checks for updates again. Only a Flathub build leaves
