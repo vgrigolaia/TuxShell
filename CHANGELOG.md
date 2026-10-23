@@ -8,6 +8,9 @@ All notable changes to TuxShell are listed here. Versions follow
 ### Added
 
 - Proxmox VE in a host's OS list, with its logo. Imports read "Proxmox" from an OS column too.
+- A Detect button next to a host's operating system. Only when clicked, it reads
+  `/etc/os-release` through a session that's already open to the host (it never logs in for
+  this), or else the ssh server's greeting, which names Ubuntu, Debian, FreeBSD and Windows.
 
 ### Changed
 

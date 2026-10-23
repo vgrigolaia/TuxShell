@@ -32,7 +32,11 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
   open the host list next to your sessions.
 - **Hosts**: saved hosts with groups, tags, jump hosts (ProxyJump) and identity files.
   Filter, bulk select and delete. Optional operating system per host, shown with its logo
-  (Ubuntu, Debian, RHEL, AlmaLinux, Rocky, Fedora and more).
+  (Ubuntu, Debian, RHEL, AlmaLinux, Rocky, Fedora, Proxmox and more). The host editor's
+  Detect button fills it in when you click it: with a session open to the host it reads
+  `/etc/os-release` through that connection (`cat /etc/os-release`, nothing else); otherwise it
+  reads the greeting the ssh server sends before login, which names Ubuntu, Debian, FreeBSD and
+  Windows. TuxShell never runs it by itself.
   Hosts without a saved user ask for one when you connect, with an option to save it.
 - **Host status**: a dot shows which hosts answer ping (up, slow or down). Checked with
   ICMP, never by opening SSH connections; can be turned off. Test a host's login from its form.

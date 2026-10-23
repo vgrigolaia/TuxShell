@@ -3,6 +3,7 @@
   import { defaultRDP, errorMessage, hostStore, type Host, type SaveError } from '../hosts.svelte'
   import * as RDP from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/rdp/service'
   import * as Status from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/status/service'
+  import * as OSDetect from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/osdetect/service'
   import HostBadge from './HostBadge.svelte'
   import { OSES } from '../os'
   import Icon from './Icon.svelte'
@@ -88,6 +89,28 @@
       else tested = { ok: false, message: errorMessage(e) }
     } finally {
       testing = false
+    }
+  }
+
+  // Only when clicked: reads /etc/os-release through an open session to the
+  // saved host, or else the ssh server's greeting (no login).
+  let detecting = $state(false)
+  let detected = $state<{ ok: boolean; message: string } | null>(null)
+  async function detectOS() {
+    detecting = true
+    detected = null
+    try {
+      const r = await OSDetect.Detect(draft.id)
+      if (r.os) {
+        draft.os = r.os
+        const from = r.source === 'os-release' ? 'from /etc/os-release' : `from the SSH greeting (${r.detail})`
+        const name = r.source === 'os-release' && r.detail ? r.detail : (OSES[r.os]?.label ?? r.os)
+        detected = { ok: true, message: `${name}, ${from}. Save to keep it.` }
+      } else detected = { ok: false, message: r.detail && r.source === 'os-release' ? `${r.detail}: ${r.message}` : r.message }
+    } catch (e) {
+      detected = { ok: false, message: errorMessage(e) }
+    } finally {
+      detecting = false
     }
   }
 
@@ -407,11 +430,27 @@
         </div>
         <div class="col-span-3">
           <label class={label} for="host-os">Operating system <span class="font-normal text-subtle">(optional)</span></label>
-          <select id="host-os" class={input} bind:value={draft.os} aria-invalid={!!fieldError('os')} aria-describedby="host-os-error">
-            <option value="">Not set</option>
-            {#each Object.entries(OSES) as [value, o] (value)}<option {value}>{o.label}</option>{/each}
-          </select>
+          <div class="flex gap-2">
+            <select id="host-os" class="{input} min-w-0 flex-1" bind:value={draft.os} aria-invalid={!!fieldError('os')} aria-describedby="host-os-error host-os-detected">
+              <option value="">Not set</option>
+              {#each Object.entries(OSES) as [value, o] (value)}<option {value}>{o.label}</option>{/each}
+            </select>
+            {#if !isRDP}
+              <button
+                type="button"
+                class="h-10 shrink-0 rounded-[11px] border border-strong px-3 text-xs font-semibold hover:bg-raised disabled:opacity-50"
+                disabled={isNew || detecting}
+                title={isNew
+                  ? 'Save the host first'
+                  : 'With a session open to this host, runs “cat /etc/os-release” through it. Otherwise reads the ssh server’s greeting, without logging in.'}
+                onclick={detectOS}>{detecting ? 'Detecting…' : 'Detect'}</button
+              >
+            {/if}
+          </div>
           {@render field('os')}
+          {#if detected}
+            <p id="host-os-detected" role="status" class="mt-1 text-xs {detected.ok ? 'text-muted' : 'text-warning'}">{detected.message}</p>
+          {/if}
         </div>
         {#if !isRDP}
         <div class="col-span-3">

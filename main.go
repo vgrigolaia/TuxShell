@@ -20,6 +20,7 @@ import (
 	"github.com/vgrigolaia/tuxshell/internal/hosts"
 	"github.com/vgrigolaia/tuxshell/internal/login"
 	"github.com/vgrigolaia/tuxshell/internal/onepassword"
+	"github.com/vgrigolaia/tuxshell/internal/osdetect"
 	"github.com/vgrigolaia/tuxshell/internal/platform"
 	"github.com/vgrigolaia/tuxshell/internal/rdp"
 	"github.com/vgrigolaia/tuxshell/internal/recordings"
@@ -233,6 +234,7 @@ func main() {
 			application.NewService(terminals),
 			application.NewService(logins.Service()),
 			application.NewService(hosts.NewService(store)),
+			application.NewService(osdetect.NewService(resolver)),
 			application.NewService(sshconfig.NewService(store, sshConfigPath)),
 			application.NewService(hostFiles),
 			application.NewService(clips),
