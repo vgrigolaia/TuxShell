@@ -5,6 +5,10 @@ All notable changes to TuxShell are listed here. Versions follow
 
 ## [Unreleased]
 
+### Added
+
+- Proxmox VE in a host's OS list, with its logo. Imports read "Proxmox" from an OS column too.
+
 ### Changed
 
 - Copy on select is on for new installs: selecting text in a terminal copies it. Existing

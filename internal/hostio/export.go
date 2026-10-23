@@ -237,7 +237,7 @@ func readTuxShellJSON(data []byte) (*table, error) {
 const templateCSV = `Name,Host,User,Password,Port,Group,OS,Tags,Bastion,Key file,Type,Domain
 "# Only Host is required; delete these example rows. Lines starting with # are skipped.",,,,,,,,,,,
 "# Host: a name or IP address (user@host:port works too). Port: 22 if empty (3389 for RDP). Tags: separated by spaces.",,,,,,,,,,,
-"# OS: e.g. Ubuntu, Debian, RHEL, AlmaLinux, Rocky, Fedora, CentOS, openSUSE, Arch, Alpine, FreeBSD, Windows.",,,,,,,,,,,
+"# OS: e.g. Ubuntu, Debian, RHEL, AlmaLinux, Rocky, Fedora, CentOS, openSUSE, Arch, Alpine, FreeBSD, Proxmox, Windows.",,,,,,,,,,,
 "# Bastion: the Name of another row (or user@host:port) to connect through. Key file: a path like ~/.ssh/id_ed25519.",,,,,,,,,,,
 "# Password: saved encrypted in your system keyring if you allow it (Preferences > Security). 1Password references (op://...) always work.",,,,,,,,,,,
 "# Type: SSH (or empty) for a terminal, RDP for a remote desktop. Domain: the Windows domain of an RDP host.",,,,,,,,,,,

@@ -150,6 +150,7 @@ body {
 .os-arch { background: rgb(23 147 209 / .16); color: #4fb3e8; }
 .os-alpine { background: rgb(13 89 127 / .3); color: #6cbce6; }
 .os-freebsd { background: rgb(171 43 40 / .22); color: #ec6a66; }
+.os-proxmox { background: rgb(229 112 0 / .16); color: #f59a3c; }
 .os-windows { background: rgb(0 120 212 / .18); color: #4cc2ff; }
 .os-linux { background: rgb(252 198 36 / .14); color: #fcc624; }
 :root[data-theme="light"] .os-ubuntu { background: #fde7dc; color: #c2410c; }
@@ -163,6 +164,7 @@ body {
 :root[data-theme="light"] .os-arch { background: #ddeffa; color: #0f6fa3; }
 :root[data-theme="light"] .os-alpine { background: #dcecf5; color: #0d597f; }
 :root[data-theme="light"] .os-freebsd { background: #f8e0df; color: #9a1f1c; }
+:root[data-theme="light"] .os-proxmox { background: #fdebd6; color: #a34f00; }
 :root[data-theme="light"] .os-windows { background: #ddeefb; color: #005a9e; }
 :root[data-theme="light"] .os-linux { background: #fdf3d1; color: #7a5c00; }
 
