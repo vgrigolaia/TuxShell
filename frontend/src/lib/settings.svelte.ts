@@ -64,6 +64,7 @@ const defaults = (): Settings => ({
   hostsSidebar: true,
   tabsPosition: 'left',
   groupOrder: [],
+  emptyGroups: [],
   hiddenSshConfigHosts: [],
   hostStatus: true,
   updateCheck: true,
@@ -222,6 +223,11 @@ class Preferences {
 
   setGroupOrder(order: string[]) {
     this.value.groupOrder = order
+    this.queueSave()
+  }
+
+  setEmptyGroups(names: string[]) {
+    this.value.emptyGroups = names
     this.queueSave()
   }
 

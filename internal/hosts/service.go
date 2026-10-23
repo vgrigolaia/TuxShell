@@ -32,6 +32,12 @@ func (s *Service) MoveHost(id int64, group string, before int64) error {
 	return s.store.MoveHost(id, group, before)
 }
 
+// RenameGroup moves all hosts of a group into another group, new or existing;
+// "" deletes the group and leaves its hosts ungrouped. Returns how many moved.
+func (s *Service) RenameGroup(from, to string) (int, error) {
+	return s.store.RenameGroup(from, to)
+}
+
 // ServiceShutdown closes the database when the app quits.
 func (s *Service) ServiceShutdown() error {
 	return s.store.Close()

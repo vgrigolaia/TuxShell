@@ -55,6 +55,11 @@ export const defaultRDP = (): Host['rdp'] => ({
 /** Name of the automatic group holding jump hosts. */
 export const JUMP_GROUP = 'Jump hosts'
 
+/** Shown for hosts without a group; not a real group name. */
+export const NO_GROUP = 'Ungrouped'
+
+const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+
 class HostStore {
   list = $state<Host[]>([])
   loaded = $state(false)
@@ -79,10 +84,12 @@ class HostStore {
     if (jump.length) byName.set(JUMP_GROUP, jump)
     for (const h of this.list) {
       if (this.gateways.has(h.id)) continue
-      const key = h.group || 'Ungrouped'
+      const key = h.group || NO_GROUP
       if (!byName.has(key)) byName.set(key, [])
       byName.get(key)!.push(h)
     }
+    // Made with "New group" and still waiting for hosts.
+    for (const name of prefs.value.emptyGroups ?? []) if (![...byName.keys()].some((k) => same(k, name))) byName.set(name, [])
     // The order the user dragged them into; groups not in it keep their place after those.
     const order = new Map((prefs.value.groupOrder ?? []).map((g, i) => [g, i]))
     return [...byName]
@@ -98,12 +105,72 @@ class HostStore {
     prefs.setGroupOrder(names)
   }
 
-  groupNames = $derived([...new Set(this.list.map((h) => h.group).filter(Boolean))])
+  groupNames = $derived([...new Set([...this.list.map((h) => h.group), ...(prefs.value.emptyGroups ?? [])].filter(Boolean))])
+
+  /** The group's name as shown, when one exists (any case); NO_GROUP and the jump hosts group don't count. */
+  findGroup(name: string): string | undefined {
+    return this.groups.find((g) => g.name !== NO_GROUP && g.name !== JUMP_GROUP && same(g.name, name))?.name
+  }
+
+  /** Adds an empty group at the top (after the jump hosts) and returns its name; an existing one is returned as it is. */
+  createGroup(name: string): string | undefined {
+    name = name.trim()
+    if (!name || same(name, NO_GROUP)) return undefined
+    const existing = this.findGroup(name)
+    if (existing) return existing
+    prefs.setEmptyGroups([...(prefs.value.emptyGroups ?? []), name])
+    const names = this.groups.map((g) => g.name).filter((g) => g !== name)
+    names.splice(names[0] === JUMP_GROUP ? 1 : 0, 0, name)
+    prefs.setGroupOrder(names)
+    return name
+  }
+
+  /** Renames a group; a name that already exists merges the two. Its place in the list stays. */
+  async renameGroup(from: string, to: string) {
+    to = to.trim()
+    if (same(to, NO_GROUP)) to = ''
+    to = (to && this.findGroup(to)) || to
+    if (!to || to === from) return
+    // The order as shown now, so a new name doesn't move the group elsewhere.
+    const names = this.groups.map((g) => g.name)
+    const merge = names.includes(to)
+    await this.regroup(from, to)
+    prefs.setGroupOrder(names.flatMap((g) => (g === from ? (merge ? [] : [to]) : [g])))
+  }
+
+  /** Deletes a group; its hosts stay, without a group. */
+  async deleteGroup(name: string) {
+    const names = this.groups.map((g) => g.name).filter((g) => g !== name)
+    await this.regroup(name, '')
+    prefs.setGroupOrder(names)
+  }
+
+  private async regroup(from: string, to: string) {
+    const empty = prefs.value.emptyGroups ?? []
+    const rest = empty.filter((g) => g !== from)
+    // An empty group exists only in the settings; one with hosts is renamed on the hosts.
+    const moved = this.list.some((h) => h.group === from)
+    if (moved) {
+      try {
+        await HostService.RenameGroup(from, to)
+        this.error = null
+      } catch (e) {
+        this.error = errorMessage(e)
+        return
+      }
+    }
+    prefs.setEmptyGroups(to && !moved && !this.groups.some((g) => g.name === to) ? [...rest, to] : rest)
+    if (moved) await this.load()
+  }
 
   async load() {
     try {
       this.list = (await HostService.List()) ?? []
       this.error = null
+      // A "New group" that got hosts is an ordinary group now.
+      const empty = prefs.value.emptyGroups ?? []
+      const kept = empty.filter((g) => !this.list.some((h) => h.group && same(h.group, g)))
+      if (kept.length !== empty.length) prefs.setEmptyGroups(kept)
     } catch (e) {
       this.error = errorMessage(e)
     } finally {

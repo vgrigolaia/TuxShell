@@ -1,6 +1,6 @@
 <script lang="ts">
   import { keys } from '../platform'
-  import { JUMP_GROUP, describe, hostStore, type Host, type HostGroup } from '../hosts.svelte'
+  import { JUMP_GROUP, NO_GROUP, describe, hostStore, type Host, type HostGroup } from '../hosts.svelte'
   import { MAX_PANES } from '../layout'
   import { workspace } from '../workspace.svelte'
   import HostBadge from './HostBadge.svelte'
@@ -151,7 +151,45 @@
       { label: 'Move up', hint: 'Alt+↑', disabled: !canReorder || i === 0, run: () => void moveGroup(name, i - 1) },
       { label: 'Move down', hint: 'Alt+↓', disabled: !canReorder || i === last, run: () => void moveGroup(name, i + 1) },
       { label: 'Move to bottom', disabled: !canReorder || i === last, run: () => void moveGroup(name, last) },
+      ...(name === NO_GROUP || name === JUMP_GROUP
+        ? []
+        : [
+            { label: 'Rename…', separator: true, run: () => (renaming = name) },
+            { label: 'Delete group…', danger: true, run: () => deleteGroup(name) },
+          ]),
     ]
+  }
+
+  // Groups: "New group" adds an empty one to drag hosts into; Rename and Delete are in a group's menu.
+  let newGroup = $state(false)
+  let renaming = $state<string | null>(null)
+  let deleting = $state<{ name: string; count: number } | null>(null)
+
+  async function showGroup(name: string | undefined) {
+    if (!name) return
+    if (collapsed[name]) toggle(name)
+    await tick()
+    const head = document.getElementById(`group-head-${name}`)
+    head?.scrollIntoView({ block: 'nearest' })
+    head?.focus()
+  }
+
+  async function renameGroup(from: string, to: string) {
+    const wasCollapsed = !!collapsed[from]
+    await hostStore.renameGroup(from, to)
+    const name = hostStore.findGroup(to.trim())
+    if (wasCollapsed && name && name !== from) {
+      delete collapsed[from]
+      collapsed[name] = true
+    }
+    await showGroup(name)
+  }
+
+  function deleteGroup(name: string) {
+    const count = hostStore.groups.find((g) => g.name === name)?.hosts.length ?? 0
+    // An empty group has nothing to lose, so it goes without asking.
+    if (count === 0) void hostStore.deleteGroup(name)
+    else deleting = { name, count }
   }
 
   // Moving hosts: drag a row within its group or into another one (a folded or
@@ -167,7 +205,7 @@
   }
   let hdrag = $state<HostDrag | null>(null)
   let moveTo = $state<Host | null>(null)
-  const realGroup = (name: string) => (name === 'Ungrouped' ? '' : name)
+  const realGroup = (name: string) => (name === NO_GROUP ? '' : name)
 
   function onHostPointerDown(e: PointerEvent, host: Host, group: string) {
     if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || !canReorder || group === JUMP_GROUP) return
@@ -369,6 +407,9 @@
     <button class="grid size-6 place-items-center rounded-md text-subtle hover:bg-raised hover:text-fg" aria-label="Import hosts" title="Import hosts" onclick={onImport}>
       <Icon name="import" size={13} />
     </button>
+    <button class="grid size-6 place-items-center rounded-md text-subtle hover:bg-raised hover:text-fg" aria-label="New group" title="New group" onclick={() => (newGroup = true)}>
+      <Icon name="folderPlus" size={14} />
+    </button>
     <button class="grid size-6 place-items-center rounded-md text-subtle hover:bg-raised hover:text-fg" aria-label="New host" title="New host" onclick={onNew}>
       <Icon name="plus" size={14} />
     </button>
@@ -467,6 +508,9 @@
           </button>
         </h3>
         <ul id="host-group-{gi}" class="flex flex-col gap-0.5" hidden={!expanded}>
+          {#if group.hosts.length === 0}
+            <li class="rounded-[10px] border border-dashed border-strong px-2.5 py-2 text-xs text-subtle">Drag hosts here, or use “Move to group…” on a host.</li>
+          {/if}
           {#each group.hosts as host (host.id)}
             {@const chosen = picked.has(host.id)}
             <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -564,7 +608,40 @@
   />
 {/if}
 {#if groupMenu}
-  <ContextMenu x={groupMenu.x} y={groupMenu.y} label="Move {groupMenu.name}" items={groupMenuItems(groupMenu.name)} onClose={() => (groupMenu = null)} />
+  <ContextMenu x={groupMenu.x} y={groupMenu.y} label="Actions for {groupMenu.name}" items={groupMenuItems(groupMenu.name)} onClose={() => (groupMenu = null)} />
+{/if}
+{#if newGroup}
+  <PromptDialog
+    title="New group"
+    label="Name"
+    initial=""
+    hint="Then drag hosts into it, or pick it in a host's Group field."
+    submitLabel="Create"
+    onSubmit={(name) => void showGroup(hostStore.createGroup(name))}
+    onClose={() => (newGroup = false)}
+  />
+{/if}
+{#if renaming}
+  {@const from = renaming}
+  <PromptDialog
+    title="Rename {from}"
+    label="Name"
+    initial={from}
+    hint="The name of another group moves these hosts into it."
+    submitLabel="Rename"
+    onSubmit={(to) => void renameGroup(from, to)}
+    onClose={() => (renaming = null)}
+  />
+{/if}
+{#if deleting}
+  {@const d = deleting}
+  <ConfirmDialog
+    title="Delete the group {d.name}?"
+    message="Its {d.count === 1 ? 'host stays' : `${d.count} hosts stay`} in TuxShell, under {NO_GROUP}. Nothing else changes."
+    confirmLabel="Delete group"
+    onConfirm={() => hostStore.deleteGroup(d.name)}
+    onClose={() => (deleting = null)}
+  />
 {/if}
 
 {#if confirmBulk}

@@ -48,6 +48,8 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
   reorder them. Prefer the classic strip? Preferences → General → Open tabs.
 - **Organize your hosts**: drag groups and hosts to put them in your own order, or into
   another group. The same with the keyboard (Alt+↑/↓) and from the right-click menu.
+  Make an empty group with the folder button next to New host; rename or delete a group
+  from its right-click menu (a deleted group's hosts stay, ungrouped).
 - **Remote desktops (RDP)**: connect to Windows machines like any other host. Open them in
   their own window (FreeRDP 3: shared folders, copy and paste of text and files, sound and
   microphone, quality presets, RD Gateway, multiple monitors) or inside a TuxShell tab (beta,

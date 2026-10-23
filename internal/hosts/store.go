@@ -305,6 +305,58 @@ func (s *Store) MoveHost(id int64, group string, before int64) error {
 	return tx.Commit()
 }
 
+// RenameGroup moves every host of group `from` into group `to` ("" means no
+// group, which is how a group is deleted) and returns how many moved. When `to`
+// already has hosts, the moved ones go after them in their own order.
+func (s *Store) RenameGroup(from, to string) (int, error) {
+	to = strings.TrimSpace(to)
+	if len(to) > 100 || strings.ContainsAny(to, "\n\r") {
+		return 0, &ValidationError{Field: "group", Message: "Group name is too long or has a line break"}
+	}
+	if from == "" || from == to {
+		return 0, nil
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	ids := func(query string, args ...any) ([]int64, error) {
+		rows, err := tx.Query(query, args...)
+		if err != nil {
+			return nil, err
+		}
+		defer func() { _ = rows.Close() }()
+		var out []int64
+		for rows.Next() {
+			var id int64
+			if err := rows.Scan(&id); err != nil {
+				return nil, err
+			}
+			out = append(out, id)
+		}
+		return out, rows.Err()
+	}
+	// Both as listed now; the target is matched like the list matches groups (case-insensitive).
+	kept, err := ids(`SELECT id FROM hosts WHERE grp = ? COLLATE NOCASE AND grp <> ? ORDER BY position, name COLLATE NOCASE`, to, from)
+	if err != nil {
+		return 0, err
+	}
+	moved, err := ids(`SELECT id FROM hosts WHERE grp = ? ORDER BY position, name COLLATE NOCASE`, from)
+	if err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(`UPDATE hosts SET grp = ?, updated_at = CURRENT_TIMESTAMP WHERE grp = ?`, to, from); err != nil {
+		return 0, err
+	}
+	for i, id := range append(kept, moved...) {
+		if _, err := tx.Exec(`UPDATE hosts SET position = ? WHERE id = ?`, i+1, id); err != nil {
+			return 0, err
+		}
+	}
+	return len(moved), tx.Commit()
+}
+
 // SetRDPCert records the certificate fingerprint trusted for a remote desktop.
 func (s *Store) SetRDPCert(id int64, fingerprint string) error {
 	res, err := s.db.Exec(`UPDATE hosts SET rdp_cert = ? WHERE id = ?`, fingerprint, id)
