@@ -5,11 +5,31 @@ All notable changes to TuxShell are listed here. Versions follow
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-10-23
+
+### Added
+
+- "New group" in the hosts sidebar (the folder button next to New host) makes an empty
+  group to drag hosts into. A group's right-click menu can now rename it (another group's
+  name merges the two) or delete it; its hosts stay, ungrouped.
+- `task flatpak` builds the `.flatpak` file that comes with each release, and the README explains
+  how to install it.
+
+### Fixed
+
+- macOS: 1.4.1 and 1.4.2 opened an empty window. TuxShell starts again.
+- macOS: the app and the `.dmg` showed the icon and artwork of the framework TuxShell is built
+  with. They show TuxShell's own icon now, also in the macOS 26 style.
+- If the app ever fails to start, the window shows what went wrong, with a button to copy
+  the details, instead of staying empty.
+- The `.flatpak` file from GitHub releases checks for updates again. Only a Flathub build leaves
+  updates to Flathub.
+
 ## [1.4.2] - 2026-10-20
 
 ### Added
 
-- Flatpak support, as the first step towards Flathub. In the Flatpak, ssh runs inside the sandbox
+- Flatpak support: a `.flatpak` file comes with each release. In the Flatpak, ssh runs inside the sandbox
   and local shell tabs, the 1Password CLI and FreeRDP run on your system; updates come from
   Flathub, so the startup update check is left out. The manifest is in `build/flatpak/`.
 
@@ -284,6 +304,7 @@ First release.
 - Dark and light themes, or follow the system.
 - Packages for Fedora/RHEL (.rpm), Debian/Ubuntu (.deb) and an AppImage.
 
+[1.4.3]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.4.3
 [1.4.2]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.4.2
 [1.4.1]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.4.1
 [1.4.0]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.4.0

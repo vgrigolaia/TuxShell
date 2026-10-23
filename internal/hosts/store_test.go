@@ -412,3 +412,58 @@ func TestMoveHost(t *testing.T) {
 		}
 	}
 }
+
+func TestRenameGroup(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "hosts.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = s.Close() }()
+	for _, h := range []Host{{Name: "b", Group: "old"}, {Name: "a", Group: "old"}, {Name: "z", Group: "web"}, {Name: "y", Group: "web"}, {Name: "solo"}} {
+		h.Hostname = "10.0.0.1"
+		if _, err := s.Save(h); err != nil {
+			t.Fatal(err)
+		}
+	}
+	order := func() string {
+		list, err := s.List()
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out []string
+		for _, h := range list {
+			out = append(out, h.Group+":"+h.Name)
+		}
+		return strings.Join(out, " ")
+	}
+
+	// A new name keeps the hosts' order.
+	if n, err := s.RenameGroup("old", " lab "); err != nil || n != 2 {
+		t.Fatalf("rename: %d, %v", n, err)
+	}
+	if got, want := order(), "lab:a lab:b web:y web:z :solo"; got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+	// Into an existing group: after its hosts.
+	if n, err := s.RenameGroup("lab", "web"); err != nil || n != 2 {
+		t.Fatalf("merge: %d, %v", n, err)
+	}
+	if got, want := order(), "web:y web:z web:a web:b :solo"; got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+	// "" deletes the group; its hosts stay, ungrouped.
+	if n, err := s.RenameGroup("web", ""); err != nil || n != 4 {
+		t.Fatalf("delete: %d, %v", n, err)
+	}
+	if got, want := order(), ":solo :y :z :a :b"; got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+	// Nothing to do, and bad names.
+	if n, err := s.RenameGroup("", "x"); err != nil || n != 0 {
+		t.Fatalf("empty from: %d, %v", n, err)
+	}
+	var ve *ValidationError
+	if _, err := s.RenameGroup("x", "a\nb"); !errors.As(err, &ve) {
+		t.Fatalf("line break: %v", err)
+	}
+}

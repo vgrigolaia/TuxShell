@@ -30,6 +30,9 @@ type Settings struct {
 	// GroupOrder is the order of host groups chosen by dragging; groups not
 	// listed follow in their usual order.
 	GroupOrder []string `json:"groupOrder"`
+	// EmptyGroups are host groups made with "New group" that have no hosts
+	// yet; a group with hosts exists through its hosts.
+	EmptyGroups []string `json:"emptyGroups"`
 	// HiddenSSHConfigHosts are ~/.ssh/config aliases the user chose not to be
 	// reminded about on Home; a new alias brings the reminder back.
 	HiddenSSHConfigHosts []string `json:"hiddenSshConfigHosts"`
@@ -209,6 +212,7 @@ func Defaults() Settings {
 		},
 		Profiles:             []NamedProfile{},
 		GroupOrder:           []string{},
+		EmptyGroups:          []string{},
 		HiddenSSHConfigHosts: []string{},
 		History:              History{Enabled: true, Days: 90, Max: 1000},
 		RDPClient:            "auto",
@@ -287,6 +291,7 @@ func (s *Settings) normalize() {
 	oneOf(&s.RDPClient, d.RDPClient, "auto", "x11", "sdl")
 	oneOf(&s.TabsPosition, d.TabsPosition, "left", "top")
 	s.GroupOrder = cleanGroupOrder(s.GroupOrder)
+	s.EmptyGroups = cleanGroupOrder(s.EmptyGroups)
 	s.HiddenSSHConfigHosts = cleanGroupOrder(s.HiddenSSHConfigHosts)
 	s.Keybindings = cleanKeybindings(s.Keybindings)
 	if s.History.Days == 0 {
@@ -392,7 +397,7 @@ func oneOf(v *string, def string, allowed ...string) {
 	*v = def
 }
 
-// Limits for GroupOrder and HiddenSSHConfigHosts, so a hand-edited file stays small.
+// Limits for GroupOrder, EmptyGroups and HiddenSSHConfigHosts, so a hand-edited file stays small.
 const (
 	maxGroups      = 1000
 	maxGroupLength = 200

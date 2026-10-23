@@ -182,6 +182,12 @@ export interface Settings {
     "groupOrder": string[] | null;
 
     /**
+     * EmptyGroups are host groups made with "New group" that have no hosts
+     * yet; a group with hosts exists through its hosts.
+     */
+    "emptyGroups": string[] | null;
+
+    /**
      * HiddenSSHConfigHosts are ~/.ssh/config aliases the user chose not to be
      * reminded about on Home; a new alias brings the reminder back.
      */

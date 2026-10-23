@@ -70,3 +70,18 @@ func TestParse(t *testing.T) {
 		}
 	}
 }
+
+// Only a store build (set with -ldflags) leaves updates to the store; the
+// .flatpak from GitHub releases keeps the update check.
+func TestManagedOnlyForStoreBuilds(t *testing.T) {
+	s := NewService()
+	if s.Managed() {
+		t.Fatal("a normal build should check for updates itself")
+	}
+	old := store
+	store = "flathub"
+	t.Cleanup(func() { store = old })
+	if !s.Managed() {
+		t.Fatal("a Flathub build should leave updates to Flathub")
+	}
+}

@@ -44,6 +44,14 @@ export function MoveHost(id: number, group: string, before: number): $Cancellabl
 }
 
 /**
+ * RenameGroup moves all hosts of a group into another group, new or existing;
+ * "" deletes the group and leaves its hosts ungrouped. Returns how many moved.
+ */
+export function RenameGroup($from: string, to: string): $CancellablePromise<number> {
+    return $Call.ByID(3576291725, $from, to);
+}
+
+/**
  * Save creates or updates a host. Validation failures come back as a
  * ValidationError naming the offending field.
  */

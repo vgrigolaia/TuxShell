@@ -1,0 +1,40 @@
+<!-- Source of dmg-background.png (540×380, the .dmg window). Finder puts the app icon
+     at x 151 and Applications at x 388, both centred on y 164; the arrow sits between them.
+     Render: magick -background none dmg-background.svg dmg-background.png (Space Grotesk installed). -->
+<svg xmlns="http://www.w3.org/2000/svg" width="540" height="380" viewBox="0 0 540 380">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F4F5F9"/>
+      <stop offset="1" stop-color="#E6E8F0"/>
+    </linearGradient>
+    <linearGradient id="prompt" gradientUnits="userSpaceOnUse" x1="236" y1="352" x2="574" y2="690">
+      <stop offset="0" stop-color="#A498FF"/>
+      <stop offset="1" stop-color="#7A69F5"/>
+    </linearGradient>
+  </defs>
+  <rect width="540" height="380" fill="url(#bg)"/>
+
+  <!-- the app mark, small, top left -->
+  <g transform="translate(22 20) scale(0.03125)">
+    <rect x="64" y="64" width="896" height="896" rx="224" fill="#14171F"/>
+    <g fill="none" stroke="#4A5063" stroke-width="28" stroke-linecap="round">
+      <path d="M574 676C690 676 660 348 776 348"/>
+      <path d="M574 676H776"/>
+    </g>
+    <g fill="none" stroke="url(#prompt)" stroke-width="84" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M236 352l156 156-156 156"/>
+      <path d="M462 676h112"/>
+    </g>
+    <circle cx="776" cy="348" r="60" fill="#A3E635"/>
+    <circle cx="776" cy="676" r="60" fill="#A3E635"/>
+  </g>
+  <text x="58" y="41" font-family="Space Grotesk" font-weight="700" font-size="16" fill="#1A1C24">TuxShell</text>
+
+  <!-- arrow from the app to Applications -->
+  <g fill="none" stroke="#8B7CFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M222 164H316"/>
+    <path d="M300 148l16 16-16 16"/>
+  </g>
+
+  <text x="270" y="318" text-anchor="middle" font-family="Space Grotesk" font-weight="500" font-size="15" fill="#4B5060">Drag TuxShell into Applications to install it</text>
+</svg>

@@ -41,6 +41,17 @@ export interface Action {
   also?: string[]
 }
 
+// Above ACTIONS: mod() calls canonical() while ACTIONS is built (on macOS), and a
+// const used before its line throws, which left the window blank in 1.4.1/1.4.2.
+const MODS = ['Ctrl', 'Alt', 'Cmd', 'Shift'] as const
+
+/** Puts a combo's modifiers in the stored order. */
+function canonical(combo: string): string {
+  const parts = combo.split('+')
+  const key = parts.pop() ?? ''
+  return [...MODS.filter((m) => parts.includes(m)), key].join('+')
+}
+
 /** On macOS the app's shortcuts use ⌘ and Ctrl stays with the terminal. */
 const mod = (combo: string) => (isMac ? canonical(combo.replace('Ctrl+', 'Cmd+')) : combo)
 
@@ -71,15 +82,6 @@ export const ACTIONS: Action[] = [
 ]
 
 const byId = new Map(ACTIONS.map((a) => [a.id, a]))
-
-const MODS = ['Ctrl', 'Alt', 'Cmd', 'Shift'] as const
-
-/** Puts a combo's modifiers in the stored order. */
-function canonical(combo: string): string {
-  const parts = combo.split('+')
-  const key = parts.pop() ?? ''
-  return [...MODS.filter((m) => parts.includes(m)), key].join('+')
-}
 
 const CODES: Record<string, string> = {
   Comma: ',',

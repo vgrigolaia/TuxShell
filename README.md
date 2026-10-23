@@ -48,6 +48,8 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
   reorder them. Prefer the classic strip? Preferences → General → Open tabs.
 - **Organize your hosts**: drag groups and hosts to put them in your own order, or into
   another group. The same with the keyboard (Alt+↑/↓) and from the right-click menu.
+  Make an empty group with the folder button next to New host; rename or delete a group
+  from its right-click menu (a deleted group's hosts stay, ungrouped).
 - **Remote desktops (RDP)**: connect to Windows machines like any other host. Open them in
   their own window (FreeRDP 3: shared folders, copy and paste of text and files, sound and
   microphone, quality presets, RD Gateway, multiple monitors) or inside a TuxShell tab (beta,
@@ -106,18 +108,31 @@ Download TuxShell from the [releases page](https://github.com/vgrigolaia/tuxshel
 
 ```sh
 # Fedora, RHEL, AlmaLinux, Rocky Linux
-sudo dnf install ./tuxshell-1.4.2-1.x86_64.rpm
+sudo dnf install ./tuxshell-1.4.3-1.x86_64.rpm
 
 # Debian, Ubuntu
-sudo apt install ./tuxshell_1.4.2-1_amd64.deb
+sudo apt install ./tuxshell_1.4.3-1_amd64.deb
 ```
 
 Or run the AppImage on any distribution:
 
 ```sh
-chmod +x TuxShell-1.4.2-x86_64.AppImage
-./TuxShell-1.4.2-x86_64.AppImage
+chmod +x TuxShell-1.4.3-x86_64.AppImage
+./TuxShell-1.4.3-x86_64.AppImage
 ```
+
+Or install the Flatpak on any distribution with [Flatpak and Flathub set up](https://flathub.org/setup).
+The GNOME runtime it needs is installed from Flathub along with it:
+
+```sh
+flatpak install --user TuxShell-1.4.3-x86_64.flatpak
+flatpak run io.github.vgrigolaia.TuxShell
+```
+
+In the Flatpak, ssh runs inside the sandbox; local shell tabs, the 1Password CLI and FreeRDP run
+on your system. Its data is kept in `~/.var/app/io.github.vgrigolaia.TuxShell/`, so export your
+hosts from another TuxShell (Preferences → Hosts) and import them there. Updates: install the
+next release's `.flatpak` the same way.
 
 Supported: Fedora 39+, RHEL/Alma/Rocky 10, Debian 13+ and Ubuntu 24.04+. TuxShell needs
 GTK 4 and WebKitGTK 6.0. Remote hosts need GNU `find` for the file browser.
