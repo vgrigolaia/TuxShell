@@ -18,6 +18,8 @@
   import SnippetsPage from './SnippetsPage.svelte'
   import TunnelsPage from './TunnelsPage.svelte'
   import HistoryPage from './HistoryPage.svelte'
+  import LayoutsPage from './LayoutsPage.svelte'
+  import { layouts } from '../layouts.svelte'
   import { snippets } from '../snippets.svelte'
   import { tunnels } from '../tunnels.svelte'
   import { onePassword } from '../onepassword.svelte'
@@ -44,10 +46,12 @@
     onOpenHostList: () => void
     /** Opens Preferences. */
     onPreferences: () => void
+    /** Saves all open tabs as a layout; missing when none is open. */
+    onSaveTabs?: () => void
     /** Which Home section shows. */
-    page?: 'hosts' | 'snippets' | 'tunnels' | 'history'
+    page?: 'hosts' | 'layouts' | 'snippets' | 'tunnels' | 'history'
   }
-  let { selectedId, onEdit, onConnect, onConnectAs, onDuplicate, onDelete, onConnectTarget, onNew, onImport, onOpenHostList, onPreferences, editor, openTabs, page = $bindable('hosts') }: Props = $props()
+  let { selectedId, onEdit, onConnect, onConnectAs, onDuplicate, onDelete, onConnectTarget, onNew, onImport, onOpenHostList, onPreferences, onSaveTabs, editor, openTabs, page = $bindable('hosts') }: Props = $props()
 
   let query = $state('')
   // A click only marks a card; double-click or Enter connects, right-click has the rest.
@@ -146,7 +150,7 @@
 
 <div class="flex min-h-0 min-w-0 flex-1 gap-2.5">
   <nav aria-label="Home" class="flex w-[232px] shrink-0 flex-col gap-1 rounded-panel border border-line bg-raised px-3.5 py-5">
-    {#each [['hosts', 'Hosts', 'server', hostStore.list.length], ['snippets', 'Snippets', 'code', snippets.list.length], ['tunnels', 'Tunnels', 'tunnel', tunnels.list.length], ['history', 'History', 'clock', 0]] as const as [id, name, icon, count] (id)}
+    {#each [['hosts', 'Hosts', 'server', hostStore.list.length], ['layouts', 'Layouts', 'tab', layouts.list.length], ['snippets', 'Snippets', 'code', snippets.list.length], ['tunnels', 'Tunnels', 'tunnel', tunnels.list.length], ['history', 'History', 'clock', 0]] as const as [id, name, icon, count] (id)}
       <button
         class="flex h-10 items-center gap-3 rounded-xl px-3 text-sm font-medium {page === id ? 'bg-panel text-fg shadow-sm' : 'text-text hover:bg-panel/60'}"
         aria-current={page === id ? 'page' : undefined}
@@ -178,7 +182,9 @@
     </div>
   </nav>
 
-  {#if page === 'snippets'}
+  {#if page === 'layouts'}
+    <LayoutsPage {onSaveTabs} />
+  {:else if page === 'snippets'}
     <SnippetsPage />
   {:else if page === 'tunnels'}
     <TunnelsPage />

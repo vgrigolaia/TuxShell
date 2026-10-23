@@ -63,6 +63,8 @@ type Settings struct {
 	// ("Ctrl+Shift+L"). Actions not listed keep their default; "" turns one off.
 	// The actions and their defaults live in the frontend.
 	Keybindings map[string]string `json:"keybindings"`
+	// Layouts are saved sets of tabs and split panes, opened in one go.
+	Layouts []Layout `json:"layouts"`
 }
 
 // History says whether and how long connections are remembered.
@@ -222,6 +224,7 @@ func Defaults() Settings {
 		History:              History{Enabled: true, Days: 90, Max: 1000},
 		RDPClient:            "auto",
 		Keybindings:          map[string]string{},
+		Layouts:              []Layout{},
 	}
 }
 
@@ -302,6 +305,7 @@ func (s *Settings) normalize() {
 	s.EmptyGroups = cleanGroupOrder(s.EmptyGroups)
 	s.HiddenSSHConfigHosts = cleanGroupOrder(s.HiddenSSHConfigHosts)
 	s.Keybindings = cleanKeybindings(s.Keybindings)
+	s.Layouts = cleanLayouts(s.Layouts)
 	if s.History.Days == 0 {
 		s.History.Days = d.History.Days
 	}

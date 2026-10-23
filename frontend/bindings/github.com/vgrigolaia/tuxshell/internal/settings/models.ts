@@ -19,6 +19,69 @@ export interface History {
 }
 
 /**
+ * Layout is a saved set of tabs that opens in one go (Home → Layouts, Ctrl+K).
+ * It names what each pane runs, never anything typed or shown in it.
+ */
+export interface Layout {
+    "name": string;
+
+    /**
+     * Startup opens this layout when TuxShell starts (at most one has it).
+     */
+    "startup": boolean;
+    "tabs": LayoutTab[] | null;
+}
+
+/**
+ * LayoutPane says what a pane runs. Hosts are opened by id, so a renamed host
+ * still opens; commands are built in Go from these values as always.
+ */
+export interface LayoutPane {
+    /**
+     * Kind is "shell", "host", "target" or "rdp" (a remote desktop in the tab).
+     */
+    "kind": string;
+    "hostId": number;
+
+    /**
+     * User is the login for a host when it isn't the saved one ("" = saved).
+     */
+    "user": string;
+
+    /**
+     * Target is "[user@]host[:port]" for kind "target".
+     */
+    "target": string;
+
+    /**
+     * Title is a pane title the user set ("" = automatic).
+     */
+    "title": string;
+}
+
+/**
+ * LayoutTab is one tab: its panes, in order, and how they're split.
+ */
+export interface LayoutTab {
+    /**
+     * Name is the tab's own name ("" for the automatic one).
+     */
+    "name": string;
+
+    /**
+     * Orientation is "row", "column" or "grid".
+     */
+    "orientation": string;
+
+    /**
+     * Sizes are the split shares; the frontend falls back to even ones when
+     * they don't fit the panes.
+     */
+    "sizes": number[] | null;
+    "panes": LayoutPane[] | null;
+}
+
+/**
  * Loaded is the stored settings plus whether a settings file exists yet
  * (the frontend migrates its older saved choices when it doesn't).
  */
@@ -246,6 +309,11 @@ export interface Settings {
      * The actions and their defaults live in the frontend.
      */
     "keybindings": { [_ in string]?: string } | null;
+
+    /**
+     * Layouts are saved sets of tabs and split panes, opened in one go.
+     */
+    "layouts": Layout[] | null;
 }
 
 /**

@@ -7,6 +7,11 @@ All notable changes to TuxShell are listed here. Versions follow
 
 ### Added
 
+- Saved layouts: save open tabs with their split panes (right-click a tab → Save tab as
+  layout, or Home → Layouts → Save open tabs) and open them again in one go from Home →
+  Layouts or Ctrl+K. One layout can open when TuxShell starts. Panes whose host was deleted
+  are skipped, with a note.
+
 - Proxmox VE in a host's OS list, with its logo. Imports read "Proxmox" from an OS column too.
 - A Detect button next to a host's operating system. Only when clicked, it reads
   `/etc/os-release` through a session that's already open to the host (it never logs in for

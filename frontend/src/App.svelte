@@ -32,6 +32,9 @@
   import { HOME, workspace } from './lib/workspace.svelte'
   import Launchpad from './lib/components/Launchpad.svelte'
   import { MAX_PANES, type Orientation } from './lib/layout'
+  import { layouts } from './lib/layouts.svelte'
+  import { notices } from './lib/notices.svelte'
+  import Notices from './lib/components/Notices.svelte'
   import type { PaneActions, Source, TabInfo } from './lib/tabs'
 
   type Panel = { kind: 'none' } | { kind: 'clipboard' } | { kind: 'files' } | { kind: 'host'; host: Host }
@@ -58,6 +61,13 @@
   }
   let renaming = $state<{ paneId: number; title: string } | null>(null)
   let renamingTab = $state<{ key: number; name: string } | null>(null)
+  // Saving tabs as a layout: the name dialog, then (for a name in use) the replace question.
+  let savingLayout = $state<{ keys: number[]; name: string } | null>(null)
+  let replacingLayout = $state<{ keys: number[]; name: string } | null>(null)
+  function saveLayout(keys: number[], name: string) {
+    layouts.save(name, keys)
+    notices.show(`Saved the layout “${name.trim()}”. Open it from Home → Layouts or the search.`)
+  }
   const hostsOpen = $derived(prefs.value.hostsSidebar)
 
   // Dragging the gap beside the hosts sidebar sets its width (saved in settings;
@@ -189,6 +199,10 @@
     move: (key, index) => workspace.moveTab(key, index),
     newShell: () => workspace.openTab({ kind: 'shell' }, 'Local shell'),
     home: () => (workspace.activeKey = HOME),
+    saveLayout: (keys) => {
+      const t = keys.length === 1 ? workspace.tabs.find((x) => x.key === keys[0]) : undefined
+      savingLayout = { keys, name: t ? workspace.tabTitle(t) : '' }
+    },
   }
   const home = $derived(workspace.activeKey === HOME)
 
@@ -217,10 +231,16 @@
   }
 
   onMount(() => {
-    void hostStore.load()
+    const hostsLoaded = hostStore.load()
+    const prefsLoaded = prefs.load()
     // The startup update check is on by default (Preferences → About); the
     // Flatpak leaves updates to Flathub.
-    void prefs.load().then(() => updates.atStartup(prefs.value.updateCheck))
+    void prefsLoaded.then(() => updates.atStartup(prefs.value.updateCheck))
+    // The layout marked "Open at startup", once its hosts and the settings are in.
+    void Promise.all([hostsLoaded, prefsLoaded]).then(() => {
+      const startup = layouts.startup
+      if (startup) layouts.open(startup)
+    })
     const offStatus = hostStatus.start()
     const offTunnels = tunnels.start()
     const offLogins = logins.start()
@@ -452,6 +472,7 @@
         onImport={openImport}
         onOpenHostList={openHostList}
         onPreferences={() => (prefsOpen = true)}
+        onSaveTabs={workspace.tabs.length ? () => tabActions.saveLayout(workspace.tabs.map((t) => t.key)) : undefined}
         openTabs={tabsLeft ? openTabsList : undefined}
       >
         {#snippet editor()}
@@ -535,6 +556,8 @@
   <ImportDialog start={importStart} onClose={() => (importOpen = false)} />
 {/if}
 
+<Notices />
+
 {#if quickOpen}
   <QuickConnect
     placeholder={splitInto ? `Split ${splitInto.orientation === 'row' ? 'right' : 'down'}: search hosts or type user@host` : undefined}
@@ -550,6 +573,7 @@
     onImport={() => openImport()}
     onOpenSplit={splitInto ? undefined : openSplit}
     onSnippet={!home && active ? pasteSnippet : undefined}
+    onLayout={splitInto ? undefined : (l) => layouts.open(l)}
   />
 {/if}
 
@@ -572,6 +596,34 @@
     submitLabel="Save"
     onSubmit={(title) => workspace.renamePane(r.paneId, title)}
     onClose={() => (renaming = null)}
+  />
+{/if}
+
+{#if savingLayout}
+  {@const s = savingLayout}
+  <PromptDialog
+    title={s.keys.length === 1 ? 'Save tab as layout' : `Save ${s.keys.length} tabs as layout`}
+    label="Layout name"
+    initial={s.name}
+    hint="Keeps which hosts are open and how the panes are split, nothing typed in them. Open it again from Home → Layouts or the search."
+    submitLabel="Save"
+    onSubmit={(name) => {
+      if (!name.trim()) return
+      const old = layouts.find(name)
+      if (old) replacingLayout = { keys: s.keys, name: old.name }
+      else saveLayout(s.keys, name)
+    }}
+    onClose={() => (savingLayout = null)}
+  />
+{/if}
+{#if replacingLayout}
+  {@const r = replacingLayout}
+  <ConfirmDialog
+    title="Replace “{r.name}”?"
+    message="A layout with this name already exists. Replacing it saves the tabs you picked instead."
+    confirmLabel="Replace"
+    onConfirm={() => saveLayout(r.keys, r.name)}
+    onClose={() => (replacingLayout = null)}
   />
 {/if}
 

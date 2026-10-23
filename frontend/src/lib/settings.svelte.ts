@@ -66,6 +66,7 @@ const defaults = (): Settings => ({
   tabsPosition: 'left',
   groupOrder: [],
   emptyGroups: [],
+  layouts: [],
   hiddenSshConfigHosts: [],
   hostStatus: true,
   updateCheck: true,
@@ -224,6 +225,11 @@ class Preferences {
 
   setGroupOrder(order: string[]) {
     this.value.groupOrder = order
+    this.queueSave()
+  }
+
+  setLayouts(list: Settings['layouts']) {
+    this.value.layouts = list
     this.queueSave()
   }
 

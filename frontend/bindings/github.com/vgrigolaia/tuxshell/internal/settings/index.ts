@@ -8,6 +8,9 @@ export {
 
 export type {
     History,
+    Layout,
+    LayoutPane,
+    LayoutTab,
     Loaded,
     NamedProfile,
     Palette,

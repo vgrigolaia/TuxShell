@@ -6,6 +6,7 @@
   import { describeTunnel, tunnels, type TunnelState } from '../tunnels.svelte'
   import { best } from '../fuzzy'
   import Icon from './Icon.svelte'
+  import { layouts, type Layout } from '../layouts.svelte'
 
   interface Props {
     placeholder?: string
@@ -19,8 +20,10 @@
     onOpenSplit?: (hosts: Host[]) => void
     /** Pastes a snippet into the focused terminal; missing when none is open. */
     onSnippet?: (command: string) => void
+    /** Opens a saved layout's tabs; missing while splitting a tab. */
+    onLayout?: (layout: Layout) => void
   }
-  let { placeholder = 'Search hosts, or type user@host to connect', onClose, onConnectHost, onConnectTarget, onNewShell, onNewHost, onImport, onOpenSplit, onSnippet }: Props = $props()
+  let { placeholder = 'Search hosts, or type user@host to connect', onClose, onConnectHost, onConnectTarget, onNewShell, onNewHost, onImport, onOpenSplit, onSnippet, onLayout }: Props = $props()
 
   type Filter = 'all' | 'hosts' | 'snippets' | 'tunnels' | 'actions'
   let filter = $state<Filter>('all')
@@ -30,7 +33,7 @@
     | { kind: 'target'; id: string; target: string }
     | { kind: 'snippet'; id: string; snippet: Snippet }
     | { kind: 'tunnel'; id: string; tunnel: TunnelState }
-    | { kind: 'action'; id: string; label: string; hint?: string; icon: 'terminal' | 'plus' | 'import' | 'splitRight'; run: () => void }
+    | { kind: 'action'; id: string; label: string; hint?: string; icon: 'terminal' | 'plus' | 'import' | 'splitRight' | 'tab'; run: () => void }
 
   let dialog: HTMLDialogElement
   let input: HTMLInputElement
@@ -68,6 +71,15 @@
     if (q && onOpenSplit && matched.length >= 2 && matched.length <= 4) {
       const split = onOpenSplit
       out.push({ kind: 'action', id: 'split', label: `Open all ${matched.length} in split`, hint: `${matched.length} panes · broadcast ready`, icon: 'splitRight', run: () => split(matched) })
+    }
+
+    // Saved layouts: open all their tabs at once.
+    if (onLayout) {
+      const open = onLayout
+      for (const l of layouts.list.filter((l) => !q || best(q, [l.name, 'layout']) > 0).slice(0, filter === 'actions' ? 20 : 4)) {
+        const tabs = l.tabs?.length ?? 0
+        out.push({ kind: 'action', id: `l:${l.name}`, label: `Open layout “${l.name}”`, hint: `${tabs} ${tabs === 1 ? 'tab' : 'tabs'}`, icon: 'tab', run: () => open(l) })
+      }
     }
 
     const actions: Item[] = [

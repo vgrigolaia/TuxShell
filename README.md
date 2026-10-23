@@ -50,6 +50,10 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
   out to its own tab, maximize a pane, drag dividers to resize. Open tabs are listed in the
   left panel above your hosts (or shrink to a strip of icons when it's hidden); drag to
   reorder them. Prefer the classic strip? Preferences → General → Open tabs.
+- **Saved layouts**: save a set of tabs with their split panes (right-click a tab → Save tab
+  as layout, or Home → Layouts) and open them all again in one click, from Home or Ctrl+K.
+  One layout can open at startup. A layout keeps which hosts are open and how they're split,
+  never anything typed in them.
 - **Organize your hosts**: drag groups and hosts to put them in your own order, or into
   another group. The same with the keyboard (Alt+↑/↓) and from the right-click menu.
   Make an empty group with the folder button next to New host; rename or delete a group
