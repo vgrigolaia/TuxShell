@@ -96,7 +96,8 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
 
 All shortcuts are listed in Preferences → Shortcuts, where you can change them or turn them off
 (click Change and press the new keys). A shortcut needs Ctrl, Alt or an F key, and keys the
-terminal needs, like Ctrl+C, can't be taken. On macOS the app's shortcuts use ⌘ where this page
+terminal needs, like Ctrl+C, can't be taken. Shift with a key (Shift+Space) is allowed after a
+warning, since it's easy to press while typing; in text fields such a key still types. On macOS the app's shortcuts use ⌘ where this page
 says Ctrl (Ctrl+Shift+L becomes ⇧⌘L), and the terminal copies and pastes with ⌘C and ⌘V, so Ctrl
 stays with the programs in the terminal.
 
