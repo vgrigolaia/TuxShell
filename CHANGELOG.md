@@ -7,11 +7,17 @@ All notable changes to TuxShell are listed here. Versions follow
 
 ### Added
 
+- "New group" in the hosts sidebar (the folder button next to New host) makes an empty
+  group to drag hosts into. A group's right-click menu can now rename it (another group's
+  name merges the two) or delete it; its hosts stay, ungrouped.
 - `task flatpak` builds the `.flatpak` file that comes with each release, and the README explains
   how to install it.
 
 ### Fixed
 
+- macOS: 1.4.1 and 1.4.2 opened an empty window. TuxShell starts again.
+- If the app ever fails to start, the window shows what went wrong, with a button to copy
+  the details, instead of staying empty.
 - The `.flatpak` file from GitHub releases checks for updates again. Only a Flathub build leaves
   updates to Flathub.
 
