@@ -17,6 +17,11 @@ All notable changes to TuxShell are listed here. Versions follow
   `/etc/os-release` through a session that's already open to the host (it never logs in for
   this), or else the ssh server's greeting, which names Ubuntu, Debian, FreeBSD and Windows.
 
+- Window options in Preferences → General: open the window as you left it (size and
+  maximized), always maximized, or full screen; and keep it on top of other windows (X11 and
+  macOS; Wayland doesn't let apps do that). The size is kept in `window.json` next to the
+  settings.
+
 ### Changed
 
 - The hosts sidebar can be resized: drag the gap between it and the terminals (double-click

@@ -67,6 +67,7 @@ const defaults = (): Settings => ({
   groupOrder: [],
   emptyGroups: [],
   layouts: [],
+  window: { start: 'last', alwaysOnTop: false },
   hiddenSshConfigHosts: [],
   hostStatus: true,
   updateCheck: true,
@@ -225,6 +226,12 @@ class Preferences {
 
   setGroupOrder(order: string[]) {
     this.value.groupOrder = order
+    this.queueSave()
+  }
+
+  /** Window options; always-on-top applies at once, the start mode next time. */
+  setWindow(patch: Partial<Settings['window']>) {
+    this.value.window = { ...this.value.window, ...patch }
     this.queueSave()
   }
 

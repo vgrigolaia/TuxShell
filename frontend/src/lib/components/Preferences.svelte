@@ -8,7 +8,8 @@
   import Icon from './Icon.svelte'
   import { hostStatus } from '../status.svelte'
   import { updates, VERSION } from '../updates.svelte'
-  import { Browser } from '@wailsio/runtime'
+  import { Browser, Window } from '@wailsio/runtime'
+  import * as Terminals from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/terminal/service'
   import Logo from './Logo.svelte'
   import ExportHosts from './ExportHosts.svelte'
   import ShortcutsSettings from './ShortcutsSettings.svelte'
@@ -161,8 +162,17 @@
     recordings: isMac ? '~/Library/Application Support/TuxShell/recordings' : '~/.local/share/tuxshell/recordings',
   })
 
+  // Wayland gives apps no way to stay on top, so the option is off there.
+  let displayServer = $state('')
+  const noOnTop = $derived(displayServer === 'Wayland')
+  function setOnTop(on: boolean) {
+    prefs.setWindow({ alwaysOnTop: on })
+    void Window.SetAlwaysOnTop(on)
+  }
+
   onMount(() => {
     dialog.showModal()
+    void Terminals.DisplayServer().then((d) => (displayServer = d), () => {})
     void systemFonts().then((l) => (fonts = l))
     void loginShells().then((l) => (shells = l))
     void Promise.all([SettingsService.File(), Recordings.Folder()]).then(
@@ -584,6 +594,27 @@
             {/each}
           </div>
           <span class={hint}>In the left panel, open tabs are listed above your hosts; with the panel hidden they become a narrow strip of icons.</span>
+        </fieldset>
+
+        <fieldset class="mb-6">
+          <legend class={label}>Window</legend>
+          <div class="flex gap-2" role="radiogroup" aria-label="When TuxShell starts">
+            {#each [['last', 'As I left it'], ['maximized', 'Maximized'], ['fullscreen', 'Full screen']] as const as [value, name] (value)}
+              <label class="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-[13px] {prefs.value.window.start === value ? 'border-accent bg-accent/10' : 'border-line hover:bg-raised'}">
+                <input type="radio" class="sr-only" name="{id}-start" {value} checked={prefs.value.window.start === value} onchange={() => prefs.setWindow({ start: value })} />
+                {name}
+              </label>
+            {/each}
+          </div>
+          <span class={hint}>How the window opens when TuxShell starts. “As I left it” comes back at the size it had when you closed it, maximized if it was.</span>
+          <label class="{check} mt-3 {noOnTop ? 'opacity-60' : ''}">
+            <input type="checkbox" class="mt-0.5 accent-accent" checked={prefs.value.window.alwaysOnTop && !noOnTop} disabled={noOnTop} onchange={(e) => setOnTop(e.currentTarget.checked)} />
+            <span
+              >Always on top<span class={hint}
+                >{noOnTop ? 'Not available on Wayland, which doesn’t let apps keep themselves above others.' : 'Keeps TuxShell above other windows.'}</span
+              ></span
+            >
+          </label>
         </fieldset>
 
         <div class="flex flex-col gap-4">

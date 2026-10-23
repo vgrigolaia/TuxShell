@@ -63,6 +63,8 @@ type Settings struct {
 	// ("Ctrl+Shift+L"). Actions not listed keep their default; "" turns one off.
 	// The actions and their defaults live in the frontend.
 	Keybindings map[string]string `json:"keybindings"`
+	// Window holds the global window options (Preferences → General → Window).
+	Window Window `json:"window"`
 	// Layouts are saved sets of tabs and split panes, opened in one go.
 	Layouts []Layout `json:"layouts"`
 }
@@ -225,6 +227,7 @@ func Defaults() Settings {
 		RDPClient:            "auto",
 		Keybindings:          map[string]string{},
 		Layouts:              []Layout{},
+		Window:               Window{Start: "last"},
 	}
 }
 
@@ -298,6 +301,7 @@ func (s *Settings) normalize() {
 	s.Terminal.Profile.normalize()
 	oneOf(&s.RDPClient, d.RDPClient, "auto", "x11", "sdl")
 	oneOf(&s.TabsPosition, d.TabsPosition, "left", "top")
+	oneOf(&s.Window.Start, d.Window.Start, "last", "maximized", "fullscreen")
 	if s.SidebarWidth != 0 && (s.SidebarWidth < MinSidebarWidth || s.SidebarWidth > MaxSidebarWidth) {
 		s.SidebarWidth = 0
 	}

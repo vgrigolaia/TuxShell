@@ -93,7 +93,8 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
   Each clip shows which host it was copied from.
 - **Preferences** (Ctrl+,): font (bundled or any installed monospace font), size, spacing,
   weights, cursor, colour schemes (Solarized, Dracula, Nord, Gruvbox, One Dark, Tango…),
-  scrollback, copy on select, right-click paste, bell, local shell. Saved to
+  scrollback, copy on select, right-click paste, bell, local shell, how the window opens
+  (as you left it, maximized or full screen) and always on top (X11 and macOS). Saved to
   `~/.config/tuxshell/settings.json` (on macOS in `~/Library/Application Support/TuxShell/`).
 - **Terminal menu** (right-click): copy, paste, set title, split, open in new tab, read
   only, scrollbar, zoom. Ctrl+mouse wheel zooms text.

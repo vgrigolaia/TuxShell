@@ -16,5 +16,6 @@ export type {
     Palette,
     Profile,
     Settings,
-    Terminal
+    Terminal,
+    Window
 } from "./models.js";

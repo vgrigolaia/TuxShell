@@ -311,6 +311,11 @@ export interface Settings {
     "keybindings": { [_ in string]?: string } | null;
 
     /**
+     * Window holds the global window options (Preferences → General → Window).
+     */
+    "window": Window;
+
+    /**
      * Layouts are saved sets of tabs and split panes, opened in one go.
      */
     "layouts": Layout[] | null;
@@ -443,4 +448,21 @@ export interface Terminal {
      * Shell runs in local tabs; empty means $SHELL. Must be listed in /etc/shells.
      */
     "shell": string;
+}
+
+/**
+ * Window holds the global window options.
+ */
+export interface Window {
+    /**
+     * Start is how the window opens: "last" (as it was when TuxShell last
+     * closed), "maximized" or "fullscreen".
+     */
+    "start": string;
+
+    /**
+     * AlwaysOnTop keeps the window above others. X11 and macOS only: Wayland
+     * has no way for an app to ask for it.
+     */
+    "alwaysOnTop": boolean;
 }
