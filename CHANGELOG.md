@@ -14,6 +14,9 @@ All notable changes to TuxShell are listed here. Versions follow
 
 ### Changed
 
+- The hosts sidebar can be resized: drag the gap between it and the terminals (double-click
+  for the default width, or use ←/→ on it). Its header no longer pushes the New host button
+  against the edge, and "Select" is now an icon button.
 - Copy on select is on for new installs: selecting text in a terminal copies it. Existing
   settings keep their choice (Preferences → General → Copy on select).
 - A shortcut can be Shift with a key, such as Shift+Space for Paste, after a warning that

@@ -78,7 +78,7 @@ func TestHandEditedFile(t *testing.T) {
 	s := newTestService(t)
 	os.MkdirAll(filepath.Dir(s.path), 0o700)
 	// Unknown keys are ignored, missing keys keep defaults, bad values are replaced.
-	os.WriteFile(s.path, []byte(`{"theme":"neon","tabsPosition":"bottom","groupOrder":["Lab","","Lab","Prod"],"emptyGroups":["New","New",""],"terminal":{"fontSize":16,"fontFamily":"Evil\"; }","bell":"visual","extra":1}}`), 0o600)
+	os.WriteFile(s.path, []byte(`{"theme":"neon","tabsPosition":"bottom","groupOrder":["Lab","","Lab","Prod"],"emptyGroups":["New","New",""],"sidebarWidth":9000,"terminal":{"fontSize":16,"fontFamily":"Evil\"; }","bell":"visual","extra":1}}`), 0o600)
 	got, exists, err := load(s.path)
 	if err != nil || !exists {
 		t.Fatal(err)

@@ -28,8 +28,10 @@
     onOpenTiles: (hosts: Host[]) => void
     /** The open tabs, shown above the hosts (Preferences → Open tabs). */
     openTabs?: Snippet
+    /** Width in pixels, dragged by the user; 0 for the default. */
+    width?: number
   }
-  let { selectedId, onConnect, onEdit, onConnectAs, onDuplicate, onDelete, onNew, onImport, onOpenTiles, openTabs }: Props = $props()
+  let { selectedId, onConnect, onEdit, onConnectAs, onDuplicate, onDelete, onNew, onImport, onOpenTiles, openTabs, width = 0 }: Props = $props()
 
   const COLLAPSED_KEY = 'tuxshell.sidebar.collapsed'
 
@@ -284,6 +286,7 @@
   const markAbove = (i: number) => gdrag?.moved && gdrag.slot === i && i !== gdrag.from && i !== gdrag.from + 1
   const markBelow = (i: number) => gdrag?.moved && i === visible.length - 1 && gdrag.slot === visible.length && gdrag.from !== visible.length - 1
   const up = $derived(hostStatus.upCount(hostStore.list.map((h) => h.id)))
+  const count = $derived(`${hostStore.list.length}${up ? ` · ${up} up` : ''}`)
   // Hosts with a running session in some pane.
   const open = $derived(new Set(workspace.panes.filter((p) => p.source.kind === 'host' && !p.exited).map((p) => (p.source as { hostId: number }).hostId)))
   const pickedVisible = $derived(visibleHosts.filter((h) => picked.has(h.id)))
@@ -388,29 +391,33 @@
   ]
 </script>
 
-<aside aria-label="Hosts" class="flex w-60 shrink-0 flex-col gap-3.5 overflow-hidden rounded-panel border border-line bg-panel px-2.5 py-3.5">
+<aside aria-label="Hosts" style:width={width ? `${width}px` : undefined} class="flex w-[272px] shrink-0 flex-col gap-3.5 overflow-hidden rounded-panel border border-line bg-panel px-2.5 py-3.5">
   {#if openTabs}
     <!-- At most 40% of the panel, so the hosts stay reachable with many tabs open. -->
     <div class="flex max-h-[40%] min-h-0 shrink-0 flex-col border-b border-line pb-3">{@render openTabs()}</div>
   {/if}
-  <div class="flex items-center gap-1 px-1.5">
-    <h2 class="font-display text-[15px] font-semibold">Hosts</h2>
-    <span class="ml-auto font-mono text-[11px] whitespace-nowrap text-subtle">{hostStore.list.length}{up ? ` · ${up} up` : ''}</span>
+  <!-- The buttons keep their size; on a narrow panel the count gives way. -->
+  <div class="flex items-center gap-1 px-1">
+    <h2 class="shrink-0 font-display text-[15px] font-semibold">Hosts</h2>
+    <span class="mr-auto min-w-0 truncate pl-0.5 font-mono text-[11px] whitespace-nowrap text-subtle" title={count}>{count}</span>
     {#if hostStore.list.length > 0}
       <button
-        class="ml-1 rounded-md px-1.5 py-0.5 text-[11px] {selecting ? 'bg-accent-chip text-accent-ink' : 'text-subtle hover:bg-raised hover:text-fg'}"
+        class="grid size-6 shrink-0 place-items-center rounded-md {selecting ? 'bg-accent-chip text-accent-ink' : 'text-subtle hover:bg-raised hover:text-fg'}"
         aria-pressed={selecting}
+        aria-label="Select hosts to delete"
         title="Select hosts to delete"
-        onclick={() => (selecting ? stopSelecting() : startSelecting())}>Select</button
+        onclick={() => (selecting ? stopSelecting() : startSelecting())}
       >
+        <Icon name="selectAll" size={14} />
+      </button>
     {/if}
-    <button class="grid size-6 place-items-center rounded-md text-subtle hover:bg-raised hover:text-fg" aria-label="Import hosts" title="Import hosts" onclick={onImport}>
+    <button class="grid size-6 shrink-0 place-items-center rounded-md text-subtle hover:bg-raised hover:text-fg" aria-label="Import hosts" title="Import hosts" onclick={onImport}>
       <Icon name="import" size={13} />
     </button>
-    <button class="grid size-6 place-items-center rounded-md text-subtle hover:bg-raised hover:text-fg" aria-label="New group" title="New group" onclick={() => (newGroup = true)}>
+    <button class="grid size-6 shrink-0 place-items-center rounded-md text-subtle hover:bg-raised hover:text-fg" aria-label="New group" title="New group" onclick={() => (newGroup = true)}>
       <Icon name="folderPlus" size={14} />
     </button>
-    <button class="grid size-6 place-items-center rounded-md text-subtle hover:bg-raised hover:text-fg" aria-label="New host" title="New host" onclick={onNew}>
+    <button class="grid size-6 shrink-0 place-items-center rounded-md text-subtle hover:bg-raised hover:text-fg" aria-label="New host" title="New host" onclick={onNew}>
       <Icon name="plus" size={14} />
     </button>
   </div>

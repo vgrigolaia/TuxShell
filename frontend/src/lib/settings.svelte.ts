@@ -62,6 +62,7 @@ const BUNDLED_CSS = '"JetBrains Mono Variable"'
 const defaults = (): Settings => ({
   theme: 'dark',
   hostsSidebar: true,
+  sidebarWidth: 0,
   tabsPosition: 'left',
   groupOrder: [],
   emptyGroups: [],
@@ -223,6 +224,12 @@ class Preferences {
 
   setGroupOrder(order: string[]) {
     this.value.groupOrder = order
+    this.queueSave()
+  }
+
+  /** The hosts sidebar's dragged width; 0 for the default. */
+  setSidebarWidth(px: number) {
+    this.value.sidebarWidth = px
     this.queueSave()
   }
 

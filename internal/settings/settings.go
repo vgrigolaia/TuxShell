@@ -25,6 +25,9 @@ type Settings struct {
 	Theme string `json:"theme"`
 	// HostsSidebar shows the hosts sidebar.
 	HostsSidebar bool `json:"hostsSidebar"`
+	// SidebarWidth is the hosts sidebar's width in pixels, set by dragging its
+	// edge; 0 means the default.
+	SidebarWidth int `json:"sidebarWidth"`
 	// TabsPosition puts the open tabs in the left panel ("left") or the title bar ("top").
 	TabsPosition string `json:"tabsPosition"`
 	// GroupOrder is the order of host groups chosen by dragging; groups not
@@ -292,6 +295,9 @@ func (s *Settings) normalize() {
 	s.Terminal.Profile.normalize()
 	oneOf(&s.RDPClient, d.RDPClient, "auto", "x11", "sdl")
 	oneOf(&s.TabsPosition, d.TabsPosition, "left", "top")
+	if s.SidebarWidth != 0 && (s.SidebarWidth < MinSidebarWidth || s.SidebarWidth > MaxSidebarWidth) {
+		s.SidebarWidth = 0
+	}
 	s.GroupOrder = cleanGroupOrder(s.GroupOrder)
 	s.EmptyGroups = cleanGroupOrder(s.EmptyGroups)
 	s.HiddenSSHConfigHosts = cleanGroupOrder(s.HiddenSSHConfigHosts)
@@ -398,6 +404,12 @@ func oneOf(v *string, def string, allowed ...string) {
 	}
 	*v = def
 }
+
+// The hosts sidebar can be dragged between these widths (pixels).
+const (
+	MinSidebarWidth = 200
+	MaxSidebarWidth = 520
+)
 
 // Limits for GroupOrder, EmptyGroups and HiddenSSHConfigHosts, so a hand-edited file stays small.
 const (

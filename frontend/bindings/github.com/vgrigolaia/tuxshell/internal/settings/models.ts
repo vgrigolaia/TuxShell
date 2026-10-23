@@ -171,6 +171,12 @@ export interface Settings {
     "hostsSidebar": boolean;
 
     /**
+     * SidebarWidth is the hosts sidebar's width in pixels, set by dragging its
+     * edge; 0 means the default.
+     */
+    "sidebarWidth": number;
+
+    /**
      * TabsPosition puts the open tabs in the left panel ("left") or the title bar ("top").
      */
     "tabsPosition": string;

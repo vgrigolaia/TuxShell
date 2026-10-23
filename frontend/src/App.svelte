@@ -60,6 +60,46 @@
   let renamingTab = $state<{ key: number; name: string } | null>(null)
   const hostsOpen = $derived(prefs.value.hostsSidebar)
 
+  // Dragging the gap beside the hosts sidebar sets its width (saved in settings;
+  // the limits match settings.MinSidebarWidth/MaxSidebarWidth in Go).
+  const SIDEBAR_DEFAULT = 272
+  const SIDEBAR_MIN = 200
+  const SIDEBAR_MAX = 520
+  let sidebarDrag = $state<number | null>(null)
+  const sidebarWidth = $derived(sidebarDrag ?? (prefs.value.sidebarWidth || SIDEBAR_DEFAULT))
+  const clampSidebar = (px: number) => Math.round(Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, window.innerWidth / 2, px)))
+
+  function onResizeDown(e: PointerEvent) {
+    if (e.button !== 0) return
+    e.preventDefault()
+    const handle = e.currentTarget as HTMLElement
+    try {
+      handle.setPointerCapture(e.pointerId) // keeps the drag when the mouse runs ahead of the handle
+    } catch {
+      // No such pointer (a synthetic event); the drag still works while over the handle.
+    }
+    const startX = e.clientX
+    const start = sidebarWidth
+    const move = (ev: PointerEvent) => (sidebarDrag = clampSidebar(start + ev.clientX - startX))
+    const done = () => {
+      handle.removeEventListener('pointermove', move)
+      handle.removeEventListener('pointerup', done)
+      handle.removeEventListener('pointercancel', done)
+      if (sidebarDrag !== null) prefs.setSidebarWidth(sidebarDrag)
+      sidebarDrag = null
+    }
+    handle.addEventListener('pointermove', move)
+    handle.addEventListener('pointerup', done)
+    handle.addEventListener('pointercancel', done)
+  }
+
+  function onResizeKey(e: KeyboardEvent) {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+    e.preventDefault()
+    const step = (e.shiftKey ? 40 : 10) * (e.key === 'ArrowLeft' ? -1 : 1)
+    prefs.setSidebarWidth(clampSidebar(sidebarWidth + step))
+  }
+
   // Splits a pane's tab with the same connection (no new login thanks to
   // shared ssh connections). "auto" splits along the pane's longer side.
   function splitSame(paneId: number, orientation: Orientation | 'auto') {
@@ -350,7 +390,31 @@
         onImport={() => openImport()}
         onOpenTiles={openSplit}
         openTabs={tabsLeft ? openTabsList : undefined}
+        width={sidebarWidth}
       />
+  <!-- Sits in the gap between the sidebar and the terminals. -->
+  <!-- A focusable separator is the ARIA window-splitter pattern. -->
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+  <div
+    role="separator"
+    aria-orientation="vertical"
+    aria-label="Resize the hosts panel"
+    aria-valuemin={SIDEBAR_MIN}
+    aria-valuemax={SIDEBAR_MAX}
+    aria-valuenow={sidebarWidth}
+    tabindex="0"
+    title="Drag to resize · double-click for the default width"
+    class="group/resize relative -mx-2.5 w-2.5 shrink-0 cursor-col-resize touch-none focus-visible:outline-none"
+    onpointerdown={onResizeDown}
+    ondblclick={() => prefs.setSidebarWidth(0)}
+    onkeydown={onResizeKey}
+  >
+    <span
+      class="absolute inset-y-4 left-1/2 w-0.5 -translate-x-1/2 rounded-full bg-accent transition-opacity group-hover/resize:opacity-60 group-focus-visible/resize:opacity-100 {sidebarDrag !== null
+        ? 'opacity-100'
+        : 'opacity-0'}"
+    ></span>
+  </div>
 {/snippet}
 
 {#snippet openTabsList()}
