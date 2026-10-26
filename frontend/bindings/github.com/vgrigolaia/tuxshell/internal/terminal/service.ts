@@ -10,6 +10,10 @@
 // @ts-ignore: Unused imports
 import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wailsio/runtime";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as $models from "./models.js";
+
 /**
  * Close hangs up a session. The exit event follows once the process is gone.
  */
@@ -29,6 +33,13 @@ export function CloseAll(): $CancellablePromise<void> {
  */
 export function DisplayServer(): $CancellablePromise<string> {
     return $Call.ByID(365608862);
+}
+
+/**
+ * Foreground reports whether a local shell session is running ssh right now.
+ */
+export function Foreground(id: string): $CancellablePromise<$models.Foreground> {
+    return $Call.ByID(2692034044, id);
 }
 
 /**

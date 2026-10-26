@@ -19,6 +19,31 @@ export interface ExitEvent {
 }
 
 /**
+ * Foreground describes an ssh the user started by hand in a local shell tab.
+ * Its connection is private to that ssh, so the file panel can't browse it;
+ * the app offers to open the same server as its own connection instead.
+ */
+export interface Foreground {
+    /**
+     * SSH is false when the tab's foreground program isn't ssh (or can't be told).
+     */
+    "ssh": boolean;
+    "user": string;
+    "host": string;
+    "port": number;
+
+    /**
+     * Target is "[user@]host[:port]", ready for a quick connect tab.
+     */
+    "target": string;
+
+    /**
+     * Extra is set when the command had options that aren't carried over (-J, -i, -o…).
+     */
+    "extra": boolean;
+}
+
+/**
  * RecordingEvent says whether a session is being recorded. Error is set when
  * a recording stopped by itself (e.g. it grew too large).
  */

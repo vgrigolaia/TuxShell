@@ -30,7 +30,8 @@
     visible: boolean
     /** This pane gets keyboard focus. */
     focused: boolean
-    onStart?: () => void
+    /** The session started; id is its terminal session. */
+    onStart?: (id: string) => void
     /** Claims typed input (e.g. to broadcast it); return true when handled. */
     onInput?: (data: string) => boolean
     /** Reports the username typed in the login prompt. */
@@ -345,8 +346,8 @@
         void Terminals.Close(sessionId)
         return
       }
-      onStart?.()
       const id = sessionId
+      onStart?.(id)
       liveSession = id
       recording = ''
       if (profile.record) void startRecording()

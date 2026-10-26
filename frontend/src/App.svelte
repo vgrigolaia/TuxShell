@@ -525,7 +525,13 @@
 
     {#if panel.kind === 'files'}
       <!-- On Home there is no terminal, so it browses this computer. -->
-      <FilePanel pane={home ? undefined : active} onRunInPane={runInPane} onClose={() => (panel = { kind: 'none' })} />
+      <FilePanel
+        pane={home ? undefined : active}
+        onRunInPane={runInPane}
+        onOpenTarget={(target) => workspace.openTab({ kind: 'target', target }, target)}
+        onAddHost={(ssh) => (panel = { kind: 'host', host: { ...emptyHost(), name: ssh.host, hostname: ssh.host, user: ssh.user, port: ssh.port || 22 } })}
+        onClose={() => (panel = { kind: 'none' })}
+      />
     {:else if home}
       <!-- Home shows the editor inside the launchpad. -->
     {:else if panel.kind === 'host'}

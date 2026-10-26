@@ -5,6 +5,12 @@ All notable changes to TuxShell are listed here. Versions follow
 
 ## [Unreleased]
 
+### Changed
+
+- When you type ssh in a local shell tab, the file panel says so and offers to open that server as
+  a TuxShell connection (or add it as a host), instead of showing this computer's files and typing
+  local folders into the remote shell with cd here.
+
 ## [1.5.1] - 2026-10-26
 
 ### Added

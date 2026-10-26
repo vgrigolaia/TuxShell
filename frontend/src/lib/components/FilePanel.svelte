@@ -2,6 +2,8 @@
   import { onMount, tick } from 'svelte'
   import { Clipboard, Events } from '@wailsio/runtime'
   import * as Files from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/files/service'
+  import * as Terminals from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/terminal/service'
+  import type { Foreground } from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/terminal/models'
   import type { Entry, Listing, Location } from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/files/models'
   import { errorMessage, hostStore } from '../hosts.svelte'
   import type { Pane } from '../workspace.svelte'
@@ -16,9 +18,38 @@
     pane: Pane | undefined
     /** Types a command line into the pane's shell. */
     onRunInPane: (paneId: number, line: string) => void
+    /** Opens "[user@]host[:port]" as a TuxShell connection. */
+    onOpenTarget: (target: string) => void
+    /** Opens the new host form filled in from an ssh typed in a local shell. */
+    onAddHost: (ssh: Foreground) => void
     onClose: () => void
   }
-  let { pane, onRunInPane, onClose }: Props = $props()
+  let { pane, onRunInPane, onOpenTarget, onAddHost, onClose }: Props = $props()
+
+  // An ssh typed in a local shell tab: its connection is its own, so the panel
+  // can't browse it (and must never type local paths into it).
+  let sshHere = $state<Foreground | null>(null)
+  $effect(() => {
+    const session = pane?.source.kind === 'shell' ? pane.session : ''
+    sshHere = null
+    if (!session) return
+    let stopped = false
+    const check = async () => {
+      try {
+        const f = await Terminals.Foreground(session)
+        if (!stopped) sshHere = f.ssh ? f : null
+      } catch {
+        if (!stopped) sshHere = null
+      }
+    }
+    void check()
+    const timer = setInterval(check, 2000)
+    return () => {
+      stopped = true
+      clearInterval(timer)
+    }
+  })
+  const canCd = $derived(!!pane && !sshHere)
 
   let listing = $state<Listing | null>(null)
   let error = $state<string | null>(null)
@@ -100,7 +131,7 @@
 
   onMount(() =>
     Events.On('files:dropped', (ev) => {
-      if (!location || !listing) return
+      if (!location || !listing || sshHere) return
       void transfer(`Uploading ${ev.data.names?.length ?? 0} file(s)…`, () => Files.UploadDropped(ev.data.id, location!, listing!.path))
     }),
   )
@@ -310,7 +341,7 @@
     const items: MenuItem[] = []
     if (one && isDir(e)) {
       items.push({ label: 'Open', icon: 'folder', run: () => activate(e) })
-      if (pane) items.push({ label: 'cd here in the terminal', icon: 'terminal', run: () => cdHere(path) })
+      if (canCd) items.push({ label: 'cd here in the terminal', icon: 'terminal', run: () => cdHere(path) })
     }
     if (one && e.type === 'file') {
       items.push(
@@ -374,10 +405,10 @@
         <Icon name="follow" size={15} />
       </button>
     {/if}
-    <button class={iconBtn} aria-label="New folder" title="New folder" disabled={!listing || !!busy} onclick={startCreate}>
+    <button class={iconBtn} aria-label="New folder" title="New folder" disabled={!listing || !!busy || !!sshHere} onclick={startCreate}>
       <Icon name="folderPlus" size={15} />
     </button>
-    <button class={iconBtn} aria-label="Upload files" title="Upload files (or drop them here)" disabled={!listing || !!busy} onclick={upload}>
+    <button class={iconBtn} aria-label="Upload files" title="Upload files (or drop them here)" disabled={!listing || !!busy || !!sshHere} onclick={upload}>
       <Icon name="upload" size={15} />
     </button>
     <button class={iconBtn} aria-label="Refresh" title="Refresh" disabled={loading} onclick={reload}>
@@ -392,6 +423,22 @@
     <p class="mx-3 mb-2 rounded-lg bg-raised px-2.5 py-1.5 text-xs text-muted">This terminal's prompt doesn't report its folder yet. Press Enter in it or run cd; some prompts never do.</p>
   {/if}
 
+  {#if sshHere}
+    {@const ssh = sshHere}
+    <div class="mx-3 flex flex-col gap-2.5 rounded-xl border border-line bg-raised px-3.5 py-3 text-xs text-muted">
+      <p>
+        This tab is running <span class="font-mono text-fg">ssh {ssh.target}</span>. An ssh you start yourself keeps its connection to itself, so its files
+        can't be browsed from here.
+      </p>
+      <p>Open the server as a TuxShell connection to browse its files.</p>
+      {#if ssh.extra}<p class="text-subtle">Options such as -J, -i or -o aren't copied; set them in the host form.</p>{/if}
+      <div class="flex flex-wrap gap-1.5">
+        <button class="rounded-md bg-accent px-2.5 py-1 font-semibold text-on-accent hover:bg-accent/90" onclick={() => onOpenTarget(ssh.target)}>Open as a TuxShell connection</button>
+        <button class="rounded-md px-2.5 py-1 font-medium text-muted hover:bg-line hover:text-fg" onclick={() => onAddHost(ssh)}>Add as host…</button>
+      </div>
+    </div>
+    <div class="flex-1"></div>
+  {:else}
   <form
     class="flex items-center gap-1 px-3 pb-2"
     onsubmit={(e) => {
@@ -412,7 +459,7 @@
         spellcheck="false"
       />
     </label>
-    {#if listing && pane}
+    {#if listing && canCd}
       <button type="button" class="h-7 shrink-0 rounded-lg px-2 text-xs text-muted hover:bg-raised hover:text-fg" title="Type cd to this folder in the terminal" onclick={() => listing && cdHere(listing.path)}>cd here</button>
     {/if}
   </form>
@@ -487,7 +534,7 @@
                 <span class="shrink-0 font-mono text-[11px] text-subtle group-focus-within:opacity-0 group-hover:opacity-0">{dir ? 'dir' : size(e.size)}</span>
               </button>
               <div class="absolute top-1/2 right-1.5 flex -translate-y-1/2 gap-0.5 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100">
-                {#if dir && pane}
+                {#if dir && canCd}
                   <button class={rowBtn} aria-label="cd to {e.name} in the terminal" title="cd here" onclick={() => listing && cdHere(join(listing.path, e.name))}>
                     <Icon name="terminal" size={13} />
                   </button>
@@ -520,6 +567,7 @@
       {/if}
     {/if}
   </div>
+  {/if}
 
   {#if edits.list.length}
     <section aria-label="Files open for editing" class="mx-3 mb-2 rounded-xl border border-line bg-ground/60">
@@ -573,7 +621,7 @@
     {/if}
     <button
       class="drop-zone w-full rounded-xl border border-dashed border-line px-3 py-4 text-center text-[13px] text-subtle hover:border-subtle hover:text-muted disabled:opacity-50"
-      disabled={!listing || !!busy}
+      disabled={!listing || !!busy || !!sshHere}
       title="Double-click a folder to open it, a file to download it"
       onclick={upload}
     >
