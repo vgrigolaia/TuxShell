@@ -22,6 +22,11 @@
   strip-components: 3
   type: archive
   url: https://proxy.golang.org/golang.org/x/sys/@v/v0.48.0.zip
+- dest: vendor/golang.org/x/crypto
+  sha256: 856c916b92f1fc5b53983c04f6249f632f56c47ebc003bbcdfc503500dfb58b8
+  strip-components: 3
+  type: archive
+  url: https://proxy.golang.org/golang.org/x/crypto/@v/v0.57.0.zip
 - dest: vendor/modernc.org/sqlite
   sha256: 60b6851c02b568c7ffb2b33599ef5a7e0ade9e48ebe1cf7265f1bfa831ab2ec0
   strip-components: 2
