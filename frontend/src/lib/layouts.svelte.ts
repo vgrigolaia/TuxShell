@@ -85,9 +85,24 @@ class Layouts {
 
   /** Opens the layout's tabs after the current one; the first of them is shown. */
   open(layout: Layout) {
+    const skipped = this.openTabs(layout.tabs ?? [])
+    if (skipped)
+      notices.show(`${skipped === 1 ? '1 pane' : `${skipped} panes`} of “${layout.name}” didn’t open: ${skipped === 1 ? 'its host was' : 'their hosts were'} deleted.`)
+  }
+
+  /** Opens a copy of a tab right after it: the same hosts, users, split and names, as new connections. */
+  duplicate(key: number) {
+    const tabs = this.snapshot([key])
+    if (!tabs.length) return
+    workspace.activeKey = key
+    this.openTabs(tabs)
+  }
+
+  /** Opens tabs after the current one and shows the first; returns how many panes were left out. */
+  private openTabs(tabs: LayoutTab[]): number {
     let skipped = 0
     let first: number | null = null
-    for (const t of layout.tabs ?? []) {
+    for (const t of tabs) {
       const stored = t.panes ?? []
       const panes = stored.flatMap((p) => {
         const s = sourceOf(p)
@@ -109,8 +124,7 @@ class Layouts {
       panes.forEach((p, i) => p.custom && workspace.renamePane(tab.paneIds[i], p.custom))
     }
     if (first !== null) workspace.activeKey = first
-    if (skipped)
-      notices.show(`${skipped === 1 ? '1 pane' : `${skipped} panes`} of “${layout.name}” didn’t open: ${skipped === 1 ? 'its host was' : 'their hosts were'} deleted.`)
+    return skipped
   }
 
   /** The layout marked "Open at startup", if any. */

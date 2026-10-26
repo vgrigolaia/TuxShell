@@ -12,6 +12,8 @@ export interface TabActions {
   split: (key: number, orientation: Orientation) => void
   unsplit: (key: number) => void
   rename: (key: number) => void
+  /** Opens a copy of the tab next to it (new connections to the same hosts). */
+  duplicate: (key: number) => void
   /** Moves a tab to a new position in the list. */
   move: (key: number, index: number) => void
   newShell: () => void
@@ -70,7 +72,8 @@ export function tabMenu(tabs: TabInfo[], key: number, a: TabActions): MenuItem[]
     items.push({ label: 'Split down…', run: () => a.split(key, 'column') })
   }
   if (tab.panes > 1) items.push({ label: 'Unsplit into tabs', run: () => a.unsplit(key) })
-  items.push({ label: 'Rename tab…', separator: true, run: () => a.rename(key) })
+  items.push({ label: 'Duplicate tab', separator: true, run: () => a.duplicate(key) })
+  items.push({ label: 'Rename tab…', run: () => a.rename(key) })
   items.push({ label: 'Save tab as layout…', run: () => a.saveLayout([key]) })
   if (tabs.length > 1) items.push({ label: `Save all ${tabs.length} tabs as layout…`, run: () => a.saveLayout(tabs.map((t) => t.key)) })
   items.push({ label: 'Close', run: () => a.close(key) })

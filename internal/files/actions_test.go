@@ -267,3 +267,23 @@ func TestEditRoundTrip(t *testing.T) {
 		t.Error("big file opened")
 	}
 }
+
+func TestOpenOnlyDownloadedFiles(t *testing.T) {
+	s, _ := NewService(nil, nil)
+	other := filepath.Join(t.TempDir(), "notes.txt")
+	if err := os.WriteFile(other, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.OpenDownload(other); err == nil {
+		t.Fatal("opened a file that wasn't downloaded here")
+	}
+	if err := s.ShowDownload(other); err == nil {
+		t.Fatal("showed a file that wasn't downloaded here")
+	}
+	// A download that was deleted since.
+	gone := filepath.Join(t.TempDir(), "gone.txt")
+	s.downloads[gone] = true
+	if err := s.downloaded(gone); err == nil || !strings.Contains(err.Error(), "isn't there") {
+		t.Fatalf("deleted download: %v", err)
+	}
+}

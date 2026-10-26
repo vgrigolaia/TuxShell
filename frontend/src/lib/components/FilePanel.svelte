@@ -24,7 +24,8 @@
   let error = $state<string | null>(null)
   let loading = $state(false)
   let pathInput = $state('')
-  let notice = $state<{ text: string; tone: 'ok' | 'warn' } | null>(null)
+  // saved: a file just downloaded, offered to open or show in its folder.
+  let notice = $state<{ text: string; tone: 'ok' | 'warn'; saved?: string } | null>(null)
   let busy = $state<string | null>(null)
   // Selected names; Ctrl+click adds and removes.
   let selected = $state<string[]>([])
@@ -153,11 +154,20 @@
     notice = null
     try {
       const saved = await Files.Download(location, remote)
-      notice = { text: `Saved to ${saved}`, tone: 'ok' }
+      notice = { text: `Saved to ${saved}`, tone: 'ok', saved }
     } catch (err) {
       notice = { text: errorMessage(err), tone: 'warn' }
     } finally {
       busy = null
+    }
+  }
+
+  /** Opens the downloaded file, or shows it in its folder; a failure replaces the notice. */
+  async function onSaved(run: (path: string) => Promise<void>, path: string) {
+    try {
+      await run(path)
+    } catch (err) {
+      notice = { text: errorMessage(err), tone: 'warn' }
     }
   }
 
@@ -553,6 +563,13 @@
       <p class="px-1 pb-2 text-muted">{busy}</p>
     {:else if notice}
       <p class="px-1 pb-2 break-all {notice.tone === 'ok' ? 'text-success' : 'text-warning'}">{notice.text}</p>
+      {#if notice.saved}
+        {@const saved = notice.saved}
+        <div class="flex gap-1.5 px-1 pb-2">
+          <button class="rounded-md bg-accent-chip px-2 py-1 font-semibold text-accent-ink hover:bg-accent/20" onclick={() => onSaved(Files.OpenDownload, saved)}>Open</button>
+          <button class="rounded-md px-2 py-1 font-medium text-muted hover:bg-raised hover:text-fg" onclick={() => onSaved(Files.ShowDownload, saved)}>Show in folder</button>
+        </div>
+      {/if}
     {/if}
     <button
       class="drop-zone w-full rounded-xl border border-dashed border-line px-3 py-4 text-center text-[13px] text-subtle hover:border-subtle hover:text-muted disabled:opacity-50"
