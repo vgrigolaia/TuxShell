@@ -18,6 +18,9 @@ func (noisyRunner) Command(ctx context.Context, script string) *exec.Cmd {
 }
 
 func TestLoginNoiseIsDropped(t *testing.T) {
+	if !gnuHost() {
+		t.Skip("the remote scripts target Linux servers with GNU tools")
+	}
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello"), 0o600); err != nil {
 		t.Fatal(err)
