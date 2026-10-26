@@ -9,5 +9,6 @@ export {
 export type {
     DataEvent,
     ExitEvent,
+    Foreground,
     RecordingEvent
 } from "./models.js";

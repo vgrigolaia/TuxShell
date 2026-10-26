@@ -140,7 +140,7 @@
 
   function auth(h: Host) {
     if (h.proxyJump) return `via ${h.proxyJump}`
-    if (h.passwordRef) return '1Password ref'
+    if (h.passwordRef) return h.passwordRef.startsWith('keepassxc:') ? 'KeePassXC ref' : '1Password ref'
     if (h.protocol === 'rdp') return h.passwordSaved ? 'remote desktop · password saved' : 'remote desktop'
     return h.passwordSaved ? 'password saved' : h.identityFile ? 'key file' : 'default keys'
   }
@@ -168,16 +168,16 @@
 
     <div class="mt-auto flex flex-col gap-2 rounded-2xl border border-line bg-panel p-3.5">
       <div class="flex items-center gap-2 text-[13px] font-bold">
-        <span class={onePassword.status?.version ? 'text-accent-text' : 'text-subtle'}><Icon name="shield" size={14} /></span>1Password
+        <span class={onePassword.status?.version || refHosts ? 'text-accent-text' : 'text-subtle'}><Icon name="shield" size={14} /></span>1Password · KeePassXC
       </div>
       <p class="text-xs leading-relaxed text-subtle">
-        {#if onePassword.status && !onePassword.status.version}
-          Install the 1Password CLI to sign in with vault references (Preferences → Security).
+        {#if onePassword.status && !onePassword.status.version && !refHosts}
+          Sign in with references to 1Password or KeePassXC: see Preferences → Security.
         {:else}
-          {refHosts === 0 ? 'No hosts use a vault reference yet.' : `${refHosts} ${refHosts === 1 ? 'host signs' : 'hosts sign'} in from your vault.`}
+          {refHosts === 0 ? 'No hosts use a password manager reference yet.' : `${refHosts} ${refHosts === 1 ? 'host signs' : 'hosts sign'} in from a password manager.`}
           {#if prefs.value.onePasswordAgent}SSH agent on.{/if}
         {/if}
-        TuxShell never stores 1Password secrets.
+        TuxShell never stores their passwords.
       </p>
     </div>
   </nav>

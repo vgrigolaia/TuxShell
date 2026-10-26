@@ -36,7 +36,7 @@
     alias: 'SSH config alias',
     os: 'Operating system',
     identityFile: 'Key file',
-    password: '1Password (op://)',
+    password: 'Password reference (op:// or keepassxc:)',
     protocol: 'Type (SSH or RDP)',
     domain: 'Windows domain',
     rdpOptions: 'Remote desktop options',

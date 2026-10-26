@@ -92,6 +92,11 @@
   </branding>
 
   <releases>
+    <release version="1.5.2" date="2026-10-26">
+      <description>
+        <p>Hosts can take their password from KeePassXC, which must be open and asks before giving it. When you type ssh in a local shell tab, the file panel offers to open that server as its own connection instead of showing this computer's files.</p>
+      </description>
+    </release>
     <release version="1.5.1" date="2026-10-26">
       <description>
         <p>Duplicate a tab from its right-click menu. After a download, open the file or show it in its folder. The file panel works again on servers whose login files print text for ssh commands.</p>

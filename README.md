@@ -4,7 +4,7 @@ A free, open-source SSH and remote desktop connection manager for Linux, and for
 
 TuxShell keeps your hosts in one place and connects with the system `ssh`, so your
 `~/.ssh/config`, keys, agents and jump hosts work as they already do. Passwords can come from
-1Password or your system keyring, never from TuxShell's own files.
+1Password, KeePassXC or your system keyring, never from TuxShell's own files.
 
 ## Screenshots
 
@@ -71,6 +71,8 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
   output). Optionally record a session's screen output and play it back inside TuxShell.
 - **1Password**: sign in with an `op://Vault/Item/field` reference instead of a stored
   password, and optionally use the SSH keys in the 1Password SSH agent (see below).
+- **KeePassXC**: sign in with a `keepassxc:ssh://user@host` reference; the password stays in your
+  KeePassXC database (see below).
 - **Saved passwords**: optional, kept only in your system keyring (see below).
 - **Broadcast typing** (Ctrl+Shift+B): type into all panes of a tab at once, leaving
   out any pane you choose.
@@ -120,24 +122,24 @@ Download TuxShell from the [releases page](https://github.com/vgrigolaia/tuxshel
 
 ```sh
 # Fedora, RHEL, AlmaLinux, Rocky Linux
-sudo dnf install ./tuxshell-1.5.1-1.x86_64.rpm
+sudo dnf install ./tuxshell-1.5.2-1.x86_64.rpm
 
 # Debian, Ubuntu
-sudo apt install ./tuxshell_1.5.1-1_amd64.deb
+sudo apt install ./tuxshell_1.5.2-1_amd64.deb
 ```
 
 Or run the AppImage on any distribution:
 
 ```sh
-chmod +x TuxShell-1.5.1-x86_64.AppImage
-./TuxShell-1.5.1-x86_64.AppImage
+chmod +x TuxShell-1.5.2-x86_64.AppImage
+./TuxShell-1.5.2-x86_64.AppImage
 ```
 
 Or install the Flatpak on any distribution with [Flatpak and Flathub set up](https://flathub.org/setup).
 The GNOME runtime it needs is installed from Flathub along with it:
 
 ```sh
-flatpak install --user TuxShell-1.5.1-x86_64.flatpak
+flatpak install --user TuxShell-1.5.2-x86_64.flatpak
 flatpak run io.github.vgrigolaia.TuxShell
 ```
 
@@ -197,6 +199,8 @@ TuxShell can log you in three ways (Preferences → Security):
 - **SSH keys or your ssh agent** (recommended): nothing secret is stored by TuxShell.
 - **1Password**: a host stores only an `op://Vault/Item/field` reference; the password stays in
   your vault and is read when you connect (see below).
+- **KeePassXC**: a host stores only a `keepassxc:ssh://user@host` reference; the password is read
+  from the open KeePassXC when you connect (see below).
 - **Saved passwords**, for servers that only accept passwords. *Allow saving passwords* is on by
   default (turn it off in Preferences → Security). A password is saved when you type it into a
   host, tick *Remember* at a password prompt, or import a file that contains it. Passwords are
@@ -206,8 +210,8 @@ TuxShell can log you in three ways (Preferences → Security):
 When ssh asks for a password, TuxShell answers through ssh's own `SSH_ASKPASS` mechanism over a
 private socket, so the password never appears in ssh's command line, its environment or the
 terminal. Only the host's own ssh gets its password: prompts from jump hosts, host key questions
-and key passphrases are shown in the terminal as usual. The order is: the 1Password reference,
-then the saved password, then a password box. Each is tried once; if it's refused, TuxShell asks
+and key passphrases are shown in the terminal as usual. The order is: the 1Password or KeePassXC
+reference, then the saved password, then a password box. Each is tried once; if it's refused, TuxShell asks
 you instead and says why.
 
 ### 1Password
@@ -230,6 +234,30 @@ the agent (`~/.1password/agent.sock` on Linux,
 `~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock` on macOS), through jump hosts
 too. Hosts that pick an agent in `~/.ssh/config` (`IdentityAgent`, including `SSH_AUTH_SOCK`)
 keep it, so if your config already sends hosts to 1Password you can leave this off.
+
+### KeePassXC
+
+TuxShell asks the running KeePassXC for passwords the way its browser extension does; it never
+sees your database or its master password.
+
+1. In KeePassXC, turn on Settings → Browser Integration → **Enable browser integration** (no
+   browser or extension is needed).
+2. In TuxShell, open Preferences → Security → KeePassXC and press **Connect to KeePassXC**.
+   KeePassXC asks whether to allow TuxShell and what to call it. That permission is kept in your
+   system keyring.
+3. In a host's settings, press **Use KeePassXC for this host**. That fills in a reference such as
+   `keepassxc:ssh://root@db01.example`. Give the KeePassXC entry the URL after `keepassxc:`
+   without the user (`ssh://db01.example`, with `:port` if it isn't 22) and the same username.
+   **Check** confirms it works.
+
+When the server asks for the password, KeePassXC must be open; if it's locked it asks you to
+unlock it, and it may ask you to allow access to the entry (it can remember that). If several
+entries share the URL, the username in the reference picks one. Like 1Password, the password is
+never stored, logged or shown, and remote desktops use it in their own window. In the Flatpak,
+TuxShell can reach KeePassXC through `$XDG_RUNTIME_DIR/app/org.keepassxc.KeePassXC`.
+
+For SSH keys kept in KeePassXC, turn on its SSH agent (KeePassXC → Settings → SSH Agent); TuxShell's
+ssh uses it through your usual `SSH_AUTH_SOCK`.
 
 ## Build from source
 

@@ -31,6 +31,9 @@ finish-args:
   - --filesystem=home
   # Saved passwords and the clipboard history key, in the system keyring.
   - --talk-name=org.freedesktop.secrets
+  # KeePassXC's browser integration socket (passwords for hosts with a
+  # keepassxc: reference; KeePassXC asks before giving any).
+  - --filesystem=xdg-run/app/org.keepassxc.KeePassXC
   # Local shell tabs, the 1Password CLI and FreeRDP run on the host
   # (flatpak-spawn --host); ssh itself runs inside the sandbox.
   - --talk-name=org.freedesktop.Flatpak

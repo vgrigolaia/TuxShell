@@ -226,13 +226,13 @@
               source={pane.source}
               visible={at.visible}
               focused={at.visible && at.focused}
-              onStart={() => workspace.updatePane(pane.id, { exited: false, startedAt: Date.now() })}
+              onStart={(session) => workspace.updatePane(pane.id, { exited: false, startedAt: Date.now(), session })}
               onInput={(data) => broadcastInput(pane.id, data)}
               onLogin={(user) => workspace.updatePane(pane.id, { loginUser: user })}
               onTitle={(title) =>
                 workspace.updatePane(pane.id, pane.source.kind === 'shell' && !pane.customTitle ? { title, termTitle: title } : { termTitle: title })}
               onSize={(cols, rows) => workspace.updatePane(pane.id, { size: `${cols}×${rows}` })}
-              onExit={() => workspace.updatePane(pane.id, { exited: true })}
+              onExit={() => workspace.updatePane(pane.id, { exited: true, session: '' })}
               onEnded={() => prefs.value.terminal.closeOnExit && workspace.closePane(pane.id)}
               onCwd={(cwd) => cwd !== pane.cwd && workspace.updatePane(pane.id, { cwd })}
               onBell={() => {

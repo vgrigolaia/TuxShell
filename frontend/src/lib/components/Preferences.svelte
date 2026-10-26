@@ -16,6 +16,7 @@
   import { keybindings } from '../keybindings.svelte'
   import { logins } from '../logins.svelte'
   import { onePassword } from '../onepassword.svelte'
+  import { keePassXC } from '../keepassxc.svelte'
   import * as Login from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/login/service'
   import { hostStore } from '../hosts.svelte'
   import * as HostIO from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/hostio/service'
@@ -71,6 +72,7 @@
     if (section === 'security') {
       void logins.refresh()
       void onePassword.refresh()
+      void keePassXC.refresh()
     }
   })
 
@@ -743,12 +745,12 @@
               <span class={hint}>No password is needed or stored. Set a key file on the host, or use your agent.</span>
             </li>
             <li class="rounded-lg border border-line bg-ground px-3 py-2">
-              <span class="font-medium">1Password</span>
-              <span class={hint}>The password stays in your vault; TuxShell asks 1Password when you connect. Put a reference in a host's settings.</span>
+              <span class="font-medium">1Password or KeePassXC</span>
+              <span class={hint}>The password stays in your password manager; TuxShell asks it when you connect. Put a reference in a host's settings.</span>
             </li>
             <li class="rounded-lg border border-line bg-ground px-3 py-2">
               <span class="font-medium">Saved password</span>
-              <span class={hint}>For servers that only take passwords, if you don't use 1Password. Stored on this computer only.</span>
+              <span class={hint}>For servers that only take passwords, if you don't use a password manager. Stored on this computer only.</span>
             </li>
           </ul>
         </section>
@@ -796,6 +798,46 @@
             {:else if op.configUsesAgent}
               <p class="mt-2 text-xs text-subtle">Your ~/.ssh/config already uses the 1Password agent for some hosts; that keeps working either way.</p>
             {/if}
+          {/if}
+        </section>
+
+        <section aria-labelledby="{id}-kpxc" class="mt-6 border-t border-line pt-5">
+          <h4 id="{id}-kpxc" class="text-[13px] font-medium">KeePassXC</h4>
+          {#if keePassXC.status}
+            {@const kp = keePassXC.status}
+            <p class="mt-2 text-xs {kp.connected ? 'text-success' : kp.running ? 'text-muted' : 'text-warning'}" role="status">
+              {#if kp.connected}✓ Connected to KeePassXC {kp.version} as “{kp.name}”.
+              {:else if kp.locked}KeePassXC is running, but its database is locked{kp.name ? '' : '. Unlock it, then connect TuxShell'}.
+              {:else if kp.running}KeePassXC {kp.version} is running. Connect TuxShell to use its passwords.
+              {:else}KeePassXC isn't running, or its browser integration is off.{/if}
+            </p>
+            {#if !kp.running}
+              <ol class="mt-2 list-decimal pl-5 text-xs leading-relaxed text-muted">
+                <li>Open KeePassXC and unlock your database.</li>
+                <li>In KeePassXC, turn on Settings → Browser Integration → <span class="font-medium">Enable browser integration</span>. No browser is needed.</li>
+                <li>Come back here and connect TuxShell; KeePassXC asks you to name the connection.</li>
+              </ol>
+            {:else}
+              <p class="mt-1 text-xs text-subtle">
+                In a host's settings, choose <span class="font-medium">Use KeePassXC for this host</span>, and give the KeePassXC entry the same URL (for example
+                <span class="font-mono">ssh://db01.example</span>). KeePassXC may ask you to allow access when you connect. Its SSH agent works with TuxShell too:
+                turn it on in KeePassXC (Settings → SSH Agent).
+              </p>
+            {/if}
+            <div class="mt-3 flex flex-wrap gap-2">
+              {#if kp.connected || (kp.locked && kp.name)}
+                <button class="h-8 rounded-[9px] px-3 text-[12.5px] font-medium text-muted hover:bg-raised hover:text-fg" onclick={() => keePassXC.disconnect()}>Disconnect</button>
+              {:else}
+                <button
+                  class="h-8 rounded-[9px] bg-accent px-3.5 text-[12.5px] font-semibold text-on-accent hover:bg-accent/90 disabled:opacity-50"
+                  disabled={!kp.running || keePassXC.connecting}
+                  onclick={() => keePassXC.connect()}>{keePassXC.connecting ? 'Waiting for KeePassXC…' : 'Connect to KeePassXC'}</button
+                >
+              {/if}
+              <button class="h-8 rounded-[9px] px-3 text-[12.5px] font-medium text-muted hover:bg-raised hover:text-fg" onclick={() => keePassXC.refresh()}>Check again</button>
+            </div>
+            {#if keePassXC.connecting}<p class="mt-2 text-xs text-muted">Switch to KeePassXC: it asks whether to allow TuxShell and what to call it.</p>{/if}
+            {#if keePassXC.error}<p role="alert" class="mt-2 text-xs text-warning">{keePassXC.error}</p>{/if}
           {/if}
         </section>
 

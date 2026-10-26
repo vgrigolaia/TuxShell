@@ -16,15 +16,20 @@ export interface PasswordRequest {
     "savedFailed": boolean;
 
     /**
-     * VaultFailed is true when the password from 1Password was just refused.
+     * VaultFailed is true when the password from the password manager was just refused.
      */
     "vaultFailed": boolean;
 
     /**
-     * VaultError says why 1Password couldn't give the password ("" if it did
-     * or the host has no reference).
+     * VaultError says why the password manager couldn't give the password
+     * ("" if it did or the host has no reference).
      */
     "vaultError": string;
+
+    /**
+     * Vault names the host's password manager ("1Password", "KeePassXC" or "").
+     */
+    "vault": string;
 
     /**
      * CanSave is true when the password may be remembered.

@@ -25,6 +25,8 @@ export interface Pane {
   cwd: string
   /** When the current session started (ms), or 0 before it connects. */
   startedAt: number
+  /** The running terminal session's id ("" when none). */
+  session: string
 }
 
 /** A workspace tab showing 1–4 panes. */
@@ -76,7 +78,7 @@ class Workspace {
   }
 
   private makePane(source: Source, title: string): Pane {
-    const pane: Pane = { id: this.nextPane++, title, termTitle: '', source, exited: false, size: '', loginUser: '', customTitle: false, readOnly: false, showScrollbar: paneProfile(source).scrollbar, bell: false, cwd: '', startedAt: 0 }
+    const pane: Pane = { id: this.nextPane++, title, termTitle: '', source, exited: false, size: '', loginUser: '', customTitle: false, readOnly: false, showScrollbar: paneProfile(source).scrollbar, bell: false, cwd: '', startedAt: 0, session: '' }
     this.panes.push(pane)
     return pane
   }

@@ -5,6 +5,20 @@ All notable changes to TuxShell are listed here. Versions follow
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-10-26
+
+### Added
+
+- KeePassXC: a host can take its password from the open KeePassXC with a reference like
+  `keepassxc:ssh://user@host` (Preferences → Security → Connect to KeePassXC, then *Use KeePassXC
+  for this host* in the host form). TuxShell never sees the database or its master password.
+
+### Changed
+
+- When you type ssh in a local shell tab, the file panel says so and offers to open that server as
+  a TuxShell connection (or add it as a host), instead of showing this computer's files and typing
+  local folders into the remote shell with cd here.
+
 ## [1.5.1] - 2026-10-26
 
 ### Added
@@ -352,6 +366,7 @@ First release.
 - Dark and light themes, or follow the system.
 - Packages for Fedora/RHEL (.rpm), Debian/Ubuntu (.deb) and an AppImage.
 
+[1.5.2]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.5.2
 [1.5.1]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.5.1
 [1.5.0]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.5.0
 [1.4.3]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.4.3

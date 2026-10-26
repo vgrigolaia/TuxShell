@@ -27,6 +27,7 @@ import (
 
 	"github.com/vgrigolaia/tuxshell/internal/askpass"
 	"github.com/vgrigolaia/tuxshell/internal/hosts"
+	"github.com/vgrigolaia/tuxshell/internal/keepassxc"
 	"github.com/vgrigolaia/tuxshell/internal/secrets"
 )
 
@@ -45,11 +46,13 @@ type PasswordRequest struct {
 	Prompt    string `json:"prompt"`
 	// SavedFailed is true when the saved password was just tried and refused.
 	SavedFailed bool `json:"savedFailed"`
-	// VaultFailed is true when the password from 1Password was just refused.
+	// VaultFailed is true when the password from the password manager was just refused.
 	VaultFailed bool `json:"vaultFailed"`
-	// VaultError says why 1Password couldn't give the password ("" if it did
-	// or the host has no reference).
+	// VaultError says why the password manager couldn't give the password
+	// ("" if it did or the host has no reference).
 	VaultError string `json:"vaultError"`
+	// Vault names the host's password manager ("1Password", "KeePassXC" or "").
+	Vault string `json:"vault"`
 	// CanSave is true when the password may be remembered.
 	CanSave bool `json:"canSave"`
 }
@@ -103,12 +106,12 @@ type Manager struct {
 	pending  map[string]chan answer
 }
 
-// Vault reads 1Password references (see internal/onepassword).
+// Vault reads password manager references (internal/onepassword, internal/keepassxc).
 type Vault interface {
 	Read(ctx context.Context, ref string) (string, error)
 }
 
-// UseVault answers prompts for hosts with a 1Password reference from v.
+// UseVault answers prompts for hosts with a password manager reference from v.
 // A function, so it isn't bound.
 func UseVault(m *Manager, v Vault) { m.vault = v }
 
@@ -243,7 +246,7 @@ func (s *Manager) handle(req askpass.Request) askpass.Reply {
 
 	a, ok := s.ask(sess, PasswordRequest{
 		SessionID: sess.id, HostName: h.Name, Prompt: strings.TrimSpace(req.Prompt),
-		SavedFailed: last == "saved", VaultFailed: last == "vault", VaultError: vaultErr,
+		SavedFailed: last == "saved", VaultFailed: last == "vault", VaultError: vaultErr, Vault: vaultName(h.PasswordRef),
 		CanSave: s.enabled() && s.secrets.Available(),
 	})
 	if !ok || a.cancel {
@@ -260,6 +263,17 @@ func (s *Manager) handle(req askpass.Request) askpass.Reply {
 		sess.setLast("typed")
 	}
 	return askpass.Reply{Action: askpass.ActionAnswer, Answer: a.password}
+}
+
+// vaultName names the password manager a reference is for.
+func vaultName(ref string) string {
+	switch {
+	case ref == "":
+		return ""
+	case keepassxc.IsRef(ref):
+		return "KeePassXC"
+	}
+	return "1Password"
 }
 
 func (sess *session) setLast(v string) {

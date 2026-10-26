@@ -29,8 +29,9 @@
   // always ask, since a saved password never leaves Go. Nothing starts until
   // Connect is pressed, so the window/tab choice comes first.
   const inTab = $derived(remoteDesktops.mode === 'tab')
-  // Go reads the password from 1Password or the keyring; a tab never gets it.
+  // Go reads the password from 1Password, KeePassXC or the keyring; a tab never gets it.
   const fromVault = $derived(!!host.passwordRef && !inTab)
+  const vault = $derived(host.passwordRef.startsWith('keepassxc:') ? 'KeePassXC' : '1Password')
   const useSaved = $derived(fromVault || (host.passwordSaved && prefs.value.savePasswords && !inTab))
   const target = $derived(`${host.user ? host.user + '@' : ''}${host.hostname}${host.port !== 3389 ? ':' + host.port : ''}`)
   let connectButton = $state<HTMLButtonElement>()
@@ -154,7 +155,7 @@
       </dl>
     {:else if useSaved}
       {#if fromVault}
-        <p class="text-[13px] text-muted">{busy ? 'Getting the password from 1Password…' : 'Uses the password from 1Password, which may ask you to approve. Press Connect to start.'}</p>
+        <p class="text-[13px] text-muted">{busy ? `Getting the password from ${vault}…` : `Uses the password from ${vault}, which may ask you to approve. Press Connect to start.`}</p>
       {:else}
         <p class="text-[13px] text-muted">{busy ? 'Connecting with the saved password…' : 'Uses the password saved in your keyring. Press Connect to start.'}</p>
       {/if}

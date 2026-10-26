@@ -13,6 +13,7 @@ import (
 	"unicode"
 
 	"github.com/vgrigolaia/tuxshell/internal/hosts"
+	"github.com/vgrigolaia/tuxshell/internal/keepassxc"
 )
 
 // Field names a host field a spreadsheet column can fill. "" ignores the column.
@@ -262,7 +263,7 @@ func rowHost(cells []string, fields []string) (h hosts.Host, plain string, err e
 				h.Tags = append(h.Tags, strings.Fields(strings.ToLower(v))[0])
 			}
 		case FieldPassword:
-			if strings.HasPrefix(v, "op://") {
+			if strings.HasPrefix(v, "op://") || keepassxc.IsRef(v) {
 				h.PasswordRef = v
 			} else {
 				plain = v
