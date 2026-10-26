@@ -82,9 +82,13 @@ type runner interface {
 type remote struct{ r runner }
 
 func (b remote) run(ctx context.Context, script string, stdin io.Reader, stdout io.Writer) error {
-	cmd := b.r.Command(ctx, script)
+	marker := newMarker()
+	cmd := b.r.Command(ctx, withMarker(marker, script))
 	var stderr bytes.Buffer
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = stdin, stdout, &stderr
+	cmd.Stdin, cmd.Stderr = stdin, &stderr
+	if stdout != nil {
+		cmd.Stdout = newAfterMarker(stdout, marker)
+	}
 	err := cmd.Run()
 	if err == nil {
 		return nil

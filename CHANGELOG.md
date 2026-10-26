@@ -12,6 +12,11 @@ All notable changes to TuxShell are listed here. Versions follow
 - After a download in the file panel: Open the file, or Show in folder (the file is selected
   in your file manager).
 
+### Fixed
+
+- The file panel broke on servers whose login files print text (for example "ok" or a banner)
+  for ssh commands: the folder path got that text in front of it, and downloads started with it.
+
 ## [1.5.0] - 2026-10-23
 
 ### Added
