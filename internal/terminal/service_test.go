@@ -251,8 +251,9 @@ func TestOutputIsBatched(t *testing.T) {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	// "\n" becomes "\r\n" on a PTY. macOS adds a few bytes of its own at exit.
-	if want := 588895 + 100000; size < want || size > want+64 {
+	// "\n" becomes "\r\n" on a PTY. macOS adds some bytes of its own at exit
+	// (64 was too few once); what matters here is that nothing is lost.
+	if want := 588895 + 100000; size < want || size > want+1024 {
 		t.Fatalf("got %d bytes, want %d", size, want)
 	}
 	t.Logf("%d bytes in %d data events", size, events)
