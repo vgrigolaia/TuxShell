@@ -5,6 +5,11 @@ All notable changes to TuxShell are listed here. Versions follow
 
 ## [Unreleased]
 
+### Added
+
+- Duplicate tab (right-click a tab): opens a new connection to the same host, or the same
+  split panes, right next to it.
+
 ## [1.5.0] - 2026-10-23
 
 ### Added
