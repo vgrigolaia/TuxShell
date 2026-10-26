@@ -5,6 +5,8 @@ All notable changes to TuxShell are listed here. Versions follow
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-10-26
+
 ### Added
 
 - KeePassXC: a host can take its password from the open KeePassXC with a reference like
@@ -364,6 +366,7 @@ First release.
 - Dark and light themes, or follow the system.
 - Packages for Fedora/RHEL (.rpm), Debian/Ubuntu (.deb) and an AppImage.
 
+[1.5.2]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.5.2
 [1.5.1]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.5.1
 [1.5.0]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.5.0
 [1.4.3]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.4.3
