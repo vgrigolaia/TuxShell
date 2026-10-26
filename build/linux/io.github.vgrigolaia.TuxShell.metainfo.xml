@@ -92,6 +92,11 @@
   </branding>
 
   <releases>
+    <release version="1.5.1" date="2026-10-26">
+      <description>
+        <p>Duplicate a tab from its right-click menu. After a download, open the file or show it in its folder. The file panel works again on servers whose login files print text for ssh commands.</p>
+      </description>
+    </release>
     <release version="1.5.0" date="2026-10-23">
       <description>
         <p>Saved layouts reopen a set of tabs and split panes in one go. Remote desktops can share printers, smart cards and USB devices or open a single program, and Windows .rdp files can be imported. Also: host groups you can create and rename, a resizable hosts sidebar, window start options, an OS Detect button, Proxmox logos and copy on select by default.</p>
