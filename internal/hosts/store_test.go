@@ -141,6 +141,17 @@ func TestValidateFields(t *testing.T) {
 	if err := good.Validate(); err != nil {
 		t.Fatalf("valid host rejected: %v", err)
 	}
+
+	kpxc := Host{Name: "k", Hostname: "db01", PasswordRef: "keepassxc:ssh://root@db01"}
+	kpxc.Normalize()
+	if err := kpxc.Validate(); err != nil {
+		t.Fatalf("KeePassXC reference rejected: %v", err)
+	}
+	kpxc.PasswordRef = "keepassxc:db01"
+	var ve *ValidationError
+	if err := kpxc.Validate(); !errors.As(err, &ve) || ve.Field != "passwordRef" || !strings.Contains(ve.Message, "KeePassXC") {
+		t.Fatalf("bad KeePassXC reference: %v", err)
+	}
 }
 
 func TestOpenRestrictsPermissions(t *testing.T) {

@@ -18,6 +18,7 @@ import (
 	"github.com/vgrigolaia/tuxshell/internal/files"
 	"github.com/vgrigolaia/tuxshell/internal/hostio"
 	"github.com/vgrigolaia/tuxshell/internal/hosts"
+	"github.com/vgrigolaia/tuxshell/internal/keepassxc"
 	"github.com/vgrigolaia/tuxshell/internal/login"
 	"github.com/vgrigolaia/tuxshell/internal/onepassword"
 	"github.com/vgrigolaia/tuxshell/internal/osdetect"
@@ -169,7 +170,9 @@ func main() {
 		func() bool { return prefs.Get().Settings.SavePasswords },
 		func(name string, data any) { app.Event.Emit(name, data) },
 	)
-	login.UseVault(logins, onepassword.Client{})
+	kpxc := &keepassxc.Client{Keyring: secrets.SystemKeyring()}
+	vault := passwordManagers{kpxc: kpxc}
+	login.UseVault(logins, vault)
 	store.OnDelete = logins.HostsDeleted
 	hostio.UsePasswords(hostFiles, func() bool { return prefs.Get().Settings.SavePasswords }, logins.SavePassword)
 	if exe, err := os.Executable(); err != nil || controlDir == "" {
@@ -180,7 +183,7 @@ func main() {
 
 	// Remote desktops open in FreeRDP's own window; saved passwords come from
 	// the keyring like ssh's.
-	remoteDesktops := rdp.NewService(store, resolver, rdpPasswords{store: store, keyring: keyring, logins: logins,
+	remoteDesktops := rdp.NewService(store, resolver, rdpPasswords{store: store, keyring: keyring, logins: logins, vault: vault,
 		enabled: func() bool { return prefs.Get().Settings.SavePasswords }},
 		func() string { return prefs.Get().Settings.RDPClient },
 		func(name string, data any) { app.Event.Emit(name, data) })
@@ -253,6 +256,7 @@ func main() {
 			application.NewService(images),
 			application.NewService(remoteDesktops),
 			application.NewService(&onepassword.Service{}),
+			application.NewService(&keepassxc.Service{Client: kpxc}),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -370,6 +374,21 @@ type rdpPasswords struct {
 	keyring *secrets.Store
 	logins  *login.Manager
 	enabled func() bool
+	vault   passwordManagers
+}
+
+// passwordManagers reads a host's password reference from 1Password (op://…)
+// or KeePassXC (keepassxc:…).
+type passwordManagers struct {
+	op   onepassword.Client
+	kpxc *keepassxc.Client
+}
+
+func (v passwordManagers) Read(ctx context.Context, ref string) (string, error) {
+	if keepassxc.IsRef(ref) {
+		return v.kpxc.Read(ctx, ref)
+	}
+	return v.op.Read(ctx, ref)
 }
 
 func (p rdpPasswords) Saved(id int64) (string, error) {
@@ -378,7 +397,7 @@ func (p rdpPasswords) Saved(id int64) (string, error) {
 		return "", err
 	}
 	if h.PasswordRef != "" {
-		return onepassword.Client{}.Read(context.Background(), h.PasswordRef)
+		return p.vault.Read(context.Background(), h.PasswordRef)
 	}
 	if !p.enabled() || !h.PasswordSaved {
 		return "", nil

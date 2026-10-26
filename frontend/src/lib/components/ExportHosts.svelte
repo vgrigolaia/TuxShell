@@ -7,7 +7,7 @@
   const formats = [
     { id: 'json', label: 'TuxShell (.json)', hint: 'Everything, for a backup or another computer. Imports back exactly.' },
     { id: 'csv', label: 'CSV', hint: 'Opens in Excel or LibreOffice, and imports back.' },
-    { id: 'sshconfig', label: 'SSH config', hint: 'Host blocks for plain ssh and other tools. 1Password references are left out.' },
+    { id: 'sshconfig', label: 'SSH config', hint: 'Host blocks for plain ssh and other tools. Password manager references are left out.' },
   ] as const
 
   let format = $state<(typeof formats)[number]['id']>('json')

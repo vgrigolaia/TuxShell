@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/vgrigolaia/tuxshell/internal/keepassxc"
 	"github.com/vgrigolaia/tuxshell/internal/onepassword"
 )
 
@@ -127,8 +128,11 @@ func (h *Host) Validate() error {
 		return invalid("proxyJump", "Use [user@]host[:port], comma-separated for several hops")
 	case strings.HasPrefix(h.IdentityFile, "-") || strings.ContainsAny(h.IdentityFile, "\n\r"):
 		return invalid("identityFile", "Not a valid file path")
-	case h.PasswordRef != "" && !onepassword.ValidRef(h.PasswordRef):
-		return invalid("passwordRef", "Use a 1Password reference like op://Vault/Item/field")
+	case h.PasswordRef != "" && !onepassword.ValidRef(h.PasswordRef) && !keepassxc.ValidRef(h.PasswordRef):
+		if keepassxc.IsRef(h.PasswordRef) {
+			return invalid("passwordRef", "Use a KeePassXC reference like keepassxc:ssh://user@host")
+		}
+		return invalid("passwordRef", "Use a 1Password reference like op://Vault/Item/field, or keepassxc:ssh://user@host for KeePassXC")
 	case h.OS != "" && !knownOS(h.OS):
 		return invalid("os", "Unknown operating system")
 	case h.Profile != "" && !profileRe.MatchString(h.Profile):

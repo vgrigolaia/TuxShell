@@ -5,6 +5,12 @@ All notable changes to TuxShell are listed here. Versions follow
 
 ## [Unreleased]
 
+### Added
+
+- KeePassXC: a host can take its password from the open KeePassXC with a reference like
+  `keepassxc:ssh://user@host` (Preferences → Security → Connect to KeePassXC, then *Use KeePassXC
+  for this host* in the host form). TuxShell never sees the database or its master password.
+
 ### Changed
 
 - When you type ssh in a local shell tab, the file panel says so and offers to open that server as

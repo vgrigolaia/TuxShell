@@ -40,9 +40,9 @@
     {#if request.savedFailed}
       <p role="alert" class="mt-3 rounded-lg border border-warning/40 bg-warning/10 px-2.5 py-1.5 text-xs text-warning">The saved password didn't work. Type the current one.</p>
     {:else if request.vaultFailed}
-      <p role="alert" class="mt-3 rounded-lg border border-warning/40 bg-warning/10 px-2.5 py-1.5 text-xs text-warning">The server refused the password from 1Password. Type it, and update the item in 1Password.</p>
+      <p role="alert" class="mt-3 rounded-lg border border-warning/40 bg-warning/10 px-2.5 py-1.5 text-xs text-warning">The server refused the password from {request.vault || '1Password'}. Type it, and update the entry in {request.vault || '1Password'}.</p>
     {:else if request.vaultError}
-      <p role="alert" class="mt-3 rounded-lg border border-warning/40 bg-warning/10 px-2.5 py-1.5 text-xs break-words text-warning">Couldn't get the password from 1Password: {request.vaultError}</p>
+      <p role="alert" class="mt-3 rounded-lg border border-warning/40 bg-warning/10 px-2.5 py-1.5 text-xs break-words text-warning">Couldn't get the password from {request.vault || '1Password'}: {request.vaultError}</p>
     {/if}
 
     <label class="mt-4 mb-1 block text-xs text-muted" for="pw-input-{uid}">Password</label>

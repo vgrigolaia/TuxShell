@@ -9,6 +9,7 @@
   import Icon from './Icon.svelte'
   import * as Login from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/login/service'
   import * as OnePassword from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/onepassword/service'
+  import * as KeePassXC from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/keepassxc/service'
   import { logins } from '../logins.svelte'
   import { prefs } from '../settings.svelte'
 
@@ -131,20 +132,33 @@
     draft.rdp.usb = on ? [...rest, { ...d }] : rest
   }
 
-  // Asks 1Password for the reference; only "worked" or the reason comes back.
+  // Asks 1Password or KeePassXC for the reference; only "worked" or the reason comes back.
   let checking = $state(false)
   let checked = $state<{ ok: boolean; message: string } | null>(null)
+  const isKeePassXC = $derived(draft.passwordRef.trim().startsWith('keepassxc:'))
   async function checkRef() {
     checking = true
     checked = null
     try {
-      const reason = await OnePassword.Check(draft.passwordRef)
-      checked = reason ? { ok: false, message: reason } : { ok: true, message: '1Password returned a password for this reference.' }
+      const kpxc = isKeePassXC
+      const reason = kpxc ? await KeePassXC.Check(draft.passwordRef) : await OnePassword.Check(draft.passwordRef)
+      checked = reason ? { ok: false, message: reason } : { ok: true, message: `${kpxc ? 'KeePassXC' : '1Password'} returned a password for this reference.` }
     } catch (e) {
       checked = { ok: false, message: errorMessage(e) }
     } finally {
       checking = false
     }
+  }
+
+  /** keepassxc:ssh://user@host[:port] for this host: the URL to give its KeePassXC entry. */
+  function keepassxcRef(): string {
+    const scheme = isRDP ? 'rdp' : 'ssh'
+    const host = draft.hostname.trim() || draft.alias.trim() || draft.name.trim()
+    const port = Number(draft.port) || 0
+    let at = host.includes(':') ? `[${host}]` : host
+    if (port && port !== (isRDP ? 3389 : 22)) at += `:${port}`
+    const user = draft.user.trim()
+    return `keepassxc:${scheme}://${user ? encodeURIComponent(user) + '@' : ''}${at}`
   }
 
   function fieldError(field: string) {
@@ -558,14 +572,14 @@
       {/if}
 
       <fieldset class="flex flex-col gap-2.5 rounded-2xl border border-accent-line bg-accent-soft p-4">
-        <legend class="sr-only">1Password</legend>
+        <legend class="sr-only">Password manager</legend>
         <p class="flex items-center gap-2 text-[13px] font-bold text-accent-ink" aria-hidden="true">
-          <span class="text-accent-text"><Icon name="shield" size={15} /></span>Credentials from 1Password
+          <span class="text-accent-text"><Icon name="shield" size={15} /></span>Credentials from 1Password or KeePassXC
         </p>
         <div>
           <label class={label} for="host-passwordRef">Password reference</label>
           <div class="flex gap-2">
-            <input id="host-passwordRef" class="{input} min-w-0 flex-1 font-mono text-xs" bind:value={draft.passwordRef} placeholder="op://Infra/pg-primary/password"
+            <input id="host-passwordRef" class="{input} min-w-0 flex-1 font-mono text-xs" bind:value={draft.passwordRef} placeholder="op://Infra/pg-primary/password or keepassxc:ssh://user@host"
               oninput={() => (checked = null)}
               aria-invalid={!!fieldError('passwordRef')} aria-describedby="host-passwordRef-error host-passwordRef-hint" autocomplete="off" spellcheck="false" />
             <button type="button" class="shrink-0 rounded-[10px] border border-strong bg-panel px-3 text-xs font-semibold hover:bg-raised disabled:opacity-60"
@@ -574,14 +588,23 @@
             </button>
           </div>
           {@render field('passwordRef')}
+          <button type="button" class="mt-1.5 text-xs font-medium text-accent-text underline-offset-2 hover:underline disabled:opacity-50"
+            disabled={!(draft.hostname.trim() || draft.alias.trim() || draft.name.trim())}
+            onclick={() => ((draft.passwordRef = keepassxcRef()), (checked = null))}>Use KeePassXC for this host</button>
         </div>
         {#if checked}
           <p role="status" class="text-xs {checked.ok ? 'text-success' : 'text-warning'}">{checked.ok ? '✓ ' : ''}{checked.message}</p>
         {/if}
         <p id="host-passwordRef-hint" class="text-[11.5px] leading-normal text-accent-ink/80">
           Only the reference is stored, never the value. When the server asks for a password, TuxShell gets it from
-          1Password, which may ask you to approve. In 1Password, copy it with <span class="font-medium">Copy Secret Reference</span>
-          on the field.{#if isRDP}{' '}Remote desktops in a tab still ask each time.{/if}
+          {#if isKeePassXC}
+            KeePassXC, which must be open and unlocked and may ask you to allow access. Give the KeePassXC entry the URL after
+            <span class="font-mono">keepassxc:</span> (for example <span class="font-mono">{draft.passwordRef.trim().slice('keepassxc:'.length)}</span>); the
+            user picks the entry when several share a URL. Connect TuxShell once in Preferences → Security.
+          {:else}
+            1Password, which may ask you to approve. In 1Password, copy it with <span class="font-medium">Copy Secret Reference</span>
+            on the field. For KeePassXC, use the link above.
+          {/if}{#if isRDP}{' '}Remote desktops in a tab still ask each time.{/if}
         </p>
       </fieldset>
 
