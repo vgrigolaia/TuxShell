@@ -74,6 +74,13 @@ export function MakeDir(loc: $models.Location, dir: string, name: string): $Canc
 }
 
 /**
+ * OpenDownload opens a file Download saved in the desktop's default app for it.
+ */
+export function OpenDownload(path: string): $CancellablePromise<void> {
+    return $Call.ByID(4006542548, path);
+}
+
+/**
  * Rename renames dir/from to dir/to; it never replaces an existing item.
  */
 export function Rename(loc: $models.Location, dir: string, $from: string, to: string): $CancellablePromise<void> {
@@ -86,6 +93,13 @@ export function Rename(loc: $models.Location, dir: string, $from: string, to: st
  */
 export function SaveEdit(id: string, force: boolean): $CancellablePromise<void> {
     return $Call.ByID(1736232269, id, force);
+}
+
+/**
+ * ShowDownload shows a file Download saved, selected in its folder.
+ */
+export function ShowDownload(path: string): $CancellablePromise<void> {
+    return $Call.ByID(283178713, path);
 }
 
 /**

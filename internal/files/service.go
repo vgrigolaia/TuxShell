@@ -11,6 +11,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/vgrigolaia/tuxshell/internal/platform"
 	"github.com/vgrigolaia/tuxshell/internal/sshcmd"
 )
 
@@ -56,13 +57,16 @@ type Service struct {
 	dropSeq atomic.Uint64
 
 	edit *editor
+
+	// Files Download saved in this run; only these can be opened or shown.
+	downloads map[string]bool
 }
 
 // NewService browses through remotes; pick opens the upload file picker.
 // It also returns the function the window's drop handler calls. That stays
 // in Go: it isn't a bound method, so the page can never register paths.
 func NewService(remotes Remotes, pick func() ([]string, error)) (*Service, func(paths []string) DropEvent) {
-	s := &Service{remotes: remotes, pick: pick, drops: map[string][]string{}, edit: newEditor()}
+	s := &Service{remotes: remotes, pick: pick, drops: map[string][]string{}, edit: newEditor(), downloads: map[string]bool{}}
 	return s, s.dropped
 }
 
@@ -179,7 +183,43 @@ func (s *Service) Download(ctx context.Context, loc Location, file string) (stri
 		os.Remove(f.Name())
 		return "", err
 	}
-	return f.Name(), f.Close()
+	if err := f.Close(); err != nil {
+		return "", err
+	}
+	s.mu.Lock()
+	s.downloads[f.Name()] = true
+	s.mu.Unlock()
+	return f.Name(), nil
+}
+
+// OpenDownload opens a file Download saved in the desktop's default app for it.
+func (s *Service) OpenDownload(path string) error {
+	if err := s.downloaded(path); err != nil {
+		return err
+	}
+	return platform.Open(path)
+}
+
+// ShowDownload shows a file Download saved, selected in its folder.
+func (s *Service) ShowDownload(path string) error {
+	if err := s.downloaded(path); err != nil {
+		return err
+	}
+	return platform.Reveal(path)
+}
+
+// downloaded checks that path is a file this run downloaded and that it's still there.
+func (s *Service) downloaded(path string) error {
+	s.mu.Lock()
+	ok := s.downloads[path]
+	s.mu.Unlock()
+	if !ok {
+		return errors.New("only files downloaded here can be opened")
+	}
+	if _, err := os.Stat(path); err != nil {
+		return fmt.Errorf("%s isn't there any more", filepath.Base(path))
+	}
+	return nil
 }
 
 // UploadPick asks for local files with a native picker and uploads them to dir.

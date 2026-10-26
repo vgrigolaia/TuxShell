@@ -9,6 +9,8 @@ All notable changes to TuxShell are listed here. Versions follow
 
 - Duplicate tab (right-click a tab): opens a new connection to the same host, or the same
   split panes, right next to it.
+- After a download in the file panel: Open the file, or Show in folder (the file is selected
+  in your file manager).
 
 ## [1.5.0] - 2026-10-23
 
