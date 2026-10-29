@@ -28,7 +28,7 @@
   import { hostStatus } from './lib/status.svelte'
   import { tunnels } from './lib/tunnels.svelte'
   import { snippets } from './lib/snippets.svelte'
-  import { emptyHost, hostStore, type Host } from './lib/hosts.svelte'
+  import { emptyHost, errorMessage, hostStore, type Host } from './lib/hosts.svelte'
   import { HOME, workspace } from './lib/workspace.svelte'
   import Launchpad from './lib/components/Launchpad.svelte'
   import { MAX_PANES, type Orientation } from './lib/layout'
@@ -400,6 +400,22 @@
   }
 </script>
 
+<!-- A failing form shows its error in place instead of leaving the rest of the window half updated. -->
+{#snippet hostEditor(host: Host)}
+  {#key host}
+    <svelte:boundary onerror={(e) => console.error('host form:', e)}>
+      <HostForm {host} onClose={() => (panel = { kind: 'none' })} {onSaved} onConnect={connect} />
+      {#snippet failed(error)}
+        <aside aria-label="Host form error" class="flex w-[360px] shrink-0 flex-col gap-3 rounded-panel border border-line bg-panel p-6">
+          <h2 class="font-display text-lg font-bold">The host form couldn't open</h2>
+          <p class="text-sm text-muted">{errorMessage(error)}</p>
+          <button class="self-start rounded-lg border border-strong px-3 py-1.5 text-sm font-semibold hover:bg-raised" onclick={() => (panel = { kind: 'none' })}>Close</button>
+        </aside>
+      {/snippet}
+    </svelte:boundary>
+  {/key}
+{/snippet}
+
 {#snippet hostList()}
   <Sidebar
         selectedId={panel.kind === 'host' ? panel.host.id : activeHostId}
@@ -478,11 +494,7 @@
         openTabs={tabsLeft ? openTabsList : undefined}
       >
         {#snippet editor()}
-          {#if panel.kind === 'host'}
-            {#key panel.host}
-              <HostForm host={panel.host} onClose={() => (panel = { kind: 'none' })} {onSaved} onConnect={connect} />
-            {/key}
-          {/if}
+          {#if panel.kind === 'host'}{@render hostEditor(panel.host)}{/if}
         {/snippet}
       </Launchpad>
     {/if}
@@ -536,9 +548,7 @@
     {:else if home}
       <!-- Home shows the editor inside the launchpad. -->
     {:else if panel.kind === 'host'}
-      {#key panel.host}
-        <HostForm host={panel.host} onClose={() => (panel = { kind: 'none' })} {onSaved} onConnect={connect} />
-      {/key}
+      {@render hostEditor(panel.host)}
     {/if}
   </main>
 
