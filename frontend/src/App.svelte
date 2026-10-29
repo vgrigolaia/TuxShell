@@ -362,7 +362,8 @@
   }
 
   function duplicate(host: Host) {
-    panel = { kind: 'host', host: { ...host, id: 0, name: `${host.name} copy`, tags: [...(host.tags ?? [])] } }
+    // The saved password stays with the original (keyring entries are per host id).
+    panel = { kind: 'host', host: { ...host, id: 0, name: `${host.name} copy`, tags: [...(host.tags ?? [])], passwordSaved: false } }
   }
 
   async function confirmDelete(host: Host) {

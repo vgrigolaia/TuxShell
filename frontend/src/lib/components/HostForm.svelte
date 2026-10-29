@@ -73,7 +73,8 @@
   let formEl: HTMLFormElement
 
   const isNew = $derived(draft.id === 0)
-  const jumpCandidates = $derived(hostStore.list.filter((h) => h.id !== draft.id && h.protocol !== 'rdp').map((h) => h.alias || h.hostname))
+  // Unique: a duplicated host keeps its original's alias, and a repeated key breaks the {#each}.
+  const jumpCandidates = $derived([...new Set(hostStore.list.filter((h) => h.id !== draft.id && h.protocol !== 'rdp').map((h) => h.alias || h.hostname))])
 
   // New hosts start typing in Name; picking an existing host shouldn't steal focus.
   onMount(() => {
