@@ -900,7 +900,7 @@
         <p class="mt-1 text-xs text-subtle">© vgrigolaia · GPL-3.0-or-later</p>
 
         <div class="mt-5 flex flex-wrap gap-2">
-          {#each [['Source code', REPO], ['Releases', `${REPO}/releases`], ['Report a problem', `${REPO}/issues`]] as [name, url] (url)}
+          {#each [['Website', 'https://tuxshell.io'], ['Source code', REPO], ['Releases', `${REPO}/releases`], ['Report a problem', `${REPO}/issues`]] as [name, url] (url)}
             <button class="rounded-lg border border-line px-2.5 py-1.5 text-xs text-muted hover:bg-raised hover:text-fg" onclick={() => void Browser.OpenURL(url)}>{name}</button>
           {/each}
         </div>

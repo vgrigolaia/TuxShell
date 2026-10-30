@@ -6,6 +6,11 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
 `~/.ssh/config`, keys, agents and jump hosts work as they already do. Passwords can come from
 1Password, KeePassXC or your system keyring, never from TuxShell's own files.
 
+On Debian, Ubuntu, Fedora and RHEL, install it with `apt install tuxshell` or `dnf install tuxshell` from
+its signed package repository, and your system keeps it up to date ([Install](#install)).
+
+Website: [tuxshell.io](https://tuxshell.io)
+
 ## Screenshots
 
 ![Split view with the open tabs and hosts in the left panel](docs/screenshots/split-view.png)

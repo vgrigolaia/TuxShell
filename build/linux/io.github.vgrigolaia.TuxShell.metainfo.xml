@@ -34,7 +34,7 @@
   <launchable type="desktop-id">io.github.vgrigolaia.TuxShell.desktop</launchable>
   <icon type="stock">tuxshell</icon>
 
-  <url type="homepage">https://github.com/vgrigolaia/TuxShell</url>
+  <url type="homepage">https://tuxshell.io</url>
   <url type="bugtracker">https://github.com/vgrigolaia/TuxShell/issues</url>
   <url type="vcs-browser">https://github.com/vgrigolaia/TuxShell</url>
   <url type="contribute">https://github.com/vgrigolaia/TuxShell/blob/main/CONTRIBUTING.md</url>

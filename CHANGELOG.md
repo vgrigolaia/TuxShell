@@ -9,6 +9,7 @@ All notable changes to TuxShell are listed here. Versions follow
 
 - A package repository at pkg.tuxshell.io: add it once and `apt upgrade` or `dnf upgrade` installs
   new TuxShell releases. TuxShell installed from it says which command updates it.
+- A Website button in Preferences → About, and the app's homepage is now https://tuxshell.io.
 
 ## [1.5.3] - 2026-10-30
 
