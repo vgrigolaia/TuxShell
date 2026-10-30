@@ -11,6 +11,24 @@ export interface DataEvent {
 }
 
 /**
+ * Echo is how long typed keys took to come back as output: the round trip to
+ * the server and back for ssh, or the local program's reply for a shell.
+ * It doesn't include drawing in the window.
+ */
+export interface Echo {
+    /**
+     * LastMs is the latest key's time, AvgMs a moving average of recent keys.
+     */
+    "lastMs": number;
+    "avgMs": number;
+
+    /**
+     * Samples is how many keys were timed.
+     */
+    "samples": number;
+}
+
+/**
  * ExitEvent is emitted once when a session's process ends.
  */
 export interface ExitEvent {

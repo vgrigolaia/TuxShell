@@ -5,6 +5,26 @@ All notable changes to TuxShell are listed here. Versions follow
 
 ## [Unreleased]
 
+## [1.5.3] - 2026-10-30
+
+### Added
+
+- Reconnect in a tab's right-click menu (Reconnect all panes for a split tab): ends the sessions
+  and connects them again.
+- The status bar shows how fast the active terminal answers: *echo* is how long typed keys take
+  to come back from the server, *draw* how long TuxShell takes to show them. Preferences → About →
+  Performance lists recent moments the window was busy and how many terminals draw on the GPU.
+
+### Fixed
+
+- Duplicating a host froze the window (the menu stayed open and terminals disappeared). An error
+  in the host form now stays inside the form.
+- A copied host no longer says its original's password is saved.
+- When a server shuts down or reboots, its tab closes like after a logout (with *Close the tab when
+  you log out* on). Failed connections and logins still stay open with Reconnect.
+- With many tabs open, terminals could fall back to slow drawing for good. Only the 8 most recently
+  shown terminals keep GPU drawing now, and the others get it back when shown.
+
 ## [1.5.2] - 2026-10-26
 
 ### Added
@@ -366,6 +386,7 @@ First release.
 - Dark and light themes, or follow the system.
 - Packages for Fedora/RHEL (.rpm), Debian/Ubuntu (.deb) and an AppImage.
 
+[1.5.3]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.5.3
 [1.5.2]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.5.2
 [1.5.1]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.5.1
 [1.5.0]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.5.0

@@ -26,9 +26,10 @@
   import type { TabActions } from './lib/tabbar.svelte'
   import OpenTabs from './lib/components/OpenTabs.svelte'
   import { hostStatus } from './lib/status.svelte'
+  import { perf } from './lib/perf.svelte'
   import { tunnels } from './lib/tunnels.svelte'
   import { snippets } from './lib/snippets.svelte'
-  import { emptyHost, hostStore, type Host } from './lib/hosts.svelte'
+  import { emptyHost, errorMessage, hostStore, type Host } from './lib/hosts.svelte'
   import { HOME, workspace } from './lib/workspace.svelte'
   import Launchpad from './lib/components/Launchpad.svelte'
   import { MAX_PANES, type Orientation } from './lib/layout'
@@ -197,6 +198,7 @@
       if (t) renamingTab = { key, name: workspace.tabTitle(t) }
     },
     duplicate: (key) => layouts.duplicate(key),
+    reconnect: (key) => workspace.tabs.find((t) => t.key === key)?.paneIds.forEach((id) => panes[id]?.restart()),
     move: (key, index) => workspace.moveTab(key, index),
     newShell: () => workspace.openTab({ kind: 'shell' }, 'Local shell'),
     home: () => (workspace.activeKey = HOME),
@@ -250,6 +252,7 @@
     void snippets.load()
     void Terminals.DisplayServer().then((d) => (displayServer = d), () => {})
     const clock = setInterval(() => (now = Date.now()), 30000)
+    const offPerf = perf.start()
     // The window manager's close (or ours) was held back because sessions are live.
     const offClose = Events.On('app:confirm-close', (ev) =>
       closer.ask(ev.data, 'TuxShell', async () => {
@@ -274,6 +277,7 @@
       offEdits()
       offRdp()
       clearInterval(clock)
+      offPerf()
       offClose()
       window.removeEventListener('keydown', onKey, { capture: true })
     }
@@ -362,7 +366,8 @@
   }
 
   function duplicate(host: Host) {
-    panel = { kind: 'host', host: { ...host, id: 0, name: `${host.name} copy`, tags: [...(host.tags ?? [])] } }
+    // The saved password stays with the original (keyring entries are per host id).
+    panel = { kind: 'host', host: { ...host, id: 0, name: `${host.name} copy`, tags: [...(host.tags ?? [])], passwordSaved: false } }
   }
 
   async function confirmDelete(host: Host) {
@@ -387,6 +392,10 @@
     }
   })
 
+  // The status bar shows how fast the active terminal answers.
+  const watched = $derived(!home && active && !active.exited ? active.session : '')
+  $effect(() => perf.watch(watched))
+
   // Forget refs of closed panes.
   $effect(() => {
     const ids = new Set(workspace.panes.map((p) => p.id))
@@ -398,6 +407,22 @@
     panel = { kind: 'host', host: saved }
   }
 </script>
+
+<!-- A failing form shows its error in place instead of leaving the rest of the window half updated. -->
+{#snippet hostEditor(host: Host)}
+  {#key host}
+    <svelte:boundary onerror={(e) => console.error('host form:', e)}>
+      <HostForm {host} onClose={() => (panel = { kind: 'none' })} {onSaved} onConnect={connect} />
+      {#snippet failed(error)}
+        <aside aria-label="Host form error" class="flex w-[360px] shrink-0 flex-col gap-3 rounded-panel border border-line bg-panel p-6">
+          <h2 class="font-display text-lg font-bold">The host form couldn't open</h2>
+          <p class="text-sm text-muted">{errorMessage(error)}</p>
+          <button class="self-start rounded-lg border border-strong px-3 py-1.5 text-sm font-semibold hover:bg-raised" onclick={() => (panel = { kind: 'none' })}>Close</button>
+        </aside>
+      {/snippet}
+    </svelte:boundary>
+  {/key}
+{/snippet}
 
 {#snippet hostList()}
   <Sidebar
@@ -477,11 +502,7 @@
         openTabs={tabsLeft ? openTabsList : undefined}
       >
         {#snippet editor()}
-          {#if panel.kind === 'host'}
-            {#key panel.host}
-              <HostForm host={panel.host} onClose={() => (panel = { kind: 'none' })} {onSaved} onConnect={connect} />
-            {/key}
-          {/if}
+          {#if panel.kind === 'host'}{@render hostEditor(panel.host)}{/if}
         {/snippet}
       </Launchpad>
     {/if}
@@ -535,9 +556,7 @@
     {:else if home}
       <!-- Home shows the editor inside the launchpad. -->
     {:else if panel.kind === 'host'}
-      {#key panel.host}
-        <HostForm host={panel.host} onClose={() => (panel = { kind: 'none' })} {onSaved} onConnect={connect} />
-      {/key}
+      {@render hostEditor(panel.host)}
     {/if}
   </main>
 
@@ -549,6 +568,12 @@
       </span>
     {/if}
     {#if activeHost?.proxyJump}<span>via {activeHost.proxyJump} · ProxyJump</span>{/if}
+    {#if watched && perf.echo}
+      {@const draw = perf.draw[watched]}
+      <span title="Typed keys: {Math.round(perf.echo.avgMs)} ms until the {active?.source.kind === 'shell' ? 'shell' : 'server'} answers{draw === undefined ? '' : `, ${Math.round(draw)} ms to draw it`} (average of recent keys)">
+        echo {Math.round(perf.echo.avgMs)} ms{#if draw !== undefined} · draw {Math.round(draw)} ms{/if}
+      </span>
+    {/if}
     {#if tunnels.running}<span>{tunnels.running} {tunnels.running === 1 ? 'tunnel' : 'tunnels'}</span>{/if}
     <span>{workspace.tabs.length} {workspace.tabs.length === 1 ? 'tab' : 'tabs'} · {workspace.panes.filter((p) => !p.exited).length} live</span>
     {#if workspace.activeTab && workspace.activeTab.paneIds.length > 1}

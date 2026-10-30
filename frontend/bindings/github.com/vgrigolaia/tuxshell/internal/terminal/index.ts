@@ -8,6 +8,7 @@ export {
 
 export type {
     DataEvent,
+    Echo,
     ExitEvent,
     Foreground,
     RecordingEvent

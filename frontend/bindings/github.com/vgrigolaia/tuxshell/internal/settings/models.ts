@@ -439,8 +439,9 @@ export interface Terminal {
     "confirmClose": boolean;
 
     /**
-     * CloseOnExit closes a pane when its session ends with exit or logout;
-     * errors (ssh's own exit code 255) keep it open with Reconnect.
+     * CloseOnExit closes a pane when its session ends with exit or logout, or
+     * when a logged-in session loses its server; failed connects and logins
+     * (ssh's exit code 255 without "Connection to X closed") keep it open.
      */
     "closeOnExit": boolean;
 
