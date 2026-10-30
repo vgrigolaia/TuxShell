@@ -116,9 +116,29 @@ stays with the programs in the terminal.
 
 ## Install
 
-Download TuxShell from the [releases page](https://github.com/vgrigolaia/tuxshell/releases).
+Download TuxShell from the [releases page](https://github.com/vgrigolaia/tuxshell/releases), or on Linux
+install it from its package repository.
 
 ### Linux
+
+Add the TuxShell package repository once, and your system updates TuxShell along with
+everything else (`sudo apt upgrade`, `sudo dnf upgrade`):
+
+```sh
+# Debian, Ubuntu
+sudo curl -fsSLo /etc/apt/keyrings/tuxshell.asc https://pkg.tuxshell.io/tuxshell.asc
+echo "deb [signed-by=/etc/apt/keyrings/tuxshell.asc] https://pkg.tuxshell.io/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/tuxshell.list
+sudo apt update && sudo apt install tuxshell
+
+# Fedora, RHEL, AlmaLinux, Rocky Linux
+sudo curl -fsSLo /etc/yum.repos.d/tuxshell.repo https://pkg.tuxshell.io/rpm/tuxshell.repo
+sudo dnf install tuxshell
+```
+
+The packages and the repository are signed; dnf asks you once to accept the key.
+
+Or download a package from the releases page and install it:
 
 ```sh
 # Fedora, RHEL, AlmaLinux, Rocky Linux
