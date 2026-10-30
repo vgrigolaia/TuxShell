@@ -319,7 +319,20 @@
     // other codes come from the remote shell. A run-once command keeps its
     // output on screen.
     const endedByUser = (code: number) =>
-      code >= 0 && (source.kind === 'shell' || code !== 255) && !(source.kind !== 'shell' && profile.command && !profile.keepShell)
+      code >= 0 && (source.kind === 'shell' || code !== 255 || serverGone()) && !(source.kind !== 'shell' && profile.command && !profile.keepShell)
+
+    // ssh prints "Shared connection to X closed." (or "Connection to X closed
+    // [by remote host].") only after a login worked, so a 255 with it means the
+    // server shut down, rebooted or dropped; refused or failed logins don't print it.
+    function serverGone(): boolean {
+      const buf = term?.buffer.active
+      if (!buf) return false
+      const end = buf.baseY + buf.cursorY
+      for (let y = end; y >= Math.max(0, end - 3); y--) {
+        if (/\bConnection to \S+ closed\b/i.test(buf.getLine(y)?.translateToString(true) ?? '')) return true
+      }
+      return false
+    }
 
     const connect = async () => {
       if (!term) return
@@ -362,7 +375,8 @@
           recording = ''
           exited = code
           onExit?.(code)
-          if (endedByUser(code)) onEnded?.()
+          // Wait for xterm to parse the last output, which serverGone() reads.
+          term?.write('', () => endedByUser(code) && onEnded?.())
         },
       })
       if (focused) term.focus()

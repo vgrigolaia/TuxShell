@@ -656,7 +656,7 @@
             <input type="checkbox" class="mt-0.5 accent-accent" checked={g.closeOnExit} onchange={(e) => prefs.update({ closeOnExit: e.currentTarget.checked })} />
             <span
               >Close the tab when you log out<span class={hint}
-                >After exit or logout the pane closes by itself. If the connection fails or drops, it stays open so you can read why and reconnect.</span
+                >After exit or logout, or when the server shuts down or the connection drops, the pane closes by itself. If the connection or login fails, it stays open so you can read why and reconnect.</span
               ></span
             >
           </label>
