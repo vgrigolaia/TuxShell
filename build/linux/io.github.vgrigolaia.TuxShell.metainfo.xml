@@ -92,6 +92,11 @@
   </branding>
 
   <releases>
+    <release version="1.5.3" date="2026-10-30">
+      <description>
+        <p>Reconnect a tab from its right-click menu. The status bar shows how fast the active terminal answers, and Preferences shows when the window was busy. Duplicating a host no longer freezes the window, a tab closes when its server shuts down, and terminals keep fast drawing with many tabs open.</p>
+      </description>
+    </release>
     <release version="1.5.2" date="2026-10-26">
       <description>
         <p>Hosts can take their password from KeePassXC, which must be open and asks before giving it. When you type ssh in a local shell tab, the file panel offers to open that server as its own connection instead of showing this computer's files.</p>
