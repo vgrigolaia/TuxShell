@@ -148,24 +148,24 @@ Or download a package from the releases page and install it:
 
 ```sh
 # Fedora, RHEL, AlmaLinux, Rocky Linux
-sudo dnf install ./tuxshell-1.5.3-1.x86_64.rpm
+sudo dnf install ./tuxshell-1.5.4-1.x86_64.rpm
 
 # Debian, Ubuntu
-sudo apt install ./tuxshell_1.5.3-1_amd64.deb
+sudo apt install ./tuxshell_1.5.4-1_amd64.deb
 ```
 
 Or run the AppImage on any distribution:
 
 ```sh
-chmod +x TuxShell-1.5.3-x86_64.AppImage
-./TuxShell-1.5.3-x86_64.AppImage
+chmod +x TuxShell-1.5.4-x86_64.AppImage
+./TuxShell-1.5.4-x86_64.AppImage
 ```
 
 Or install the Flatpak on any distribution with [Flatpak and Flathub set up](https://flathub.org/setup).
 The GNOME runtime it needs is installed from Flathub along with it:
 
 ```sh
-flatpak install --user TuxShell-1.5.3-x86_64.flatpak
+flatpak install --user TuxShell-1.5.4-x86_64.flatpak
 flatpak run io.github.vgrigolaia.TuxShell
 ```
 
