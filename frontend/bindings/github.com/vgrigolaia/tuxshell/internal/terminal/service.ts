@@ -36,6 +36,13 @@ export function DisplayServer(): $CancellablePromise<string> {
 }
 
 /**
+ * Echo reports how fast a session's typed keys come back as output.
+ */
+export function Echo(id: string): $CancellablePromise<$models.Echo> {
+    return $Call.ByID(1770011552, id);
+}
+
+/**
  * Foreground reports whether a local shell session is running ssh right now.
  */
 export function Foreground(id: string): $CancellablePromise<$models.Foreground> {

@@ -22,6 +22,7 @@
   import * as HostIO from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/hostio/service'
   import * as SettingsService from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/settings/service'
   import * as Recordings from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/recordings/service'
+  import { perf } from '../perf.svelte'
 
   const REPO = 'https://github.com/vgrigolaia/TuxShell'
 
@@ -192,6 +193,10 @@
   const field = 'h-9 rounded-lg border border-line bg-ground px-2.5 text-[13px] text-fg focus:border-accent focus:outline-none'
   const check = 'flex items-start gap-2.5 text-[13px]'
   const hint = 'mt-0.5 block text-xs text-subtle'
+
+  // About → Performance.
+  const rendererKinds = $derived(Object.values(perf.renderer))
+  const gpuCount = $derived(rendererKinds.filter((k) => k === 'gpu').length)
 </script>
 
 <dialog
@@ -929,6 +934,35 @@
               <span>Check for updates at startup<span class={hint}>Asks GitHub for the latest release once when TuxShell starts. Nothing is downloaded or installed.</span></span>
             </label>
           {/if}
+        </section>
+
+        <section class="mt-6 border-t border-line pt-5" aria-labelledby="{id}-perf">
+          <h4 id="{id}-perf" class={label}>Performance</h4>
+          <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[13px]">
+            <dt class="text-muted">Active terminal</dt>
+            <dd>
+              {#if perf.echo}
+                Keys come back in <span class="font-mono">{Math.round(perf.echo.avgMs)} ms</span>
+                (last <span class="font-mono">{Math.round(perf.echo.lastMs)} ms</span>)
+              {:else}
+                <span class="text-subtle">Type in a terminal to measure.</span>
+              {/if}
+            </dd>
+            <dt class="text-muted">Drawing</dt>
+            <dd>{gpuCount} of {rendererKinds.length} {rendererKinds.length === 1 ? 'terminal' : 'terminals'} on the GPU</dd>
+            <dt class="text-muted">Freezes</dt>
+            <dd>{perf.freezes.length ? `${perf.freezes.length} recently` : 'None since TuxShell started'}</dd>
+          </dl>
+          {#if perf.freezes.length}
+            <ul class="mt-2 flex flex-col gap-0.5 font-mono text-xs text-subtle" aria-label="Recent freezes">
+              {#each perf.freezes as f (f.at)}<li>{new Date(f.at).toLocaleTimeString()} · window busy for {f.ms} ms</li>{/each}
+            </ul>
+            <button class="mt-2 rounded-lg border border-line px-2.5 py-1 text-xs text-muted hover:bg-raised hover:text-fg" onclick={() => (perf.freezes = [])}>Clear</button>
+          {/if}
+          <p class="mt-3 text-xs text-subtle">
+            A slow key time with few freezes means the network or server is slow; the status bar shows it for the active terminal. Freezes mean
+            TuxShell itself was busy. Only the 8 most recently shown terminals draw on the GPU; the others switch back when you show them.
+          </p>
         </section>
       {:else}
         <ShortcutsSettings />

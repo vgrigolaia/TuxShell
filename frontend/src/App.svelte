@@ -26,6 +26,7 @@
   import type { TabActions } from './lib/tabbar.svelte'
   import OpenTabs from './lib/components/OpenTabs.svelte'
   import { hostStatus } from './lib/status.svelte'
+  import { perf } from './lib/perf.svelte'
   import { tunnels } from './lib/tunnels.svelte'
   import { snippets } from './lib/snippets.svelte'
   import { emptyHost, errorMessage, hostStore, type Host } from './lib/hosts.svelte'
@@ -250,6 +251,7 @@
     void snippets.load()
     void Terminals.DisplayServer().then((d) => (displayServer = d), () => {})
     const clock = setInterval(() => (now = Date.now()), 30000)
+    const offPerf = perf.start()
     // The window manager's close (or ours) was held back because sessions are live.
     const offClose = Events.On('app:confirm-close', (ev) =>
       closer.ask(ev.data, 'TuxShell', async () => {
@@ -274,6 +276,7 @@
       offEdits()
       offRdp()
       clearInterval(clock)
+      offPerf()
       offClose()
       window.removeEventListener('keydown', onKey, { capture: true })
     }
@@ -387,6 +390,10 @@
       knownHosts = key
     }
   })
+
+  // The status bar shows how fast the active terminal answers.
+  const watched = $derived(!home && active && !active.exited ? active.session : '')
+  $effect(() => perf.watch(watched))
 
   // Forget refs of closed panes.
   $effect(() => {
@@ -560,6 +567,12 @@
       </span>
     {/if}
     {#if activeHost?.proxyJump}<span>via {activeHost.proxyJump} · ProxyJump</span>{/if}
+    {#if watched && perf.echo}
+      {@const draw = perf.draw[watched]}
+      <span title="Typed keys: {Math.round(perf.echo.avgMs)} ms until the {active?.source.kind === 'shell' ? 'shell' : 'server'} answers{draw === undefined ? '' : `, ${Math.round(draw)} ms to draw it`} (average of recent keys)">
+        echo {Math.round(perf.echo.avgMs)} ms{#if draw !== undefined} · draw {Math.round(draw)} ms{/if}
+      </span>
+    {/if}
     {#if tunnels.running}<span>{tunnels.running} {tunnels.running === 1 ? 'tunnel' : 'tunnels'}</span>{/if}
     <span>{workspace.tabs.length} {workspace.tabs.length === 1 ? 'tab' : 'tabs'} · {workspace.panes.filter((p) => !p.exited).length} live</span>
     {#if workspace.activeTab && workspace.activeTab.paneIds.length > 1}

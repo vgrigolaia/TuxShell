@@ -23,6 +23,7 @@
   import { prefs } from '../settings.svelte'
   import { profileTheme } from '../schemes'
   import { beep, paneProfile } from '../profiles.svelte'
+  import { perf } from '../perf.svelte'
 
   interface Props {
     source: Source
@@ -148,6 +149,8 @@
 
   onMount(() => {
     let sessionId: string | undefined
+    // A key was sent and its echo hasn't come back yet.
+    let awaitingEcho = false
     let disposed = false
     const cleanups: (() => void)[] = []
 
@@ -201,7 +204,9 @@
       fit.fit()
 
       sendToSession = (data) => {
-        if (sessionId) void Terminals.Write(sessionId, data)
+        if (!sessionId) return
+        awaitingEcho = true
+        void Terminals.Write(sessionId, data)
       }
       typed = (data) => {
         // Read-only drops keystrokes; terminal reports (e.g. cursor position) still go through.
@@ -366,10 +371,16 @@
       if (profile.record) void startRecording()
       claim(id, {
         data: (bytes) => {
-          term?.write(bytes)
+          if (awaitingEcho) {
+            // Time the echo from arriving to the frame that shows it.
+            awaitingEcho = false
+            const t = performance.now()
+            term?.write(bytes, () => requestAnimationFrame(() => perf.drawn(id, performance.now() - t)))
+          } else term?.write(bytes)
           if (profile.scrollOnOutput) term?.scrollToBottom()
         },
         exit: (code) => {
+          perf.forgetSession(id)
           if (sessionId === id) sessionId = undefined
           if (liveSession === id) liveSession = undefined
           recording = ''
@@ -500,27 +511,40 @@
 
   // The GPU renderer, except behind a background image: WebKitGTK's WebGL
   // draws no text on a see-through terminal, so xterm's DOM renderer is used.
+  // Only recently shown panes keep a GPU context (see perf.svelte.ts).
   let opened = $state(false)
   let webgl: WebglAddon | undefined
+  const gpuToken = perf.token()
+  // Bumped after a lost context so the effect makes a new one (a few times at most).
+  let gpuLost = $state(0)
   $effect(() => {
-    const wanted = opened && !profile.background
-    if (!term || wanted === !!webgl) return
-    if (wanted) {
+    if (visible) perf.shown(gpuToken)
+  })
+  $effect(() => () => perf.forget(gpuToken))
+  $effect(() => {
+    const wanted = opened && !profile.background && perf.mayUseGpu(gpuToken) && gpuLost <= 3
+    if (!term || !opened) return
+    if (wanted && !webgl) {
       try {
         const addon = new WebglAddon()
         addon.onContextLoss(() => {
           addon.dispose()
-          if (webgl === addon) webgl = undefined
+          if (webgl === addon) {
+            webgl = undefined
+            perf.renderer[gpuToken] = 'standard'
+            gpuLost++
+          }
         })
         term.loadAddon(addon)
         webgl = addon
       } catch {
         // No WebGL: xterm falls back to its DOM renderer.
       }
-    } else {
-      webgl?.dispose()
+    } else if (!wanted && webgl) {
+      webgl.dispose()
       webgl = undefined
     }
+    perf.renderer[gpuToken] = webgl ? 'gpu' : 'standard'
   })
 
   // Apply preference changes to the live terminal. Only options that really
