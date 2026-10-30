@@ -5,6 +5,8 @@ All notable changes to TuxShell are listed here. Versions follow
 
 ## [Unreleased]
 
+## [1.5.4] - 2026-10-30
+
 ### Added
 
 - A package repository at pkg.tuxshell.io: add it once and `apt upgrade` or `dnf upgrade` installs
@@ -392,6 +394,7 @@ First release.
 - Dark and light themes, or follow the system.
 - Packages for Fedora/RHEL (.rpm), Debian/Ubuntu (.deb) and an AppImage.
 
+[1.5.4]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.5.4
 [1.5.3]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.5.3
 [1.5.2]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.5.2
 [1.5.1]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.5.1
