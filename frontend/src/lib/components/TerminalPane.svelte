@@ -112,6 +112,12 @@
     sendToSession(data)
   }
 
+  /** Ends the session if it's running and connects again (tab menu → Reconnect). */
+  export function restart() {
+    if (!asking) restartSession()
+  }
+  let restartSession: () => void = () => {}
+
   /** Pastes text into the session (used by clipboard history). */
   export function paste(text: string) {
     if (asking || exited !== null || readOnly) return
@@ -302,6 +308,20 @@
 
       onSize?.(term.cols, term.rows)
       reconnect = () => void connect()
+      restartSession = () => {
+        if (sessionId) {
+          // Stop listening first, so this hang-up isn't taken for a logout that closes the tab.
+          const old = sessionId
+          release(old)
+          void Terminals.Close(old)
+          perf.forgetSession(old)
+          sessionId = undefined
+          liveSession = undefined
+          recording = ''
+          exited = 0
+        }
+        void connect()
+      }
       submitLogin = async (user: string, save: boolean) => {
         loginError = null
         if (save && source.kind === 'host') {

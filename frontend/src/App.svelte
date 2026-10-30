@@ -198,6 +198,7 @@
       if (t) renamingTab = { key, name: workspace.tabTitle(t) }
     },
     duplicate: (key) => layouts.duplicate(key),
+    reconnect: (key) => workspace.tabs.find((t) => t.key === key)?.paneIds.forEach((id) => panes[id]?.restart()),
     move: (key, index) => workspace.moveTab(key, index),
     newShell: () => workspace.openTab({ kind: 'shell' }, 'Local shell'),
     home: () => (workspace.activeKey = HOME),

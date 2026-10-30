@@ -14,6 +14,8 @@ export interface TabActions {
   rename: (key: number) => void
   /** Opens a copy of the tab next to it (new connections to the same hosts). */
   duplicate: (key: number) => void
+  /** Ends the tab's sessions and connects them again. */
+  reconnect: (key: number) => void
   /** Moves a tab to a new position in the list. */
   move: (key: number, index: number) => void
   newShell: () => void
@@ -73,6 +75,7 @@ export function tabMenu(tabs: TabInfo[], key: number, a: TabActions): MenuItem[]
   }
   if (tab.panes > 1) items.push({ label: 'Unsplit into tabs', run: () => a.unsplit(key) })
   items.push({ label: 'Duplicate tab', separator: true, run: () => a.duplicate(key) })
+  if (tab.kind !== 'rdp') items.push({ label: tab.panes > 1 ? 'Reconnect all panes' : 'Reconnect', run: () => a.reconnect(key) })
   items.push({ label: 'Rename tab…', run: () => a.rename(key) })
   items.push({ label: 'Save tab as layout…', run: () => a.saveLayout([key]) })
   if (tabs.length > 1) items.push({ label: `Save all ${tabs.length} tabs as layout…`, run: () => a.saveLayout(tabs.map((t) => t.key)) })
