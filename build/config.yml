@@ -11,7 +11,7 @@ info:
   description: "SSH connection manager for Linux" # The application description
   copyright: "(c) 2026 vgrigolaia" # Copyright text
   comments: "Free and open source, GPL-3.0-or-later" # Comments
-  version: "1.5.3" # The application version
+  version: "1.5.4" # The application version
   # cfBundleIconName: "appicon" # The macOS icon name in Assets.car icon bundles (optional)
   #                               # Should match the name of your .icon file without the extension
   #                               # If not set and Assets.car exists, defaults to "appicon"

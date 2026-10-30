@@ -34,7 +34,7 @@
   <launchable type="desktop-id">io.github.vgrigolaia.TuxShell.desktop</launchable>
   <icon type="stock">tuxshell</icon>
 
-  <url type="homepage">https://github.com/vgrigolaia/TuxShell</url>
+  <url type="homepage">https://tuxshell.io</url>
   <url type="bugtracker">https://github.com/vgrigolaia/TuxShell/issues</url>
   <url type="vcs-browser">https://github.com/vgrigolaia/TuxShell</url>
   <url type="contribute">https://github.com/vgrigolaia/TuxShell/blob/main/CONTRIBUTING.md</url>
@@ -92,6 +92,11 @@
   </branding>
 
   <releases>
+    <release version="1.5.4" date="2026-10-30">
+      <description>
+        <p>TuxShell can now be installed from its own signed apt and dnf package repository, so system updates keep it current; installed that way, it shows the command that updates it. The About page links to the new website, tuxshell.io.</p>
+      </description>
+    </release>
     <release version="1.5.3" date="2026-10-30">
       <description>
         <p>Reconnect a tab from its right-click menu. The status bar shows how fast the active terminal answers, and Preferences shows when the window was busy. Duplicating a host no longer freezes the window, a tab closes when its server shuts down, and terminals keep fast drawing with many tabs open.</p>

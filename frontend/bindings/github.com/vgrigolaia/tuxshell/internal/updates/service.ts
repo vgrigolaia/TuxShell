@@ -28,3 +28,12 @@ export function Check(current: string): $CancellablePromise<$models.Result> {
 export function Managed(): $CancellablePromise<boolean> {
     return $Call.ByID(1705700888);
 }
+
+/**
+ * Repo says which package manager updates this TuxShell ("apt" or "dnf"), or
+ * "" when it wasn't installed from the TuxShell package repository. The app
+ * still checks GitHub then, but tells the user to update with that tool.
+ */
+export function Repo(): $CancellablePromise<string> {
+    return $Call.ByID(6481971);
+}

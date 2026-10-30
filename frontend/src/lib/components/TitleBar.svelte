@@ -193,7 +193,9 @@
     {#if updates.result?.newer}
       <button
         class="no-drag flex h-[30px] items-center gap-1.5 rounded-[10px] bg-accent-chip px-2.5 text-xs font-medium whitespace-nowrap text-accent-ink hover:bg-accent hover:text-on-accent"
-        title="TuxShell {updates.result.latest} is available. Open the release page"
+        title={updates.command
+          ? `TuxShell ${updates.result.latest} is available. Update with: ${updates.command}. Click for the release notes`
+          : `TuxShell ${updates.result.latest} is available. Open the release page`}
         onclick={() => void Browser.OpenURL(updates.result!.url)}
       >
         <Icon name="download" size={13} />

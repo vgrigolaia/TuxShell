@@ -6,6 +6,11 @@ TuxShell keeps your hosts in one place and connects with the system `ssh`, so yo
 `~/.ssh/config`, keys, agents and jump hosts work as they already do. Passwords can come from
 1Password, KeePassXC or your system keyring, never from TuxShell's own files.
 
+On Debian, Ubuntu, Fedora and RHEL, install it with `apt install tuxshell` or `dnf install tuxshell` from
+its signed package repository, and your system keeps it up to date ([Install](#install)).
+
+Website: [tuxshell.io](https://tuxshell.io)
+
 ## Screenshots
 
 ![Split view with the open tabs and hosts in the left panel](docs/screenshots/split-view.png)
@@ -116,30 +121,51 @@ stays with the programs in the terminal.
 
 ## Install
 
-Download TuxShell from the [releases page](https://github.com/vgrigolaia/tuxshell/releases).
+Download TuxShell from the [releases page](https://github.com/vgrigolaia/tuxshell/releases), or on Linux
+install it from its package repository.
 
 ### Linux
 
+Add the TuxShell package repository once, and your system updates TuxShell along with
+everything else (`sudo apt upgrade`, `sudo dnf upgrade`):
+
+```sh
+# Debian, Ubuntu
+sudo curl -fsSLo /etc/apt/keyrings/tuxshell.asc https://pkg.tuxshell.io/tuxshell.asc
+echo "deb [signed-by=/etc/apt/keyrings/tuxshell.asc] https://pkg.tuxshell.io/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/tuxshell.list
+sudo apt update && sudo apt install tuxshell
+
+# Fedora, RHEL, AlmaLinux, Rocky Linux
+sudo curl -fsSLo /etc/yum.repos.d/tuxshell.repo https://pkg.tuxshell.io/rpm/tuxshell.repo
+sudo dnf install tuxshell
+```
+
+The packages and the repository are signed; dnf asks you once to accept the key. Its fingerprint
+is `A82A 6FBD 31D2 861C 5A22  0E33 D390 FC47 AB2E B455`.
+
+Or download a package from the releases page and install it:
+
 ```sh
 # Fedora, RHEL, AlmaLinux, Rocky Linux
-sudo dnf install ./tuxshell-1.5.3-1.x86_64.rpm
+sudo dnf install ./tuxshell-1.5.4-1.x86_64.rpm
 
 # Debian, Ubuntu
-sudo apt install ./tuxshell_1.5.3-1_amd64.deb
+sudo apt install ./tuxshell_1.5.4-1_amd64.deb
 ```
 
 Or run the AppImage on any distribution:
 
 ```sh
-chmod +x TuxShell-1.5.3-x86_64.AppImage
-./TuxShell-1.5.3-x86_64.AppImage
+chmod +x TuxShell-1.5.4-x86_64.AppImage
+./TuxShell-1.5.4-x86_64.AppImage
 ```
 
 Or install the Flatpak on any distribution with [Flatpak and Flathub set up](https://flathub.org/setup).
 The GNOME runtime it needs is installed from Flathub along with it:
 
 ```sh
-flatpak install --user TuxShell-1.5.3-x86_64.flatpak
+flatpak install --user TuxShell-1.5.4-x86_64.flatpak
 flatpak run io.github.vgrigolaia.TuxShell
 ```
 
