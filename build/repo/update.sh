@@ -43,12 +43,18 @@ if ((${#debs[@]} + ${#newrpms[@]} == 0)); then
 	echo "no .deb or .rpm in $new" >&2
 	exit 1
 fi
-cp -- "${debs[@]}" "$pool"/
+# A package already in the repository stays as it is: signing an .rpm again
+# changes its bytes under the same name, which Cloudflare's cache would keep
+# serving in its old form.
+for f in "${debs[@]}"; do
+	[[ -e $pool/$(basename "$f") ]] || cp -- "$f" "$pool"/
+done
 rpm_args=(--define "__gpg $(command -v gpg)" --define "_gpg_name $key")
 if ((${#pass_args[@]})); then
 	rpm_args+=(--define "_gpg_sign_cmd_extra_args ${pass_args[*]}")
 fi
 for f in "${newrpms[@]}"; do
+	[[ -e $rpms/$(basename "$f") ]] && continue
 	cp -- "$f" "$rpms"/
 	rpmsign --addsign "${rpm_args[@]}" "$rpms/$(basename "$f")"
 done
