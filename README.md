@@ -136,7 +136,8 @@ sudo curl -fsSLo /etc/yum.repos.d/tuxshell.repo https://pkg.tuxshell.io/rpm/tuxs
 sudo dnf install tuxshell
 ```
 
-The packages and the repository are signed; dnf asks you once to accept the key.
+The packages and the repository are signed; dnf asks you once to accept the key. Its fingerprint
+is `A82A 6FBD 31D2 861C 5A22  0E33 D390 FC47 AB2E B455`.
 
 Or download a package from the releases page and install it:
 
