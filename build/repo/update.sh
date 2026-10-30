@@ -44,13 +44,13 @@ if ((${#debs[@]} + ${#newrpms[@]} == 0)); then
 	exit 1
 fi
 cp -- "${debs[@]}" "$pool"/
+rpm_args=(--define "__gpg $(command -v gpg)" --define "_gpg_name $key")
+if ((${#pass_args[@]})); then
+	rpm_args+=(--define "_gpg_sign_cmd_extra_args ${pass_args[*]}")
+fi
 for f in "${newrpms[@]}"; do
 	cp -- "$f" "$rpms"/
-	rpmsign --addsign \
-		--define "__gpg $(command -v gpg)" \
-		--define "_gpg_name $key" \
-		--define "_gpg_sign_cmd_extra_args ${pass_args[*]}" \
-		"$rpms/$(basename "$f")"
+	rpmsign --addsign "${rpm_args[@]}" "$rpms/$(basename "$f")"
 done
 
 # Keep the newest $keep versions of each (names sort by version with -V).
