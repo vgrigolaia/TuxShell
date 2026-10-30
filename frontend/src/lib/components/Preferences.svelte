@@ -923,7 +923,12 @@
                   <span class="text-warning">{updates.error}</span>
                 {:else if updates.result?.newer}
                   TuxShell <span class="font-mono">{updates.result.latest}</span> is available.
-                  <button class="ml-1 text-accent underline-offset-2 hover:underline" onclick={() => void Browser.OpenURL(updates.result!.url)}>Download</button>
+                  {#if updates.command}
+                    Update with <span class="font-mono select-all">{updates.command}</span>.
+                    <button class="ml-1 text-accent underline-offset-2 hover:underline" onclick={() => void Browser.OpenURL(updates.result!.url)}>What's new</button>
+                  {:else}
+                    <button class="ml-1 text-accent underline-offset-2 hover:underline" onclick={() => void Browser.OpenURL(updates.result!.url)}>Download</button>
+                  {/if}
                 {:else if updates.result}
                   <span class="text-success">You're up to date.</span>
                 {/if}
@@ -931,7 +936,7 @@
             </div>
             <label class="{check} mt-4">
               <input type="checkbox" class="mt-0.5 accent-accent" checked={prefs.value.updateCheck} onchange={(e) => prefs.setUpdateCheck(e.currentTarget.checked)} />
-              <span>Check for updates at startup<span class={hint}>Asks GitHub for the latest release once when TuxShell starts. Nothing is downloaded or installed.</span></span>
+              <span>Check for updates at startup<span class={hint}>Asks GitHub for the latest release once when TuxShell starts. Nothing is downloaded or installed.{#if updates.tool} TuxShell came from its package repository, so <span class="font-mono">{updates.tool} upgrade</span> installs new releases.{/if}</span></span>
             </label>
           {/if}
         </section>
