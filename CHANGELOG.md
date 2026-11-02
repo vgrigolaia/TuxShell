@@ -5,6 +5,15 @@ All notable changes to TuxShell are listed here. Versions follow
 
 ## [Unreleased]
 
+### Changed
+
+- Faster typing when the window is busy: typed keys go to the session one write at a time, so they
+  no longer pile up (or arrive out of order). The status bar adds *send*, the time to hand keys over.
+- Tabs you aren't looking at get their output in fewer, larger pieces, so busy background tabs
+  (logs, `top`, builds) no longer slow down the one you type in. Nothing is lost.
+- Copying and switching back to the window no longer reload the whole clipboard history; it's
+  loaded only while the clipboard panel is open, and only when something changed.
+
 ## [1.5.4] - 2026-10-30
 
 ### Added
