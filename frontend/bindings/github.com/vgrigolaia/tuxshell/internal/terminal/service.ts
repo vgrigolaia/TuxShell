@@ -64,6 +64,14 @@ export function Resize(id: string, cols: number, rows: number): $CancellableProm
 }
 
 /**
+ * SetVisible says whether a session's pane is on screen. A hidden session's
+ * output is sent less often (see hiddenInterval).
+ */
+export function SetVisible(id: string, visible: boolean): $CancellablePromise<void> {
+    return $Call.ByID(482318091, id, visible);
+}
+
+/**
  * StartHost connects to a saved host and returns the session ID.
  */
 export function StartHost(hostID: number, cols: number, rows: number): $CancellablePromise<string> {

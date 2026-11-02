@@ -560,6 +560,11 @@
   const gpuToken = perf.token()
   // Bumped after a lost context so the effect makes a new one (a few times at most).
   let gpuLost = $state(0)
+  // A hidden pane's output comes in fewer, larger pieces (see batch.go), so
+  // busy background tabs don't slow down the one being typed in.
+  $effect(() => {
+    if (liveSession) void Terminals.SetVisible(liveSession, visible).catch(() => {})
+  })
   $effect(() => {
     if (visible) perf.shown(gpuToken)
   })

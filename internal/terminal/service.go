@@ -99,6 +99,7 @@ type session struct {
 	rec     *recordings.Writer
 	recName string
 	echo    echoTimer
+	out     *batcher
 }
 
 // Service manages PTY sessions. Its exported methods are bound to the frontend.
@@ -259,18 +260,17 @@ func (s *Service) start(cmd *exec.Cmd, cols, rows int, v visit) (string, error) 
 		visited = s.history.Begin(v.hostID, v.user, v.target)
 	}
 
-	sess := &session{cmd: cmd, ptmx: ptmx, end: end, visited: visited, cols: cols, rows: rows}
+	sess := &session{cmd: cmd, ptmx: ptmx, end: end, visited: visited, cols: cols, rows: rows, out: newBatcher()}
 	s.mu.Lock()
 	s.sessions[id] = sess
 	s.mu.Unlock()
 
-	go s.pump(id, cmd, ptmx, &sess.echo)
+	go s.pump(id, cmd, ptmx, &sess.echo, sess.out)
 	return id, nil
 }
 
 // pump forwards PTY output until the process exits, then reports the exit code.
-func (s *Service) pump(id string, cmd *exec.Cmd, ptmx *os.File, echo *echoTimer) {
-	out := newBatcher()
+func (s *Service) pump(id string, cmd *exec.Cmd, ptmx *os.File, echo *echoTimer, out *batcher) {
 	sent := make(chan struct{})
 	go func() {
 		out.run(func(data []byte) {
@@ -358,6 +358,17 @@ func (s *Service) Echo(id string) (Echo, error) {
 		return Echo{}, err
 	}
 	return sess.echo.get(), nil
+}
+
+// SetVisible says whether a session's pane is on screen. A hidden session's
+// output is sent less often (see hiddenInterval).
+func (s *Service) SetVisible(id string, visible bool) error {
+	sess, err := s.get(id)
+	if err != nil {
+		return err
+	}
+	sess.out.setHidden(!visible)
+	return nil
 }
 
 // Resize updates a session's terminal size.
