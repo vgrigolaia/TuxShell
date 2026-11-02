@@ -209,10 +209,33 @@
       opened = true
       fit.fit()
 
+      // One write to Go at a time: keys typed meanwhile wait in the outbox and
+      // go together in the next one. Separate calls each cross the main
+      // thread and could stack up (or overtake each other) when it's busy.
+      let outbox = ''
+      let writing = false
+      const flush = async () => {
+        writing = true
+        while (outbox && sessionId) {
+          const id = sessionId
+          const data = outbox
+          outbox = ''
+          const t = performance.now()
+          try {
+            await Terminals.Write(id, data)
+            perf.sent(id, performance.now() - t)
+          } catch {
+            // The session ended; its exit event says so.
+          }
+        }
+        outbox = ''
+        writing = false
+      }
       sendToSession = (data) => {
         if (!sessionId) return
         awaitingEcho = true
-        void Terminals.Write(sessionId, data)
+        outbox += data
+        if (!writing) void flush()
       }
       typed = (data) => {
         // Read-only drops keystrokes; terminal reports (e.g. cursor position) still go through.

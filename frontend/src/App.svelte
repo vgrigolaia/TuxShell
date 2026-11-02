@@ -570,8 +570,13 @@
     {#if activeHost?.proxyJump}<span>via {activeHost.proxyJump} · ProxyJump</span>{/if}
     {#if watched && perf.echo}
       {@const draw = perf.draw[watched]}
-      <span title="Typed keys: {Math.round(perf.echo.avgMs)} ms until the {active?.source.kind === 'shell' ? 'shell' : 'server'} answers{draw === undefined ? '' : `, ${Math.round(draw)} ms to draw it`} (average of recent keys)">
-        echo {Math.round(perf.echo.avgMs)} ms{#if draw !== undefined} · draw {Math.round(draw)} ms{/if}
+      {@const send = perf.send[watched]}
+      <span
+        title="Typed keys: {send === undefined ? '' : `${Math.round(send)} ms to hand them to TuxShell's core, `}{Math.round(perf.echo.avgMs)} ms until the {active?.source.kind === 'shell'
+          ? 'shell'
+          : 'server'} answers{draw === undefined ? '' : `, ${Math.round(draw)} ms to draw it`} (average of recent keys)"
+      >
+        {#if send !== undefined}send {Math.round(send)} ms · {/if}echo {Math.round(perf.echo.avgMs)} ms{#if draw !== undefined} · draw {Math.round(draw)} ms{/if}
       </span>
     {/if}
     {#if tunnels.running}<span>{tunnels.running} {tunnels.running === 1 ? 'tunnel' : 'tunnels'}</span>{/if}
