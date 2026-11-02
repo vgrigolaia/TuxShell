@@ -179,7 +179,8 @@ func (s *Store) seal(plain, aad string) (nonce, sealed []byte, err error) {
 func (s *Store) Close() error { return s.db.Close() }
 
 // Add records copied text, moving an identical earlier entry to the top
-// (keeping its pin and label). It returns false when the text is filtered out.
+// (keeping its pin and label). It returns false when the text is filtered out
+// or is already the newest entry, so nothing changed.
 func (s *Store) Add(text string, settings Settings) (bool, error) {
 	return s.AddFrom(text, "", settings)
 }
@@ -194,6 +195,15 @@ func (s *Store) AddFrom(text, source string, settings Settings) (bool, error) {
 	}
 	source = cleanSource(source)
 	digest := s.digest(text)
+	// The window reads the clipboard each time it gains focus, which mostly
+	// finds the text already on top: nothing to write or announce then.
+	if source == "" {
+		var newest string
+		err := s.db.QueryRow(`SELECT digest FROM clips ORDER BY created_at DESC, id DESC LIMIT 1`).Scan(&newest)
+		if err == nil && newest == digest {
+			return false, nil
+		}
+	}
 	nonce, sealed, err := s.seal(text, digest)
 	if err != nil {
 		return false, err

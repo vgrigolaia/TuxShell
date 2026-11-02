@@ -39,8 +39,9 @@
   const filters = $derived<[Show, string][]>(activeHost ? [['all', 'All'], ['pinned', 'Pinned'], ['host', 'This host']] : [['all', 'All'], ['pinned', 'Pinned']])
 
   onMount(() => {
-    void clipboardHistory.load()
     search?.focus()
+    // Copies elsewhere only reload the history while it's on screen.
+    return clipboardHistory.watch()
   })
 
   function backToList() {
