@@ -432,7 +432,7 @@
         onConnectAs={connectAs}
         onDuplicate={duplicate}
         onDelete={(host) => (deleting = host)}
-        onNew={() => (panel = { kind: 'host', host: emptyHost() })}
+        onNew={(group) => (panel = { kind: 'host', host: { ...emptyHost(), group: group ?? '' } })}
         onImport={() => openImport()}
         onOpenTiles={openSplit}
         openTabs={tabsLeft ? openTabsList : undefined}
@@ -494,7 +494,7 @@
         onDuplicate={duplicate}
         onDelete={(host) => (deleting = host)}
         onConnectTarget={(target) => open({ kind: 'target', target }, target)}
-        onNew={() => (panel = { kind: 'host', host: emptyHost() })}
+        onNew={(group) => (panel = { kind: 'host', host: { ...emptyHost(), group: group ?? '' } })}
         onImport={openImport}
         onOpenHostList={openHostList}
         onPreferences={() => (prefsOpen = true)}
