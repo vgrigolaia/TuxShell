@@ -12,6 +12,8 @@
     edit: 'M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4',
     import: 'M12 4v11M7 10l5 5 5-5M5 20h14',
     chevron: 'M9 6l6 6-6 6',
+    chevronsDown: 'M7 6l5 5 5-5M7 13l5 5 5-5',
+    chevronsUp: 'M7 11l5-5 5 5M7 18l5-5 5 5',
     server: 'M4 5h16v6H4zM4 13h16v6H4zM8 8h.01M8 16h.01',
     check: 'M5 12l5 5L20 7',
     pin: 'M9 4h6l-1 6 4 4H6l4-4zM12 14v6',

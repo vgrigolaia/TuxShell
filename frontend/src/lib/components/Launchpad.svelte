@@ -14,6 +14,7 @@
   import HostBadge from './HostBadge.svelte'
   import StatusDot from './StatusDot.svelte'
   import Icon from './Icon.svelte'
+  import { notices } from '../notices.svelte'
   import PromptDialog from './PromptDialog.svelte'
   import ContextMenu, { type MenuItem } from './ContextMenu.svelte'
   import SnippetsPage from './SnippetsPage.svelte'
@@ -122,7 +123,47 @@
   const hour = new Date().getHours()
   const greeting = hour < 5 ? 'Good evening' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
 
-  const groups = $derived(hostStore.groups.filter((g) => g.hosts.length))
+  // Empty groups are listed too, so a new group can be seen and dragged into.
+  const groups = $derived(hostStore.groups)
+
+  // Drag a card onto a group chip to move that host. Pointer events, because HTML5 drag is unreliable in WebKitGTK.
+  let drag = $state<{ host: Host; x: number; y: number; moved: boolean; over: string | null } | null>(null)
+  let swallowClick = false
+  const droppable = (name: string | undefined) => !!name && name !== JUMP_GROUP
+  function startDrag(e: PointerEvent, host: Host) {
+    if (e.button !== 0) return
+    const sx = e.clientX
+    const sy = e.clientY
+    drag = { host, x: sx, y: sy, moved: false, over: null }
+    const state = drag
+    const move = (ev: PointerEvent) => {
+      if (!state.moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 6) return
+      state.moved = true
+      state.x = ev.clientX
+      state.y = ev.clientY
+      const name = document.elementFromPoint(ev.clientX, ev.clientY)?.closest<HTMLElement>('[data-chip]')?.dataset.chip
+      state.over = droppable(name) ? (name ?? null) : null
+    }
+    const end = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', end)
+      window.removeEventListener('pointercancel', end)
+      const target = ev.type === 'pointerup' && state.moved ? state.over : null
+      if (state.moved) {
+        swallowClick = true
+        setTimeout(() => (swallowClick = false), 0)
+      }
+      drag = null
+      if (target !== null && target !== (host.group || NO_GROUP)) {
+        const label = target === NO_GROUP ? 'Ungrouped' : target
+        void hostStore.moveHost(host.id, target === NO_GROUP ? '' : target, 0).then(() => notices.show(`Moved ${host.name} to ${label}.`, 4000))
+      }
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', end)
+    window.addEventListener('pointercancel', end)
+  }
+
   const cards = $derived.by(() => {
     const q = query.trim()
     const inGroup = group ? (groups.find((g) => g.name === group)?.hosts ?? []) : groups.flatMap((g) => g.hosts)
@@ -209,6 +250,7 @@
       <h1 class="font-display text-3xl font-bold tracking-[-0.03em]">{greeting}</h1>
       <div class="ml-auto flex gap-2.5">
         <button class="h-[42px] rounded-[13px] border border-strong bg-panel px-4 text-sm font-semibold hover:bg-raised" onclick={() => onImport()}>Import</button>
+        <button class="h-[42px] rounded-[13px] border border-strong bg-panel px-4 text-sm font-semibold hover:bg-raised" onclick={() => (newGroup = true)}>New group</button>
         <button class="new-host h-[42px] rounded-[13px] bg-accent px-[18px] text-sm font-bold text-on-accent hover:bg-accent/90" onclick={() => onNew(group && group !== NO_GROUP && group !== JUMP_GROUP ? group : undefined)}>+ New host</button>
       </div>
     </header>
@@ -254,11 +296,11 @@
 
     {#if hostStore.list.length}
       <div role="radiogroup" aria-label="Group" class="flex flex-wrap gap-2">
-        <button role="radio" aria-checked={group === null} class="{chip} {group === null ? 'bg-fg text-panel' : 'chip-off'}" onclick={() => (group = null)}>
+        <button role="radio" aria-checked={group === null} data-chip="" class="{chip} {group === null ? 'bg-fg text-panel' : 'chip-off'}" onclick={() => (group = null)}>
           All {hostStore.list.length}
         </button>
         {#each groups as g (g.name)}
-          <button role="radio" aria-checked={group === g.name} class="{chip} {group === g.name ? 'bg-fg text-panel' : 'chip-off'}" onclick={() => (group = g.name)} oncontextmenu={(e) => openChipMenu(e, g.name)}>
+          <button role="radio" aria-checked={group === g.name} data-chip={g.name} class="{chip} {group === g.name ? 'bg-fg text-panel' : 'chip-off'} {drag?.moved && drag.over === g.name ? 'chip-drop' : ''}" onclick={() => (group = g.name)} oncontextmenu={(e) => openChipMenu(e, g.name)}>
             {g.name} {g.hosts.length}
           </button>
         {/each}
@@ -271,6 +313,8 @@
         <p class="text-[15px] font-semibold">No saved hosts yet</p>
         <p class="max-w-sm text-sm text-subtle">Add one, import your ~/.ssh/config, or type user@host above and press Enter to connect right away.</p>
       </div>
+    {:else if !query && group && !cards.length}
+      <p class="py-6 text-center text-sm text-subtle">No hosts in {group} yet. Drag a host onto this group, or use + New host.</p>
     {:else if query && !cards.length}
       <p class="py-6 text-center text-sm text-subtle">
         No saved host matches “{query}”.{#if looksLikeTarget(query.trim())} Press Enter to connect to it.{/if}
@@ -283,10 +327,11 @@
         {@const off = st === 'down'}
         <li class="group relative">
           <button
-            class="card flex h-full w-full flex-col gap-3.5 rounded-[20px] p-[18px] text-left {h.id === selectedId || h.id === marked ? 'card-selected' : ''} {off ? 'card-off' : 'bg-panel'}"
+            class="card flex h-full w-full select-none flex-col gap-3.5 rounded-[20px] p-[18px] text-left {h.id === selectedId || h.id === marked ? 'card-selected' : ''} {off ? 'card-off' : 'bg-panel'}"
             title="Double-click or Enter to connect · right-click for more"
             aria-haspopup="menu"
-            onclick={() => (marked = h.id)}
+            onclick={() => !swallowClick && (marked = h.id)}
+            onpointerdown={(e) => startDrag(e, h)}
             ondblclick={() => onConnect(h)}
             oncontextmenu={(e) => openMenu(e, h)}
             onkeydown={(e) => onCardKey(e, h)}
@@ -326,6 +371,9 @@
   {/if}
 </div>
 
+{#if drag?.moved}
+  <div class="pointer-events-none fixed z-50 rounded-xl bg-accent px-3 py-1.5 text-[13px] font-bold text-on-accent shadow-lg" style="left:{drag.x + 12}px;top:{drag.y + 12}px" aria-hidden="true">{drag.host.name}</div>
+{/if}
 {#if menu}
   <ContextMenu x={menu.x} y={menu.y} label="Actions for {menu.host.name}" items={menuItems(menu.host)} onClose={() => (menu = null)} />
 {/if}
@@ -376,6 +424,10 @@
     background: var(--color-panel);
     color: var(--color-text);
     box-shadow: inset 0 0 0 1px var(--color-line);
+  }
+  .chip-drop {
+    background: var(--color-accent-soft);
+    box-shadow: 0 0 0 2px var(--color-accent);
   }
   .new-host {
     box-shadow: 0 6px 18px color-mix(in srgb, var(--color-accent) 20%, transparent);

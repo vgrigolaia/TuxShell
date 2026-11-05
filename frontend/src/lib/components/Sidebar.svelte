@@ -55,6 +55,18 @@
     }
   }
 
+  // One button opens or closes every group.
+  const allCollapsed = $derived(hostStore.groups.length > 0 && hostStore.groups.every((g) => collapsed[g.name]))
+  function toggleAllGroups() {
+    const next = !allCollapsed
+    for (const g of hostStore.groups) collapsed[g.name] = next
+    try {
+      localStorage.setItem(COLLAPSED_KEY, JSON.stringify(collapsed))
+    } catch {
+      // Storage unavailable; the toggle still works for this session.
+    }
+  }
+
   function toggle(group: string) {
     collapsed[group] = !collapsed[group]
     try {
@@ -417,6 +429,16 @@
     <button class="grid size-6 shrink-0 place-items-center rounded-md text-subtle hover:bg-raised hover:text-fg" aria-label="Import hosts" title="Import hosts" onclick={onImport}>
       <Icon name="import" size={13} />
     </button>
+    {#if hostStore.groups.length > 1}
+      <button
+        class="grid size-6 shrink-0 place-items-center rounded-md text-subtle hover:bg-raised hover:text-fg"
+        aria-label={allCollapsed ? 'Expand all groups' : 'Collapse all groups'}
+        title={allCollapsed ? 'Expand all groups' : 'Collapse all groups'}
+        onclick={toggleAllGroups}
+      >
+        <Icon name={allCollapsed ? 'chevronsDown' : 'chevronsUp'} size={14} />
+      </button>
+    {/if}
     <button class="grid size-6 shrink-0 place-items-center rounded-md text-subtle hover:bg-raised hover:text-fg" aria-label="New group" title="New group" onclick={() => (newGroup = true)}>
       <Icon name="folderPlus" size={14} />
     </button>
