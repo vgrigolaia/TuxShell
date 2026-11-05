@@ -130,7 +130,9 @@ Add the TuxShell package repository once, and your system updates TuxShell along
 everything else (`sudo apt upgrade`, `sudo dnf upgrade`):
 
 ```sh
-# Debian, Ubuntu
+# Debian, Ubuntu (a fresh install may not have curl)
+sudo apt install -y curl
+sudo install -d -m 0755 /etc/apt/keyrings
 sudo curl -fsSLo /etc/apt/keyrings/tuxshell.asc https://pkg.tuxshell.io/tuxshell.asc
 echo "deb [signed-by=/etc/apt/keyrings/tuxshell.asc] https://pkg.tuxshell.io/apt stable main" \
   | sudo tee /etc/apt/sources.list.d/tuxshell.list
