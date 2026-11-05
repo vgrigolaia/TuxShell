@@ -5,6 +5,13 @@ All notable changes to TuxShell are listed here. Versions follow
 
 ## [Unreleased]
 
+## [1.5.5] - 2026-11-05
+
+### Added
+
+- Right-click a host group in the sidebar, or a group chip on Home, to add a host to it or create a new
+  group. "+ New host" on Home starts in the selected group.
+
 ### Changed
 
 - Faster typing when the window is busy: typed keys go to the session one write at a time, so they
@@ -403,6 +410,7 @@ First release.
 - Dark and light themes, or follow the system.
 - Packages for Fedora/RHEL (.rpm), Debian/Ubuntu (.deb) and an AppImage.
 
+[1.5.5]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.5.5
 [1.5.4]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.5.4
 [1.5.3]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.5.3
 [1.5.2]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.5.2
