@@ -90,6 +90,7 @@
   // Right-click on a group chip: add a host to it, or a new group.
   let chipMenu = $state<{ x: number; y: number; name: string } | null>(null)
   let newGroup = $state(false)
+  let renaming = $state<string | null>(null)
   function openChipMenu(e: MouseEvent, name: string) {
     e.preventDefault()
     chipMenu = { x: e.clientX, y: e.clientY, name }
@@ -97,6 +98,7 @@
   const chipMenuItems = (name: string): MenuItem[] => [
     ...(name === JUMP_GROUP ? [] : [{ label: 'Add host here', run: () => onNew(name === NO_GROUP ? undefined : name) }]),
     { label: 'New group…', run: () => (newGroup = true) },
+    ...(name === NO_GROUP || name === JUMP_GROUP ? [] : [{ label: 'Rename group…', separator: true, run: () => (renaming = name) }]),
   ]
   // Unsaved ~/.ssh/config aliases; the banner leaves out the ones hidden with its ×.
   let unsaved = $state<string[]>([])
@@ -379,6 +381,21 @@
 {/if}
 {#if chipMenu}
   <ContextMenu x={chipMenu.x} y={chipMenu.y} label="Actions for {chipMenu.name}" items={chipMenuItems(chipMenu.name)} onClose={() => (chipMenu = null)} />
+{/if}
+{#if renaming}
+  {@const from = renaming}
+  <PromptDialog
+    title="Rename group"
+    label="Name"
+    initial={from}
+    hint="The name of another group moves these hosts into it."
+    submitLabel="Rename"
+    onSubmit={async (to) => {
+      await hostStore.renameGroup(from, to)
+      if (group === from) group = hostStore.findGroup(to.trim()) ?? null
+    }}
+    onClose={() => (renaming = null)}
+  />
 {/if}
 {#if newGroup}
   <PromptDialog
