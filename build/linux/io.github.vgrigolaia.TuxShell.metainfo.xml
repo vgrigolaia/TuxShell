@@ -92,6 +92,11 @@
   </branding>
 
   <releases>
+    <release version="1.5.5" date="2026-11-05">
+      <description>
+        <p>Typing stays fast when other tabs are busy, and copying or switching back to the window no longer reloads the clipboard history. Right-click a host group to add a host to it or create a new group.</p>
+      </description>
+    </release>
     <release version="1.5.4" date="2026-10-30">
       <description>
         <p>TuxShell can now be installed from its own signed apt and dnf package repository, so system updates keep it current; installed that way, it shows the command that updates it. The About page links to the new website, tuxshell.io.</p>

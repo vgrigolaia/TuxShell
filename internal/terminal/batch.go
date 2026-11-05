@@ -2,6 +2,7 @@ package terminal
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -11,6 +12,11 @@ import (
 // sent at most once per frame. The first chunk after a quiet spell (a typed
 // key's echo) still goes out at once.
 const frameInterval = 8 * time.Millisecond
+
+// hiddenInterval replaces frameInterval while the session's pane isn't shown
+// (another tab is open). Its output still all arrives, in fewer, larger
+// events, which leaves the window's main thread to the terminal being used.
+const hiddenInterval = 100 * time.Millisecond
 
 // maxPending is how much unsent output a session may hold before its reader
 // waits, so a flood (cat /dev/urandom) can't grow memory without bound.
@@ -25,12 +31,40 @@ type batcher struct {
 	spare  []byte
 	closed bool
 	ready  chan struct{}
+	hidden atomic.Bool
+	// shown cuts a hidden wait short when the pane comes back.
+	shown chan struct{}
 }
 
 func newBatcher() *batcher {
-	b := &batcher{ready: make(chan struct{}, 1)}
+	b := &batcher{ready: make(chan struct{}, 1), shown: make(chan struct{}, 1)}
 	b.full = sync.NewCond(&b.mu)
 	return b
+}
+
+// setHidden switches between the hidden and the normal send rate.
+func (b *batcher) setHidden(hidden bool) {
+	b.hidden.Store(hidden)
+	if !hidden {
+		select {
+		case b.shown <- struct{}{}:
+		default:
+		}
+	}
+}
+
+// pause waits between two sends.
+func (b *batcher) pause() {
+	if !b.hidden.Load() {
+		time.Sleep(frameInterval)
+		return
+	}
+	t := time.NewTimer(hiddenInterval)
+	defer t.Stop()
+	select {
+	case <-t.C:
+	case <-b.shown:
+	}
 }
 
 func (b *batcher) wake() {
@@ -81,7 +115,7 @@ func (b *batcher) run(send func([]byte)) {
 			return
 		}
 		if len(data) > 0 {
-			time.Sleep(frameInterval)
+			b.pause()
 		}
 	}
 }

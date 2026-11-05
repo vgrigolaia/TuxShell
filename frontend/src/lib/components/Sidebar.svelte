@@ -22,7 +22,8 @@
     onConnectAs: (host: Host) => void
     onDuplicate: (host: Host) => void
     onDelete: (host: Host) => void
-    onNew: () => void
+    /** A group name preselects it in the new host. */
+    onNew: (group?: string) => void
     onImport: () => void
     /** Opens the selected hosts as tiles of one tab. */
     onOpenTiles: (hosts: Host[]) => void
@@ -153,6 +154,8 @@
       { label: 'Move up', hint: 'Alt+↑', disabled: !canReorder || i === 0, run: () => void moveGroup(name, i - 1) },
       { label: 'Move down', hint: 'Alt+↓', disabled: !canReorder || i === last, run: () => void moveGroup(name, i + 1) },
       { label: 'Move to bottom', disabled: !canReorder || i === last, run: () => void moveGroup(name, last) },
+      ...(name === JUMP_GROUP ? [] : [{ label: 'Add host here', separator: true, run: () => onNew(name === NO_GROUP ? undefined : name) }]),
+      { label: 'New group…', separator: name === JUMP_GROUP, run: () => (newGroup = true) },
       ...(name === NO_GROUP || name === JUMP_GROUP
         ? []
         : [
@@ -417,7 +420,7 @@
     <button class="grid size-6 shrink-0 place-items-center rounded-md text-subtle hover:bg-raised hover:text-fg" aria-label="New group" title="New group" onclick={() => (newGroup = true)}>
       <Icon name="folderPlus" size={14} />
     </button>
-    <button class="grid size-6 shrink-0 place-items-center rounded-md text-subtle hover:bg-raised hover:text-fg" aria-label="New host" title="New host" onclick={onNew}>
+    <button class="grid size-6 shrink-0 place-items-center rounded-md text-subtle hover:bg-raised hover:text-fg" aria-label="New host" title="New host" onclick={() => onNew()}>
       <Icon name="plus" size={14} />
     </button>
   </div>
@@ -463,7 +466,7 @@
       <div class="flex flex-col items-center gap-3 px-4 pt-10 text-center">
         <span class="grid size-10 place-items-center rounded-xl bg-raised text-subtle"><Icon name="server" size={18} /></span>
         <p class="text-[13px] text-muted">No hosts yet</p>
-        <button class="rounded-lg bg-accent px-3 py-1.5 text-[13px] font-medium text-on-accent hover:bg-accent/90" onclick={onNew}>Add a host</button>
+        <button class="rounded-lg bg-accent px-3 py-1.5 text-[13px] font-medium text-on-accent hover:bg-accent/90" onclick={() => onNew()}>Add a host</button>
         <button class="text-[13px] text-accent-text hover:underline" onclick={onImport}>Import hosts</button>
       </div>
     {:else if filter && visible.length === 0}

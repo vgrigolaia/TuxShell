@@ -5,15 +5,19 @@ import type { Clip, Settings, Status } from '../../bindings/github.com/vgrigolai
 export type { Clip, Settings }
 
 class ClipboardHistory {
-  list = $state<Clip[]>([])
+  // Raw: the list is replaced whole on each load, so its hundreds of clips
+  // don't need to be tracked one by one.
+  list = $state.raw<Clip[]>([])
   status = $state<Status>({ enabled: false, paused: false, error: '' })
   settings = $state<Settings>({ retentionDays: 30, maxEntries: 500, captureSystem: true })
 
   saved = $derived(this.list.filter((c) => c.pinned))
   history = $derived(this.list.filter((c) => !c.pinned))
 
-  constructor() {
-    Events.On('clipboard:changed', () => void this.load())
+  /** Loads the history and keeps it current until the returned function is called (while the panel is open). */
+  watch() {
+    void this.load()
+    return Events.On('clipboard:changed', () => void this.load())
   }
 
   async load() {

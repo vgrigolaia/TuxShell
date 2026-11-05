@@ -286,6 +286,50 @@ func TestBatcherKeepsOrderAndLimitsPending(t *testing.T) {
 	}
 }
 
+func TestHiddenBatcherSendsLessOften(t *testing.T) {
+	b := newBatcher()
+	b.setHidden(true)
+	var mu sync.Mutex
+	var sends []time.Time
+	done := make(chan struct{})
+	go func() {
+		b.run(func([]byte) {
+			mu.Lock()
+			sends = append(sends, time.Now())
+			mu.Unlock()
+		})
+		close(done)
+	}()
+	count := func() int {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(sends)
+	}
+
+	// 400 ms of steady output: shown, that's ~50 sends; hidden, about 5.
+	for range 80 {
+		b.write([]byte("x"))
+		time.Sleep(5 * time.Millisecond)
+	}
+	if n := count(); n > 12 {
+		t.Fatalf("%d sends while hidden, want about 5", n)
+	}
+
+	// Shown again: output waiting in a hidden pause goes out at once.
+	b.write([]byte("y"))
+	before := count()
+	shownAt := time.Now()
+	b.setHidden(false)
+	for count() == before && time.Since(shownAt) < time.Second {
+		time.Sleep(time.Millisecond)
+	}
+	if wait := time.Since(shownAt); wait > hiddenInterval/2 {
+		t.Fatalf("output came %v after the pane was shown", wait)
+	}
+	b.close()
+	<-done
+}
+
 func TestKeepsEnvironmentFromResolver(t *testing.T) {
 	rec := newRecorder()
 	svc := NewService(rec.emit, nil, nil)

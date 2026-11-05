@@ -209,10 +209,33 @@
       opened = true
       fit.fit()
 
+      // One write to Go at a time: keys typed meanwhile wait in the outbox and
+      // go together in the next one. Separate calls each cross the main
+      // thread and could stack up (or overtake each other) when it's busy.
+      let outbox = ''
+      let writing = false
+      const flush = async () => {
+        writing = true
+        while (outbox && sessionId) {
+          const id = sessionId
+          const data = outbox
+          outbox = ''
+          const t = performance.now()
+          try {
+            await Terminals.Write(id, data)
+            perf.sent(id, performance.now() - t)
+          } catch {
+            // The session ended; its exit event says so.
+          }
+        }
+        outbox = ''
+        writing = false
+      }
       sendToSession = (data) => {
         if (!sessionId) return
         awaitingEcho = true
-        void Terminals.Write(sessionId, data)
+        outbox += data
+        if (!writing) void flush()
       }
       typed = (data) => {
         // Read-only drops keystrokes; terminal reports (e.g. cursor position) still go through.
@@ -537,6 +560,11 @@
   const gpuToken = perf.token()
   // Bumped after a lost context so the effect makes a new one (a few times at most).
   let gpuLost = $state(0)
+  // A hidden pane's output comes in fewer, larger pieces (see batch.go), so
+  // busy background tabs don't slow down the one being typed in.
+  $effect(() => {
+    if (liveSession) void Terminals.SetVisible(liveSession, visible).catch(() => {})
+  })
   $effect(() => {
     if (visible) perf.shown(gpuToken)
   })

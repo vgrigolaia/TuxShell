@@ -35,6 +35,10 @@ func TestAddListDedupeDelete(t *testing.T) {
 			t.Fatalf("Add(%q) = %v, %v", text, ok, err)
 		}
 	}
+	// The same text again (the window regaining focus) changes nothing.
+	if ok, err := s.Add("first", DefaultSettings); err != nil || ok {
+		t.Fatalf("Add of the newest text again = %v, %v", ok, err)
+	}
 	if ok, _ := s.Add("PASSWORD=hunter2", DefaultSettings); ok {
 		t.Fatal("sensitive text recorded")
 	}

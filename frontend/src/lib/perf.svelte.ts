@@ -22,6 +22,8 @@ class Perf {
   echo = $state<Echo | null>(null)
   /** Moving average (ms) from a key's echo arriving to it being drawn, per session. */
   draw = $state<Record<string, number>>({})
+  /** Moving average (ms) of handing typed keys to Go (the call's round trip), per session. */
+  send = $state<Record<string, number>>({})
   /** Window stalls, newest first. */
   freezes = $state<Freeze[]>([])
   /** How each terminal draws, by pane token. */
@@ -60,8 +62,15 @@ class Perf {
     this.draw[id] = avg === undefined ? ms : avg + (ms - avg) / 8
   }
 
+  /** Records how long one write of typed keys took to reach Go and return. */
+  sent(id: string, ms: number) {
+    const avg = this.send[id]
+    this.send[id] = avg === undefined ? ms : avg + (ms - avg) / 8
+  }
+
   forgetSession(id: string) {
     delete this.draw[id]
+    delete this.send[id]
   }
 
   /** A token for a new terminal pane. */

@@ -8,12 +8,13 @@
   import type { Snippet } from 'svelte'
   import { onMount } from 'svelte'
   import * as SshConfig from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/sshconfig/service'
-  import { describe, hostStore, type Host } from '../hosts.svelte'
+  import { JUMP_GROUP, NO_GROUP, describe, hostStore, type Host } from '../hosts.svelte'
   import { hostStatus } from '../status.svelte'
   import { best } from '../fuzzy'
   import HostBadge from './HostBadge.svelte'
   import StatusDot from './StatusDot.svelte'
   import Icon from './Icon.svelte'
+  import PromptDialog from './PromptDialog.svelte'
   import ContextMenu, { type MenuItem } from './ContextMenu.svelte'
   import SnippetsPage from './SnippetsPage.svelte'
   import TunnelsPage from './TunnelsPage.svelte'
@@ -35,7 +36,8 @@
     onDuplicate: (host: Host) => void
     onDelete: (host: Host) => void
     onConnectTarget: (target: string) => void
-    onNew: () => void
+    /** A group name preselects it in the new host. */
+    onNew: (group?: string) => void
     /** Opens the import window, at the ~/.ssh/config list when asked. */
     onImport: (start?: 'sshconfig') => void
     /** The host editor, shown on the right when a host is selected. */
@@ -84,6 +86,17 @@
     { label: 'Delete…', run: () => onDelete(host), danger: true },
   ]
   let group = $state<string | null>(null)
+  // Right-click on a group chip: add a host to it, or a new group.
+  let chipMenu = $state<{ x: number; y: number; name: string } | null>(null)
+  let newGroup = $state(false)
+  function openChipMenu(e: MouseEvent, name: string) {
+    e.preventDefault()
+    chipMenu = { x: e.clientX, y: e.clientY, name }
+  }
+  const chipMenuItems = (name: string): MenuItem[] => [
+    ...(name === JUMP_GROUP ? [] : [{ label: 'Add host here', run: () => onNew(name === NO_GROUP ? undefined : name) }]),
+    { label: 'New group…', run: () => (newGroup = true) },
+  ]
   // Unsaved ~/.ssh/config aliases; the banner leaves out the ones hidden with its ×.
   let unsaved = $state<string[]>([])
   const hidden = $derived(new Set(prefs.value.hiddenSshConfigHosts ?? []))
@@ -196,7 +209,7 @@
       <h1 class="font-display text-3xl font-bold tracking-[-0.03em]">{greeting}</h1>
       <div class="ml-auto flex gap-2.5">
         <button class="h-[42px] rounded-[13px] border border-strong bg-panel px-4 text-sm font-semibold hover:bg-raised" onclick={() => onImport()}>Import</button>
-        <button class="new-host h-[42px] rounded-[13px] bg-accent px-[18px] text-sm font-bold text-on-accent hover:bg-accent/90" onclick={onNew}>+ New host</button>
+        <button class="new-host h-[42px] rounded-[13px] bg-accent px-[18px] text-sm font-bold text-on-accent hover:bg-accent/90" onclick={() => onNew(group && group !== NO_GROUP && group !== JUMP_GROUP ? group : undefined)}>+ New host</button>
       </div>
     </header>
 
@@ -245,7 +258,7 @@
           All {hostStore.list.length}
         </button>
         {#each groups as g (g.name)}
-          <button role="radio" aria-checked={group === g.name} class="{chip} {group === g.name ? 'bg-fg text-panel' : 'chip-off'}" onclick={() => (group = g.name)}>
+          <button role="radio" aria-checked={group === g.name} class="{chip} {group === g.name ? 'bg-fg text-panel' : 'chip-off'}" onclick={() => (group = g.name)} oncontextmenu={(e) => openChipMenu(e, g.name)}>
             {g.name} {g.hosts.length}
           </button>
         {/each}
@@ -315,6 +328,23 @@
 
 {#if menu}
   <ContextMenu x={menu.x} y={menu.y} label="Actions for {menu.host.name}" items={menuItems(menu.host)} onClose={() => (menu = null)} />
+{/if}
+{#if chipMenu}
+  <ContextMenu x={chipMenu.x} y={chipMenu.y} label="Actions for {chipMenu.name}" items={chipMenuItems(chipMenu.name)} onClose={() => (chipMenu = null)} />
+{/if}
+{#if newGroup}
+  <PromptDialog
+    title="New group"
+    label="Name"
+    initial=""
+    hint="Then add hosts to it, or pick it in a host's Group field."
+    submitLabel="Create"
+    onSubmit={(name) => {
+      const created = hostStore.createGroup(name)
+      if (created) group = created
+    }}
+    onClose={() => (newGroup = false)}
+  />
 {/if}
 
 <style>
