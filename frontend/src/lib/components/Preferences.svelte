@@ -207,6 +207,7 @@
       `Web view: ${navigator.userAgent}`,
       `Typing: ${perf.echo ? `${Math.round(perf.echo.avgMs)} ms echo (last ${Math.round(perf.echo.lastMs)} ms)` : 'not measured'}`,
       `Tab switch: ${perf.tabSwitch ? `${Math.round(perf.tabSwitch.avg)} ms average, last ${Math.round(perf.tabSwitch.last)} ms` : 'not measured'}`,
+      `New tab: ${perf.newTab ? `${Math.round(perf.newTab.avg)} ms average; last: font ${Math.round(perf.newTab.last.font)}, terminal ${Math.round(perf.newTab.last.terminal)}, graphics ${Math.round(perf.newTab.last.gpu)}, start ${Math.round(perf.newTab.last.start)}, first output ${Math.round(perf.newTab.last.output)} ms` : 'not measured'}`,
       `Graphics: ${gpuCount} of ${rendererKinds.length} terminals on the GPU (limit ${MAX_GPU})`,
       `Pauses: ${perf.freezes.length ? perf.freezes.map((f) => `${new Date(f.at).toLocaleTimeString()} ${f.ms} ms`).join(', ') : 'none'}`,
     ]
@@ -984,6 +985,16 @@
                 <span class="font-mono">{Math.round(perf.tabSwitch.avg)} ms</span>
               {:else}
                 <span class="text-subtle">Switch between open tabs to measure.</span>
+              {/if}
+            </dd>
+            <dt class="text-muted">New tab</dt>
+            <dd>
+              {#if perf.newTab}
+                {@const n = perf.newTab.last}
+                <span class="font-mono">{Math.round(perf.newTab.avg)} ms</span>
+                <span class="text-subtle">(last: font {Math.round(n.font)} · terminal {Math.round(n.terminal)} · graphics {Math.round(n.gpu)} · start {Math.round(n.start)} · first output {Math.round(n.output)} ms)</span>
+              {:else}
+                <span class="text-subtle">Open a tab to measure.</span>
               {/if}
             </dd>
             <dt class="text-muted">Graphics</dt>

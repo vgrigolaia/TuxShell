@@ -1,6 +1,17 @@
 import * as Terminals from '../../bindings/github.com/vgrigolaia/tuxshell/internal/terminal/service'
 import type { Echo } from '../../bindings/github.com/vgrigolaia/tuxshell/internal/terminal/models'
 
+/** Where a new terminal's time went (ms): font, building xterm, GPU drawing,
+ * starting the shell or ssh, then its first output; total is up to that output. */
+export interface NewTab {
+  font: number
+  terminal: number
+  gpu: number
+  start: number
+  output: number
+  total: number
+}
+
 /** A moment the window stopped responding. */
 export interface Freeze {
   at: number
@@ -30,6 +41,8 @@ class Perf {
   freezes = $state<Freeze[]>([])
   /** Switching to an open tab until it's drawn (ms): the last one and a moving average. */
   tabSwitch = $state<{ last: number; avg: number } | null>(null)
+  /** The last new terminal's steps (ms) and the average total, for Diagnostics. */
+  newTab = $state<{ last: NewTab; avg: number } | null>(null)
   /** How each terminal draws, by pane token. */
   renderer = $state<Record<number, 'gpu' | 'standard'>>({})
 
@@ -97,6 +110,12 @@ class Perf {
   tabSwitched(ms: number) {
     const avg = this.tabSwitch?.avg
     this.tabSwitch = { last: ms, avg: avg === undefined ? ms : avg + (ms - avg) / 4 }
+  }
+
+  /** Records how long a new terminal took, step by step. */
+  newTabDone(t: NewTab) {
+    const avg = this.newTab?.avg
+    this.newTab = { last: t, avg: avg === undefined ? t.total : avg + (t.total - avg) / 4 }
   }
 
   /** A token for a new terminal pane. */
