@@ -590,7 +590,7 @@
 
     {#if panel.kind === 'clipboard'}
       <!-- Floats over the tiles (or Home), as in the design. -->
-      <ClipboardPanel activeHost={activeHost?.name} onPaste={pasteToActive} onClose={() => (panel = { kind: 'none' })} />
+      <ClipboardPanel activeHost={activeHost?.name} onPaste={!home && active ? pasteToActive : undefined} onClose={() => (panel = { kind: 'none' })} />
     {/if}
 
     {#if panel.kind === 'files'}
