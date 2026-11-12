@@ -42,6 +42,9 @@ type Settings struct {
 	// HiddenSSHConfigHosts are ~/.ssh/config aliases the user chose not to be
 	// reminded about on Home; a new alias brings the reminder back.
 	HiddenSSHConfigHosts []string `json:"hiddenSshConfigHosts"`
+	// KeepClipboardOpen leaves the clipboard panel open when switching or
+	// opening tabs; by default it closes then.
+	KeepClipboardOpen bool `json:"keepClipboardOpen"`
 	// StatusTimings shows the typing times (send/echo/draw) in the status bar;
 	// off by default, when only a slow connection is pointed out.
 	StatusTimings bool `json:"statusTimings"`

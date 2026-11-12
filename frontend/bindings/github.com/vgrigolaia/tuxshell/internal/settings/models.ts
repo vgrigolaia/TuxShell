@@ -269,6 +269,12 @@ export interface Settings {
     "hiddenSshConfigHosts": string[] | null;
 
     /**
+     * KeepClipboardOpen leaves the clipboard panel open when switching or
+     * opening tabs; by default it closes then.
+     */
+    "keepClipboardOpen": boolean;
+
+    /**
      * StatusTimings shows the typing times (send/echo/draw) in the status bar;
      * off by default, when only a slow connection is pointed out.
      */

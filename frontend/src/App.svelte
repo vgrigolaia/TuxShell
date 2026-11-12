@@ -441,6 +441,16 @@
     requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => perf.tabSwitched(performance.now() - t))))
   })
 
+  // The clipboard panel closes when you switch or open a tab, unless kept open
+  // (its settings). Tracked by key, so other changes don't close it.
+  let clipboardTab = workspace.activeKey
+  $effect(() => {
+    const key = workspace.activeKey
+    if (key === clipboardTab) return
+    clipboardTab = key
+    if (panel.kind === 'clipboard' && !prefs.value.keepClipboardOpen) panel = { kind: 'none' }
+  })
+
   // A server echo this slow (ms, recent average) gets a warning in the status bar.
   const SLOW_ECHO_MS = 200
 

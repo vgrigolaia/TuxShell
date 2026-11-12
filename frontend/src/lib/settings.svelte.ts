@@ -71,6 +71,7 @@ const defaults = (): Settings => ({
   window: { start: 'last', alwaysOnTop: false },
   hiddenSshConfigHosts: [],
   statusTimings: false,
+  keepClipboardOpen: false,
   hostStatus: true,
   updateCheck: true,
   savePasswords: true,
@@ -218,6 +219,11 @@ class Preferences {
   /** Changes the connection history settings, e.g. setHistory({ days: 30 }). */
   setHistory(patch: Partial<Settings['history']>) {
     this.value.history = { ...(this.value.history ?? { enabled: true, days: 90, max: 1000 }), ...patch }
+    this.queueSave()
+  }
+
+  setKeepClipboardOpen(on: boolean) {
+    this.value.keepClipboardOpen = on
     this.queueSave()
   }
 
