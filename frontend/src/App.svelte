@@ -431,6 +431,16 @@
     }
   })
 
+  // Times switching to an already open tab, up to the second frame: hidden xterm
+  // panes redraw in the frame after they're shown. New tabs aren't counted.
+  const seenTabs = new Set<number>()
+  $effect.pre(() => {
+    const key = workspace.activeKey
+    if (key === HOME || !seenTabs.has(key)) return void seenTabs.add(key)
+    const t = performance.now()
+    requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => perf.tabSwitched(performance.now() - t))))
+  })
+
   // The status bar shows how fast the active terminal answers.
   const watched = $derived(!home && active && !active.exited ? active.session : '')
   $effect(() => perf.watch(watched))

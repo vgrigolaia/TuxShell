@@ -953,6 +953,14 @@
                 <span class="text-subtle">Type in a terminal to measure.</span>
               {/if}
             </dd>
+            <dt class="text-muted">Tab switch</dt>
+            <dd>
+              {#if perf.tabSwitch}
+                <span class="font-mono">{Math.round(perf.tabSwitch.avg)} ms</span> on average (last <span class="font-mono">{Math.round(perf.tabSwitch.last)} ms</span>)
+              {:else}
+                <span class="text-subtle">Switch between open tabs to measure.</span>
+              {/if}
+            </dd>
             <dt class="text-muted">Drawing</dt>
             <dd>{gpuCount} of {rendererKinds.length} {rendererKinds.length === 1 ? 'terminal' : 'terminals'} on the GPU</dd>
             <dt class="text-muted">Freezes</dt>
@@ -966,7 +974,7 @@
           {/if}
           <p class="mt-3 text-xs text-subtle">
             A slow key time with few freezes means the network or server is slow; the status bar shows it for the active terminal. Freezes mean
-            TuxShell itself was busy. Only the {MAX_GPU} most recently shown terminals draw on the GPU; the others switch back when you show them.
+            TuxShell itself was busy. A tab switch includes waiting for the screen's next two frames (about 33 ms at 60 Hz). Only the {MAX_GPU} most recently shown terminals draw on the GPU; the others switch back when you show them.
           </p>
         </section>
       {:else}
