@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -342,4 +343,103 @@ func TestKeepsEnvironmentFromResolver(t *testing.T) {
 	if got := rec.output.String(); got != "/tmp/agent.sock xterm-256color" {
 		t.Fatalf("output = %q", got)
 	}
+}
+
+func TestReleaseAfterLastSessionOfAHost(t *testing.T) {
+	rec := &recorder{exits: make(chan ExitEvent, 4)}
+	svc := NewService(rec.emit, nil, nil)
+	released := make(chan visit, 4)
+	SetRelease(svc, func(hostID int64, user, target string) { released <- visit{hostID, user, target} })
+
+	host := visit{hostID: 7}
+	first, err := svc.start(exec.Command("sleep", "30"), 80, 24, host)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.start(exec.Command("sleep", "30"), 80, 24, host); err != nil {
+		t.Fatal(err)
+	}
+	// A local shell never has a shared connection.
+	if _, err := svc.start(exec.Command("true"), 80, 24, visit{}); err != nil {
+		t.Fatal(err)
+	}
+	rec.waitExit(t)
+
+	// One of two tabs closes: the connection stays.
+	if err := svc.Close(first); err != nil {
+		t.Fatal(err)
+	}
+	rec.waitExit(t)
+	select {
+	case v := <-released:
+		t.Fatalf("released %+v while a tab was still open", v)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	// Quitting releases it once, and waits for that.
+	if err := svc.ServiceShutdown(); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case v := <-released:
+		if v != host {
+			t.Fatalf("released %+v, want %+v", v, host)
+		}
+	default:
+		t.Fatal("shutdown didn't release the connection")
+	}
+	rec.waitExit(t)
+	select {
+	case v := <-released:
+		t.Fatalf("released %+v twice", v)
+	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+func TestReleaseWhenTheOnlyTabCloses(t *testing.T) {
+	rec := newRecorder()
+	svc := NewService(rec.emit, nil, nil)
+	released := make(chan visit, 1)
+	SetRelease(svc, func(hostID int64, user, target string) { released <- visit{hostID, user, target} })
+
+	target := visit{target: "admin@db.internal"}
+	if _, err := svc.start(exec.Command("true"), 80, 24, target); err != nil {
+		t.Fatal(err)
+	}
+	rec.waitExit(t)
+	select {
+	case v := <-released:
+		if v != target {
+			t.Fatalf("released %+v, want %+v", v, target)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("closing the only tab didn't release its connection")
+	}
+}
+
+func TestNewSessionWaitsForItsConnectionToClose(t *testing.T) {
+	rec := &recorder{exits: make(chan ExitEvent, 4)}
+	svc := NewService(rec.emit, nil, nil)
+	unblock := make(chan struct{})
+	var closed atomic.Bool
+	SetRelease(svc, func(int64, string, string) {
+		<-unblock
+		closed.Store(true)
+	})
+	host := visit{hostID: 3}
+	if _, err := svc.start(exec.Command("true"), 80, 24, host); err != nil {
+		t.Fatal(err)
+	}
+	rec.waitExit(t)
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		close(unblock)
+	}()
+	if _, err := svc.start(exec.Command("true"), 80, 24, host); err != nil {
+		t.Fatal(err)
+	}
+	if !closed.Load() {
+		t.Fatal("the new session started before the old connection was closed")
+	}
+	rec.waitExit(t)
 }

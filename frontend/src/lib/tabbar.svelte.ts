@@ -2,6 +2,7 @@ import { SvelteSet } from 'svelte/reactivity'
 import type { MenuItem } from './components/ContextMenu.svelte'
 import type { TabInfo } from './tabs'
 import { MAX_PANES, type Orientation } from './layout'
+import { keybindings } from './keybindings.svelte'
 
 /** What the tab views (title bar strip, left panel list, icon rail) can do; App implements it. */
 export interface TabActions {
@@ -70,16 +71,16 @@ export function tabMenu(tabs: TabInfo[], key: number, a: TabActions): MenuItem[]
     items.push({ label: `Close selected (${sel.length})`, run: () => (a.closeMany(sel), picked.clear()) })
   }
   if (tab.panes < MAX_PANES) {
-    items.push({ label: 'Split right…', run: () => a.split(key, 'row') })
+    items.push({ label: 'Split right…', shortcut: keybindings.combo('splitOther'), run: () => a.split(key, 'row') })
     items.push({ label: 'Split down…', run: () => a.split(key, 'column') })
   }
   if (tab.panes > 1) items.push({ label: 'Unsplit into tabs', run: () => a.unsplit(key) })
-  items.push({ label: 'Duplicate tab', separator: true, run: () => a.duplicate(key) })
-  if (tab.kind !== 'rdp') items.push({ label: tab.panes > 1 ? 'Reconnect all panes' : 'Reconnect', run: () => a.reconnect(key) })
+  items.push({ label: 'Duplicate tab', shortcut: keybindings.combo('duplicateTab'), separator: true, run: () => a.duplicate(key) })
+  if (tab.kind !== 'rdp') items.push({ label: tab.panes > 1 ? 'Reconnect all panes' : 'Reconnect', shortcut: keybindings.combo('reconnect'), run: () => a.reconnect(key) })
   items.push({ label: 'Rename tab…', run: () => a.rename(key) })
   items.push({ label: 'Save tab as layout…', run: () => a.saveLayout([key]) })
   if (tabs.length > 1) items.push({ label: `Save all ${tabs.length} tabs as layout…`, run: () => a.saveLayout(tabs.map((t) => t.key)) })
-  items.push({ label: 'Close', run: () => a.close(key) })
+  items.push({ label: 'Close', shortcut: keybindings.combo('closeTab'), run: () => a.close(key) })
   if (others.length) items.push({ label: 'Close others', run: () => a.closeMany(others) })
   if (after.length) items.push({ label: 'Close tabs after this one', run: () => a.closeMany(after) })
   items.push({ label: `Close all (${tabs.length})`, run: () => a.closeMany(tabs.map((t) => t.key)), danger: true })

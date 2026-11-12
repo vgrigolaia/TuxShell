@@ -94,13 +94,23 @@ class HostStore {
     }
     // Made with "New group" and still waiting for hosts.
     for (const name of prefs.value.emptyGroups ?? []) if (![...byName.keys()].some((k) => same(k, name))) byName.set(name, [])
-    // The order the user dragged them into; groups not in it keep their place after those.
+    // Starred groups first; within each part, the order the user dragged them into
+    // (groups not in it keep their place after those).
     const order = new Map((prefs.value.groupOrder ?? []).map((g, i) => [g, i]))
+    const favs = new Set(prefs.value.favoriteGroups ?? [])
     return [...byName]
-      .map(([name, hosts], i) => ({ name, hosts, rank: order.get(name) ?? order.size + i }))
-      .sort((a, b) => a.rank - b.rank)
+      .map(([name, hosts], i) => ({ name, hosts, fav: favs.has(name), rank: order.get(name) ?? order.size + i }))
+      .sort((a, b) => Number(b.fav) - Number(a.fav) || a.rank - b.rank)
       .map(({ name, hosts }) => ({ name, hosts }))
   })
+
+  /** Groups starred on Home (only ones that still exist). */
+  favorites = $derived(new Set((prefs.value.favoriteGroups ?? []).filter((f) => this.groups.some((g) => g.name === f))))
+
+  toggleFavorite(name: string) {
+    const list = prefs.value.favoriteGroups ?? []
+    prefs.setFavoriteGroups(list.includes(name) ? list.filter((f) => f !== name) : [...list, name])
+  }
 
   /** Moves group name to position index among the groups and saves the order. */
   moveGroup(name: string, index: number) {
@@ -140,6 +150,9 @@ class HostStore {
     const merge = names.includes(to)
     await this.regroup(from, to)
     prefs.setGroupOrder(names.flatMap((g) => (g === from ? (merge ? [] : [to]) : [g])))
+    // A starred group stays starred under its new name (or makes the merged group starred).
+    const favs = prefs.value.favoriteGroups ?? []
+    if (favs.includes(from)) prefs.setFavoriteGroups([...new Set(favs.map((f) => (f === from ? to : f)))])
   }
 
   /** Deletes a group; its hosts stay, without a group. */
@@ -147,6 +160,8 @@ class HostStore {
     const names = this.groups.map((g) => g.name).filter((g) => g !== name)
     await this.regroup(name, '')
     prefs.setGroupOrder(names)
+    const favs = prefs.value.favoriteGroups ?? []
+    if (favs.includes(name)) prefs.setFavoriteGroups(favs.filter((f) => f !== name))
   }
 
   private async regroup(from: string, to: string) {

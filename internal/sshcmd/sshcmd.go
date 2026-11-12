@@ -291,6 +291,35 @@ func (r Resolver) ControlCommand(id int64, op string, f Forward) (*exec.Cmd, err
 	return r.command(ssh, append(args, Args(h)...)...), nil
 }
 
+// CloseShared returns an ssh command that closes the shared connection to a
+// saved host (logged in as user, or its saved user when empty) or to an ad-hoc
+// target (-O exit). The control folder belongs to this run only (InstanceDir),
+// so no other TuxShell's sessions use that connection.
+func (r Resolver) CloseShared(hostID int64, user, target string) (*exec.Cmd, error) {
+	if r.ControlDir == "" {
+		return nil, errors.New("ssh connection sharing is off")
+	}
+	var h hosts.Host
+	var err error
+	switch {
+	case hostID != 0 && user != "":
+		h, err = r.host(hostID, &user)
+	case hostID != 0:
+		h, err = r.host(hostID, nil)
+	default:
+		h, err = ParseTarget(target)
+	}
+	if err != nil {
+		return nil, err
+	}
+	ssh, err := sshPath()
+	if err != nil {
+		return nil, err
+	}
+	args := []string{"-o", "ControlPath=" + filepath.Join(r.ControlDir, "cm-%C"), "-O", "exit"}
+	return r.command(ssh, append(args, Args(h)...)...), nil
+}
+
 // Endpoint is where ssh would connect for a saved host.
 type Endpoint struct {
 	Hostname string

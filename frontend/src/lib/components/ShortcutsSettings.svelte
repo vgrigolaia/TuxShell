@@ -7,7 +7,7 @@
   let recording = $state<ActionId | null>(null)
   let pending = $state<{ id: ActionId; combo: string; error?: string; warning?: string; usedBy?: Action; extra?: boolean } | null>(null)
 
-  const groups = ['App', 'Panes', 'Terminal'] as const
+  const groups = ['App', 'Tabs', 'Panes', 'Terminal'] as const
 
   // Keys and clicks that can't be changed.
   const fixed: [string, string][] = [

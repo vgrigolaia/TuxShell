@@ -2,6 +2,7 @@
   import { isMac } from '../platform'
   import { clipboardHistory, type Settings } from '../clipboard.svelte'
   import { errorMessage } from '../hosts.svelte'
+  import { prefs } from '../settings.svelte'
 
   interface Props {
     onDone: () => void
@@ -27,6 +28,8 @@
   // svelte-ignore state_referenced_locally
   let draft = $state<Settings>({ ...clipboardHistory.settings })
   let error = $state<string | null>(null)
+  // svelte-ignore state_referenced_locally
+  let keepOpen = $state(prefs.value.keepClipboardOpen ?? false)
 
   // Keep a custom value the user set elsewhere selectable.
   const withCurrent = (opts: { value: number; label: string }[], v: number, unit: string) =>
@@ -40,6 +43,7 @@
     error = null
     try {
       await clipboardHistory.saveSettings({ ...draft, retentionDays: Number(draft.retentionDays), maxEntries: Number(draft.maxEntries) })
+      prefs.setKeepClipboardOpen(keepOpen)
       onDone()
     } catch (err) {
       error = errorMessage(err)
@@ -69,6 +73,14 @@
       {trims ? `Saving removes the ${trims} oldest history entries.` : 'Saved clips never count toward the limit.'}
     </p>
   </div>
+
+  <label class="flex items-start gap-2.5 text-[13px]">
+    <input type="checkbox" class="mt-0.5 size-4 accent-accent" bind:checked={keepOpen} />
+    <span>
+      Keep this panel open when changing tabs
+      <span class="block text-xs text-subtle">Off: it closes when you switch or open a tab. It always closes with × or Esc.</span>
+    </span>
+  </label>
 
   <label class="flex items-start gap-2.5 text-[13px]">
     <input type="checkbox" class="mt-0.5 size-4 accent-accent" bind:checked={draft.captureSystem} />

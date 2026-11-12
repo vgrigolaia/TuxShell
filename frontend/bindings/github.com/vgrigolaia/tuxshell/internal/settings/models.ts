@@ -257,10 +257,28 @@ export interface Settings {
     "emptyGroups": string[] | null;
 
     /**
+     * FavoriteGroups are host groups starred on Home: listed first, and Home
+     * opens showing their hosts.
+     */
+    "favoriteGroups": string[] | null;
+
+    /**
      * HiddenSSHConfigHosts are ~/.ssh/config aliases the user chose not to be
      * reminded about on Home; a new alias brings the reminder back.
      */
     "hiddenSshConfigHosts": string[] | null;
+
+    /**
+     * KeepClipboardOpen leaves the clipboard panel open when switching or
+     * opening tabs; by default it closes then.
+     */
+    "keepClipboardOpen": boolean;
+
+    /**
+     * StatusTimings shows the typing times (send/echo/draw) in the status bar;
+     * off by default, when only a slow connection is pointed out.
+     */
+    "statusTimings": boolean;
 
     /**
      * HostStatus pings saved hosts in the background to show which are up.

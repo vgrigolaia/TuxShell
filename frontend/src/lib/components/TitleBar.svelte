@@ -167,6 +167,7 @@
           <button
             class="mr-1.5 grid size-5 place-items-center rounded text-subtle opacity-0 group-hover:opacity-100 hover:bg-line hover:text-fg focus-visible:opacity-100"
             aria-label="Close {tab.title}"
+            title={keybindings.title('Close tab', 'closeTab')}
             tabindex="-1"
             onclick={() => actions.close(tab.key)}
           >

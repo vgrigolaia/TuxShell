@@ -153,6 +153,12 @@
   }
   const passwordRequest = $derived(logins.forSession(liveSession))
 
+  // How long this pane took to come up (see perf.NewTab); reported once, at its first output.
+  const born = performance.now()
+  const steps = { font: 0, terminal: 0, gpu: 0, start: 0, output: 0 }
+  let stepsReported = false
+  let started = 0
+
   onMount(() => {
     let sessionId: string | undefined
     // A key was sent and its echo hasn't come back yet.
@@ -164,6 +170,8 @@
       // Measure cell size with the real font, not the fallback.
       await loadFont(prefs.fontFamilyOf(profile))
       if (disposed) return
+      steps.font = performance.now() - born
+      const built = performance.now()
 
       const opts = termOptions()
       applied = { ...opts }
@@ -208,6 +216,7 @@
       term.open(host)
       opened = true
       fit.fit()
+      steps.terminal = performance.now() - built
 
       // One write to Go at a time: keys typed meanwhile wait in the outbox and
       // go together in the next one. Separate calls each cross the main
@@ -388,7 +397,10 @@
       exited = null
       failed = null
       try {
+        const asked = performance.now()
         sessionId = await launch(term.cols, term.rows)
+        started = performance.now()
+        if (!stepsReported) steps.start = started - asked
       } catch (err) {
         // A bad typed username goes back to the prompt rather than the error bar.
         const cause = (err as { cause?: { field?: string; message?: string } })?.cause
@@ -414,6 +426,12 @@
       if (profile.record) void startRecording()
       claim(id, {
         data: (bytes) => {
+          if (!stepsReported && started) {
+            stepsReported = true
+            const now = performance.now()
+            steps.output = now - started
+            perf.newTabDone({ ...steps, total: now - born })
+          }
           if (awaitingEcho) {
             // Time the echo from arriving to the frame that shows it.
             awaitingEcho = false
@@ -479,11 +497,11 @@
       const sp = a.split
       items.push(
         { label: 'Split auto', icon: 'splitAuto', shortcut: keybindings.combo('splitAuto'), run: () => sp('auto') },
-        { label: 'Split right', icon: 'splitRight', run: () => sp('row') },
+        { label: 'Split right', icon: 'splitRight', shortcut: keybindings.combo('splitRight'), run: () => sp('row') },
         { label: 'Split down', icon: 'splitDown', shortcut: keybindings.combo('splitDown'), run: () => sp('column') },
       )
     }
-    if (a.splitOther) items.push({ label: 'Split with another host…', icon: 'server', run: a.splitOther })
+    if (a.splitOther) items.push({ label: 'Split with another host…', icon: 'server', shortcut: keybindings.combo('splitOther'), run: a.splitOther })
     items.push(
       { label: 'Open in new tab', icon: 'tab', shortcut: keybindings.combo('newTab'), run: a.newTab },
       { label: 'Close', icon: 'x', shortcut: keybindings.combo('closePane'), separator: true, run: a.close },
@@ -574,6 +592,7 @@
     if (!term || !opened) return
     if (wanted && !webgl) {
       try {
+        const t = performance.now()
         const addon = new WebglAddon()
         addon.onContextLoss(() => {
           addon.dispose()
@@ -585,6 +604,7 @@
         })
         term.loadAddon(addon)
         webgl = addon
+        if (!stepsReported) steps.gpu += performance.now() - t
       } catch {
         // No WebGL: xterm falls back to its DOM renderer.
       }

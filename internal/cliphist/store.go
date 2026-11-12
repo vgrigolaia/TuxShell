@@ -179,7 +179,7 @@ func (s *Store) seal(plain, aad string) (nonce, sealed []byte, err error) {
 func (s *Store) Close() error { return s.db.Close() }
 
 // Add records copied text, moving an identical earlier entry to the top
-// (keeping its pin and label). It returns false when the text is filtered out
+// (keeping its pin and label, and its source host when none is given). It returns false when the text is filtered out
 // or is already the newest entry, so nothing changed.
 func (s *Store) Add(text string, settings Settings) (bool, error) {
 	return s.AddFrom(text, "", settings)
@@ -217,7 +217,8 @@ func (s *Store) AddFrom(text, source string, settings Settings) (bool, error) {
 	}
 	_, err = s.db.Exec(`INSERT INTO clips (digest, nonce, ciphertext, created_at, source_nonce, source_ciphertext) VALUES (?, ?, ?, ?, ?, ?)
 		ON CONFLICT(digest) DO UPDATE SET nonce = excluded.nonce, ciphertext = excluded.ciphertext, created_at = excluded.created_at,
-			source_nonce = excluded.source_nonce, source_ciphertext = excluded.source_ciphertext`,
+			source_nonce = CASE WHEN excluded.source_ciphertext IS NULL THEN clips.source_nonce ELSE excluded.source_nonce END,
+			source_ciphertext = COALESCE(excluded.source_ciphertext, clips.source_ciphertext)`,
 		digest, nonce, sealed, s.now().UnixMilli(), sNonce, sSealed)
 	if err != nil {
 		return false, err

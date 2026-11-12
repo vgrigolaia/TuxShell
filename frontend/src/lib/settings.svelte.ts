@@ -66,9 +66,12 @@ const defaults = (): Settings => ({
   tabsPosition: 'left',
   groupOrder: [],
   emptyGroups: [],
+  favoriteGroups: [],
   layouts: [],
   window: { start: 'last', alwaysOnTop: false },
   hiddenSshConfigHosts: [],
+  statusTimings: false,
+  keepClipboardOpen: false,
   hostStatus: true,
   updateCheck: true,
   savePasswords: true,
@@ -219,6 +222,16 @@ class Preferences {
     this.queueSave()
   }
 
+  setKeepClipboardOpen(on: boolean) {
+    this.value.keepClipboardOpen = on
+    this.queueSave()
+  }
+
+  setStatusTimings(on: boolean) {
+    this.value.statusTimings = on
+    this.queueSave()
+  }
+
   setUpdateCheck(on: boolean) {
     this.value.updateCheck = on
     this.queueSave()
@@ -248,6 +261,11 @@ class Preferences {
 
   setEmptyGroups(names: string[]) {
     this.value.emptyGroups = names
+    this.queueSave()
+  }
+
+  setFavoriteGroups(names: string[]) {
+    this.value.favoriteGroups = names
     this.queueSave()
   }
 

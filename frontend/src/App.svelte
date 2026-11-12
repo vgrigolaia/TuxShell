@@ -30,7 +30,7 @@
   import { tunnels } from './lib/tunnels.svelte'
   import { snippets } from './lib/snippets.svelte'
   import { emptyHost, errorMessage, hostStore, type Host } from './lib/hosts.svelte'
-  import { HOME, workspace } from './lib/workspace.svelte'
+  import { HOME, workspace, type Pane } from './lib/workspace.svelte'
   import Launchpad from './lib/components/Launchpad.svelte'
   import { MAX_PANES, type Orientation } from './lib/layout'
   import { layouts } from './lib/layouts.svelte'
@@ -38,7 +38,7 @@
   import Notices from './lib/components/Notices.svelte'
   import type { PaneActions, Source, TabInfo } from './lib/tabs'
 
-  type Panel = { kind: 'none' } | { kind: 'clipboard' } | { kind: 'files' } | { kind: 'host'; host: Host }
+  type Panel = { kind: 'none' } | { kind: 'clipboard' } | { kind: 'files'; source: string } | { kind: 'host'; host: Host }
 
   let panel = $state<Panel>({ kind: 'none' })
   let importOpen = $state(false)
@@ -209,6 +209,15 @@
   }
   const home = $derived(workspace.activeKey === HOME)
 
+  // Next/previous open tab, wrapping around; from Home it goes to the first or last tab.
+  function cycleTab(step: 1 | -1) {
+    const tabs = workspace.tabs
+    if (!tabs.length) return
+    const i = tabs.findIndex((t) => t.key === workspace.activeKey)
+    const next = i < 0 ? (step > 0 ? 0 : tabs.length - 1) : (i + step + tabs.length) % tabs.length
+    workspace.activeKey = tabs[next].key
+  }
+
   // What each shortcut does (Preferences → Shortcuts changes the keys).
   const run: Record<Exclude<ActionId, 'copy' | 'paste'>, () => void> = {
     quickConnect: () => !importOpen && openQuick(null),
@@ -219,7 +228,14 @@
     broadcast: () => workspace.activeTab && workspace.toggleBroadcast(workspace.activeTab.key),
     splitAuto: () => active && splitSame(active.id, 'auto'),
     splitDown: () => active && splitSame(active.id, 'column'),
+    splitRight: () => active && splitSame(active.id, 'row'),
+    splitOther: () => active && paneActions(active.id).splitOther?.(),
     newTab: () => active && newTabSame(active.id),
+    nextTab: () => cycleTab(1),
+    prevTab: () => cycleTab(-1),
+    duplicateTab: () => !home && workspace.activeTab && tabActions.duplicate(workspace.activeTab.key),
+    reconnect: () => !home && workspace.activeTab && tabActions.reconnect(workspace.activeTab.key),
+    closeTab: () => !home && workspace.activeTab && tabActions.close(workspace.activeTab.key),
     maximize: () => active && workspace.toggleMaximized(active.id),
     scrollbar: () => active && workspace.updatePane(active.id, { showScrollbar: !active.showScrollbar }),
     rename: () => active && (renaming = { paneId: active.id, title: active.title }),
@@ -342,8 +358,31 @@
     panel = panel.kind === 'clipboard' ? { kind: 'none' } : { kind: 'clipboard' }
   }
 
+  // The Files panel belongs to the host it was opened on. On another host's tab it hides (it never logs in there) and
+  // comes back, in the same folder, when you return. Local shells, remote desktops and Home browse this computer.
+  function filesSource(pane: Pane | undefined): string {
+    const s = pane?.source
+    if (s?.kind === 'host') return `host:${s.hostId}`
+    if (s?.kind === 'target') return `target:${s.target}`
+    return 'local'
+  }
+  const currentFilesSource = $derived(filesSource(home ? undefined : active))
+  const filesVisible = $derived(panel.kind === 'files' && panel.source === currentFilesSource)
+  let lastFilesPane: Pane | undefined
+  // While hidden, the panel keeps its last pane, so it doesn't reload or connect anywhere.
+  const filesPane = $derived.by(() => {
+    if (filesVisible) lastFilesPane = home ? undefined : active
+    return lastFilesPane
+  })
+  // Close it once every pane of its host is gone.
+  $effect(() => {
+    if (panel.kind !== 'files' || panel.source === 'local') return
+    const source = panel.source
+    if (!workspace.panes.some((p) => filesSource(p) === source)) panel = { kind: 'none' }
+  })
+
   function toggleFiles() {
-    panel = panel.kind === 'files' ? { kind: 'none' } : { kind: 'files' }
+    panel = filesVisible ? { kind: 'none' } : { kind: 'files', source: currentFilesSource }
   }
 
   // Clears the current input line (Ctrl+U) and runs line in the pane's shell.
@@ -391,6 +430,29 @@
       knownHosts = key
     }
   })
+
+  // Times switching to an already open tab, up to the second frame: hidden xterm
+  // panes redraw in the frame after they're shown. New tabs aren't counted.
+  const seenTabs = new Set<number>()
+  $effect.pre(() => {
+    const key = workspace.activeKey
+    if (key === HOME || !seenTabs.has(key)) return void seenTabs.add(key)
+    const t = performance.now()
+    requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => perf.tabSwitched(performance.now() - t))))
+  })
+
+  // The clipboard panel closes when you switch or open a tab, unless kept open
+  // (its settings). Tracked by key, so other changes don't close it.
+  let clipboardTab = workspace.activeKey
+  $effect(() => {
+    const key = workspace.activeKey
+    if (key === clipboardTab) return
+    clipboardTab = key
+    if (panel.kind === 'clipboard' && !prefs.value.keepClipboardOpen) panel = { kind: 'none' }
+  })
+
+  // A server echo this slow (ms, recent average) gets a warning in the status bar.
+  const SLOW_ECHO_MS = 200
 
   // The status bar shows how fast the active terminal answers.
   const watched = $derived(!home && active && !active.exited ? active.session : '')
@@ -474,7 +536,7 @@
     clipboardOpen={panel.kind === 'clipboard'}
     {hostsOpen}
     onToggleHosts={toggleHosts}
-    filesOpen={panel.kind === 'files'}
+    filesOpen={filesVisible}
     onToggleFiles={toggleFiles}
     showTabs={!tabsLeft}
     actions={tabActions}
@@ -541,18 +603,20 @@
 
     {#if panel.kind === 'clipboard'}
       <!-- Floats over the tiles (or Home), as in the design. -->
-      <ClipboardPanel activeHost={activeHost?.name} onPaste={pasteToActive} onClose={() => (panel = { kind: 'none' })} />
+      <ClipboardPanel activeHost={activeHost?.name} onPaste={!home && active ? pasteToActive : undefined} onClose={() => (panel = { kind: 'none' })} />
     {/if}
 
     {#if panel.kind === 'files'}
-      <!-- On Home there is no terminal, so it browses this computer. -->
-      <FilePanel
-        pane={home ? undefined : active}
-        onRunInPane={runInPane}
-        onOpenTarget={(target) => workspace.openTab({ kind: 'target', target }, target)}
-        onAddHost={(ssh) => (panel = { kind: 'host', host: { ...emptyHost(), name: ssh.host, hostname: ssh.host, user: ssh.user, port: ssh.port || 22 } })}
-        onClose={() => (panel = { kind: 'none' })}
-      />
+      <!-- On Home there is no terminal, so it browses this computer. Hidden (not closed) on another host's tab. -->
+      <div class={filesVisible ? 'contents' : 'hidden'}>
+        <FilePanel
+          pane={filesPane}
+          onRunInPane={runInPane}
+          onOpenTarget={(target) => workspace.openTab({ kind: 'target', target }, target)}
+          onAddHost={(ssh) => (panel = { kind: 'host', host: { ...emptyHost(), name: ssh.host, hostname: ssh.host, user: ssh.user, port: ssh.port || 22 } })}
+          onClose={() => (panel = { kind: 'none' })}
+        />
+      </div>
     {:else if home}
       <!-- Home shows the editor inside the launchpad. -->
     {:else if panel.kind === 'host'}
@@ -568,7 +632,12 @@
       </span>
     {/if}
     {#if activeHost?.proxyJump}<span>via {activeHost.proxyJump} · ProxyJump</span>{/if}
-    {#if watched && perf.echo}
+    {#if watched && perf.echo && !prefs.value.statusTimings && active?.source.kind !== 'shell' && perf.echo.avgMs >= SLOW_ECHO_MS}
+      <!-- Only said when it matters; the exact times are an option (Preferences → General). -->
+      <span class="flex items-center gap-1.5 font-semibold text-warning" title="Typed keys take {Math.round(perf.echo.avgMs)} ms to come back from the server, so typing feels delayed. This is the network or the server, not TuxShell.">
+        <Icon name="alert" size={12} /> Slow connection · {Math.round(perf.echo.avgMs)} ms
+      </span>
+    {:else if watched && perf.echo && prefs.value.statusTimings}
       {@const draw = perf.draw[watched]}
       {@const send = perf.send[watched]}
       <span

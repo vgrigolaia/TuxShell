@@ -12,7 +12,11 @@ const handlers = new Map<string, SessionHandlers>()
 // so events for not-yet-claimed sessions are held until a pane claims them.
 const pending = new Map<string, Pending[]>()
 
+// Newer WebKit decodes base64 natively, much faster on large output.
+const fromBase64 = (Uint8Array as unknown as { fromBase64?: (s: string) => Uint8Array }).fromBase64?.bind(Uint8Array)
+
 function decode(b64: string): Uint8Array {
+  if (fromBase64) return fromBase64(b64)
   const bin = atob(b64)
   const bytes = new Uint8Array(bin.length)
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)

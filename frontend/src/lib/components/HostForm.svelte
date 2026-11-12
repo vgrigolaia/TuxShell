@@ -188,6 +188,7 @@
       }
       onSaved(saved)
       if (connect) onConnect?.(saved)
+      onClose()
     } catch (e) {
       error = e as SaveError
       if (error.field) document.getElementById(`host-${error.field}`)?.focus()

@@ -55,6 +55,18 @@
     }
   }
 
+  // One button opens or closes every group.
+  const allCollapsed = $derived(hostStore.groups.length > 0 && hostStore.groups.every((g) => collapsed[g.name]))
+  function toggleAllGroups() {
+    const next = !allCollapsed
+    for (const g of hostStore.groups) collapsed[g.name] = next
+    try {
+      localStorage.setItem(COLLAPSED_KEY, JSON.stringify(collapsed))
+    } catch {
+      // Storage unavailable; the toggle still works for this session.
+    }
+  }
+
   function toggle(group: string) {
     collapsed[group] = !collapsed[group]
     try {
@@ -147,15 +159,21 @@
   }
 
   const groupMenuItems = (name: string): MenuItem[] => {
-    const i = hostStore.groups.findIndex((g) => g.name === name)
-    const last = hostStore.groups.length - 1
+    // Starred groups stay above the rest, so moves happen among groups of the same kind.
+    const all = hostStore.groups
+    const fav = hostStore.favorites.has(name)
+    const peers = all.filter((g) => hostStore.favorites.has(g.name) === fav)
+    const i = peers.findIndex((g) => g.name === name)
+    const last = peers.length - 1
+    const at = (k: number) => all.indexOf(peers[k])
     return [
-      { label: 'Move to top', disabled: !canReorder || i === 0, run: () => void moveGroup(name, 0) },
-      { label: 'Move up', hint: 'Alt+↑', disabled: !canReorder || i === 0, run: () => void moveGroup(name, i - 1) },
-      { label: 'Move down', hint: 'Alt+↓', disabled: !canReorder || i === last, run: () => void moveGroup(name, i + 1) },
-      { label: 'Move to bottom', disabled: !canReorder || i === last, run: () => void moveGroup(name, last) },
+      { label: 'Move to top', disabled: !canReorder || i === 0, run: () => void moveGroup(name, at(0)) },
+      { label: 'Move up', hint: 'Alt+↑', disabled: !canReorder || i === 0, run: () => void moveGroup(name, at(i - 1)) },
+      { label: 'Move down', hint: 'Alt+↓', disabled: !canReorder || i === last, run: () => void moveGroup(name, at(i + 1)) },
+      { label: 'Move to bottom', disabled: !canReorder || i === last, run: () => void moveGroup(name, at(last)) },
       ...(name === JUMP_GROUP ? [] : [{ label: 'Add host here', separator: true, run: () => onNew(name === NO_GROUP ? undefined : name) }]),
       { label: 'New group…', separator: name === JUMP_GROUP, run: () => (newGroup = true) },
+      { label: hostStore.favorites.has(name) ? 'Remove from favourites' : 'Add to favourites', icon: 'star', run: () => hostStore.toggleFavorite(name) },
       ...(name === NO_GROUP || name === JUMP_GROUP
         ? []
         : [
@@ -417,6 +435,16 @@
     <button class="grid size-6 shrink-0 place-items-center rounded-md text-subtle hover:bg-raised hover:text-fg" aria-label="Import hosts" title="Import hosts" onclick={onImport}>
       <Icon name="import" size={13} />
     </button>
+    {#if hostStore.groups.length > 1}
+      <button
+        class="grid size-6 shrink-0 place-items-center rounded-md text-subtle hover:bg-raised hover:text-fg"
+        aria-label={allCollapsed ? 'Expand all groups' : 'Collapse all groups'}
+        title={allCollapsed ? 'Expand all groups' : 'Collapse all groups'}
+        onclick={toggleAllGroups}
+      >
+        <Icon name={allCollapsed ? 'chevronsDown' : 'chevronsUp'} size={14} />
+      </button>
+    {/if}
     <button class="grid size-6 shrink-0 place-items-center rounded-md text-subtle hover:bg-raised hover:text-fg" aria-label="New group" title="New group" onclick={() => (newGroup = true)}>
       <Icon name="folderPlus" size={14} />
     </button>
@@ -512,6 +540,7 @@
             onclick={() => !justDragged && toggle(group.name)}
             onkeydown={(e) => onGroupKey(e, group.name, gi)}
           >
+            {#if hostStore.favorites.has(group.name)}<span class="shrink-0 text-warning" role="img" aria-label="Favourite"><Icon name="star" size={11} /></span>{/if}
             <span class="flex-1 truncate text-left">{group.name}</span>
             <!-- The chevron only shows when it matters: hovered, focused or collapsed. -->
             <span class="transition-transform {expanded ? 'rotate-90 opacity-0 group-hover/h:opacity-100 group-focus-visible/h:opacity-100' : ''}"><Icon name="chevron" size={11} /></span>

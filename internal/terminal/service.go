@@ -79,12 +79,21 @@ type History interface {
 // SetHistory records s's ssh sessions in h. A function, so it isn't bound.
 func SetHistory(s *Service, h History) { s.history = h }
 
+// SetRelease makes s call release when the last session to a host (as one
+// user) or ad-hoc target ends, so its shared connection can be closed. At
+// shutdown it's called for every connection and waited for (briefly).
+// A function, so it isn't bound.
+func SetRelease(s *Service, release func(hostID int64, user, target string)) { s.release = release }
+
 // visit says what a session connects to, for the history.
 type visit struct {
 	hostID int64
 	user   string
 	target string
 }
+
+// remote reports whether the session is an ssh connection (not a local shell).
+func (v visit) remote() bool { return v.hostID != 0 || v.target != "" }
 
 type session struct {
 	cmd  *exec.Cmd
@@ -93,7 +102,9 @@ type session struct {
 	hungUp bool
 	end    func()
 	// visited records the session's end in the history (nil if not recorded).
-	visited    func(code int)
+	visited func(code int)
+	// v is what the session connects to (empty for a local shell).
+	v          visit
 	cols, rows int
 	// rec is the running recording, or nil.
 	rec     *recordings.Writer
@@ -113,6 +124,11 @@ type Service struct {
 	sessions map[string]*session
 	auth     Auth
 	history  History
+	release  func(hostID int64, user, target string)
+	// releasing holds connections being closed; a new session to one waits.
+	releasing map[visit]chan struct{}
+	// quitting is set at shutdown, which releases connections itself.
+	quitting bool
 	recDir   string
 }
 
@@ -243,6 +259,17 @@ func (s *Service) start(cmd *exec.Cmd, cols, rows int, v visit) (string, error) 
 		base = os.Environ()
 	}
 	cmd.Env = append(base, "TERM=xterm-256color", "COLORTERM=truecolor")
+	// Reconnect: let the old connection finish closing, or the new ssh could
+	// join it just before it goes away.
+	s.mu.Lock()
+	closing := s.releasing[v]
+	s.mu.Unlock()
+	if closing != nil {
+		select {
+		case <-closing:
+		case <-time.After(releaseWait):
+		}
+	}
 	started, end := func(int) {}, func() {}
 	if s.auth != nil && hostID != 0 {
 		var env []string
@@ -260,7 +287,7 @@ func (s *Service) start(cmd *exec.Cmd, cols, rows int, v visit) (string, error) 
 		visited = s.history.Begin(v.hostID, v.user, v.target)
 	}
 
-	sess := &session{cmd: cmd, ptmx: ptmx, end: end, visited: visited, cols: cols, rows: rows, out: newBatcher()}
+	sess := &session{cmd: cmd, ptmx: ptmx, end: end, visited: visited, v: v, cols: cols, rows: rows, out: newBatcher()}
 	s.mu.Lock()
 	s.sessions[id] = sess
 	s.mu.Unlock()
@@ -312,7 +339,24 @@ func (s *Service) pump(id string, cmd *exec.Cmd, ptmx *os.File, echo *echoTimer,
 		sess.end()
 	}
 	delete(s.sessions, id)
+	var released chan struct{}
+	if sess != nil && s.release != nil && !s.quitting && sess.v.remote() && !s.connectedLocked(sess.v) && s.releasing[sess.v] == nil {
+		released = make(chan struct{})
+		if s.releasing == nil {
+			s.releasing = map[visit]chan struct{}{}
+		}
+		s.releasing[sess.v] = released
+	}
 	s.mu.Unlock()
+	if released != nil {
+		go func(v visit) {
+			s.release(v.hostID, v.user, v.target)
+			s.mu.Lock()
+			delete(s.releasing, v)
+			s.mu.Unlock()
+			close(released)
+		}(sess.v)
+	}
 	if sess != nil && sess.visited != nil {
 		sess.visited(code)
 	}
@@ -429,14 +473,49 @@ func (s *Service) hangUp(sess *session) error {
 	return sess.cmd.Process.Signal(syscall.SIGHUP)
 }
 
-// ServiceShutdown hangs up every session when the app quits.
+// ServiceShutdown hangs up every session when the app quits and closes their
+// shared connections, waiting up to releaseWait for that.
 func (s *Service) ServiceShutdown() error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.quitting = true
+	conns := map[visit]bool{}
 	for _, sess := range s.sessions {
 		_ = s.hangUp(sess)
+		if sess.v.remote() {
+			conns[sess.v] = true
+		}
+	}
+	s.mu.Unlock()
+	if s.release == nil || len(conns) == 0 {
+		return nil
+	}
+	var wg sync.WaitGroup
+	for v := range conns {
+		wg.Go(func() { s.release(v.hostID, v.user, v.target) })
+	}
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(releaseWait):
 	}
 	return nil
+}
+
+// releaseWait bounds how long quitting waits for shared connections to close.
+const releaseWait = 3 * time.Second
+
+// connectedLocked reports whether another session still uses v's connection; callers hold s.mu.
+func (s *Service) connectedLocked(v visit) bool {
+	for _, sess := range s.sessions {
+		if sess.v == v {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Service) get(id string) (*session, error) {

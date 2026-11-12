@@ -130,7 +130,9 @@ Add the TuxShell package repository once, and your system updates TuxShell along
 everything else (`sudo apt upgrade`, `sudo dnf upgrade`):
 
 ```sh
-# Debian, Ubuntu
+# Debian, Ubuntu (a fresh install may not have curl)
+sudo apt install -y curl
+sudo install -d -m 0755 /etc/apt/keyrings
 sudo curl -fsSLo /etc/apt/keyrings/tuxshell.asc https://pkg.tuxshell.io/tuxshell.asc
 echo "deb [signed-by=/etc/apt/keyrings/tuxshell.asc] https://pkg.tuxshell.io/apt stable main" \
   | sudo tee /etc/apt/sources.list.d/tuxshell.list
@@ -148,24 +150,24 @@ Or download a package from the releases page and install it:
 
 ```sh
 # Fedora, RHEL, AlmaLinux, Rocky Linux
-sudo dnf install ./tuxshell-1.5.5-1.x86_64.rpm
+sudo dnf install ./tuxshell-1.6.0-1.x86_64.rpm
 
 # Debian, Ubuntu
-sudo apt install ./tuxshell_1.5.5-1_amd64.deb
+sudo apt install ./tuxshell_1.6.0-1_amd64.deb
 ```
 
 Or run the AppImage on any distribution:
 
 ```sh
-chmod +x TuxShell-1.5.5-x86_64.AppImage
-./TuxShell-1.5.5-x86_64.AppImage
+chmod +x TuxShell-1.6.0-x86_64.AppImage
+./TuxShell-1.6.0-x86_64.AppImage
 ```
 
 Or install the Flatpak on any distribution with [Flatpak and Flathub set up](https://flathub.org/setup).
 The GNOME runtime it needs is installed from Flathub along with it:
 
 ```sh
-flatpak install --user TuxShell-1.5.5-x86_64.flatpak
+flatpak install --user TuxShell-1.6.0-x86_64.flatpak
 flatpak run io.github.vgrigolaia.TuxShell
 ```
 

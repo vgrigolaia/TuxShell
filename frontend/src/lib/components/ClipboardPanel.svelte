@@ -11,7 +11,8 @@
   interface Props {
     /** Name of the focused pane's host, for the "This host" filter. */
     activeHost?: string
-    onPaste: (text: string) => void
+    /** Pastes into the active terminal; missing when no terminal is shown. */
+    onPaste?: (text: string) => void
     onClose: () => void
   }
   let { activeHost, onPaste, onClose }: Props = $props()
@@ -75,8 +76,9 @@
   <li class="group relative">
     <button
       class="flex w-full flex-col gap-1.5 rounded-xl border bg-raised px-3 py-2.5 pr-3 text-left hover:border-strong {clip.pinned ? 'border-accent-line' : 'border-line'}"
-      title="Paste into the active terminal{clip.text.length > 60 ? `\n\n${clip.text.slice(0, 400)}` : ''}"
-      onclick={() => onPaste(clip.text)}
+      title="{onPaste ? 'Click to copy · double-click to paste into the terminal' : 'Click to copy'}{clip.text.length > 60 ? `\n\n${clip.text.slice(0, 400)}` : ''}"
+      onclick={() => copy(clip)}
+      ondblclick={() => onPaste?.(clip.text)}
     >
       <span class="flex items-center gap-2 text-[11px] text-subtle">
         {#if clip.pinned}
@@ -84,6 +86,7 @@
         {:else}
           <span class="size-2 rounded-full {clip.source ? 'bg-success' : 'bg-subtle'}" aria-hidden="true"></span>{clip.source || 'other app'} · {ago(clip.createdAt)}
         {/if}
+        {#if copiedId === clip.id}<span class="font-semibold text-success" role="status">· Copied</span>{/if}
       </span>
       <span class="truncate font-mono text-xs text-fg">{clip.text}</span>
     </button>
@@ -101,6 +104,11 @@
           <Icon name="edit" size={13} />
         </button>
       {/if}
+      {#if onPaste}
+        <button class={iconBtn} aria-label="Paste into the terminal" title="Paste into the terminal" onclick={() => onPaste(clip.text)}>
+          <Icon name="terminal" size={13} />
+        </button>
+      {/if}
       <button class={iconBtn} aria-label="Copy to clipboard" onclick={() => copy(clip)}>
         <Icon name={copiedId === clip.id ? 'check' : 'clipboard'} size={13} />
       </button>
@@ -116,7 +124,7 @@
 <aside
   bind:this={panelEl}
   aria-label="Clipboard history"
-  class="clip-panel absolute top-2 right-2 bottom-2 z-30 flex w-80 flex-col gap-2.5 rounded-panel border px-3 py-3.5 backdrop-blur"
+  class="clip-panel absolute top-2 right-2 bottom-2 z-30 flex w-80 flex-col gap-2.5 rounded-panel border px-3 py-3.5"
 >
   <div class="flex items-center gap-2 px-1">
     <span class="text-accent"><Icon name="clipboard" size={16} /></span>
@@ -159,7 +167,7 @@
         spellcheck="false"
         onkeydown={(e) => {
           if (e.key === 'Escape') query ? (query = '') : onClose()
-          if (e.key === 'Enter' && first) onPaste(first.text)
+          if (e.key === 'Enter' && first) onPaste ? onPaste(first.text) : void copy(first)
         }}
       />
     </label>
@@ -195,7 +203,7 @@
 
     {#if clipboardHistory.status.enabled}
       <div class="flex items-center gap-2 px-1 text-[11px] leading-normal text-subtle">
-        <span class="flex-1">Encrypted locally · {keepFor(clipboardHistory.settings.retentionDays)} · secrets skipped. Esc closes.</span>
+        <span class="flex-1">Encrypted locally · {keepFor(clipboardHistory.settings.retentionDays)} · secrets skipped. Click copies{onPaste ? ', double-click pastes' : ''}. Esc closes.</span>
         {#if clipboardHistory.history.length}
           {#if confirmClear}
             <button class="rounded-md bg-danger px-2 py-1 text-white hover:bg-danger/90" onclick={() => clipboardHistory.clear().then(() => (confirmClear = false))}>Clear</button>
@@ -210,8 +218,10 @@
 </aside>
 
 <style>
+  /* Solid, no backdrop blur: WebKitGTK re-blurs every frame drawn under it,
+     which made opening tabs and terminal output slow while the panel was open. */
   .clip-panel {
-    background: color-mix(in srgb, var(--color-panel) 95%, transparent);
+    background: var(--color-panel);
     border-color: var(--color-strong);
     box-shadow: 0 30px 80px rgb(0 0 0 / 0.45);
   }

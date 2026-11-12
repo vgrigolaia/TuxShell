@@ -16,6 +16,10 @@ func TestSensitive(t *testing.T) {
 		"api_key: 1234abcd",
 		"Tr0ub4dor&3xK!q",
 		"xK9#mP2$vL5nQ8wZ",
+		// Secrets inside a line: pgbouncer userlist entries (fake values).
+		`"pgbouncer_auth" "n7Qw2LzPx4RbT9kVm3"`,                         // gitleaks:allow
+		`"app" "SCRAM-SHA-256$4096:c2FsdA==$c3RvcmVkS2V5:c2VydmVyS2V5"`, // gitleaks:allow
+		`"app" "md5d41d8cd98f00b204e9800998ecf8427e"`,                   // gitleaks:allow
 	}
 	for _, s := range secret {
 		if !Sensitive(s) {
@@ -34,6 +38,14 @@ func TestSensitive(t *testing.T) {
 		"kubectl get pods -n monitoring",
 		"PostgreSQL",
 		"Password policy is enforced", // the word alone is fine
+		"sudo dnf install -y NetworkManager-tui",
+		"rpm -q falcon-sensor; sudo /opt/CrowdStrike/falconctl -g --cid",
+		"kernel-modules-6.12.0-211.74.2.el10_0.x86_64",
+		"docker run -d --name web-01 nginx:1.27",
+		"git checkout 3f2a9c1e7b4d5a6f8e0c1b2a3d4e5f6a7b8c9d0e",
+		"kubectl delete pod web-7d4b9c6f5-x2k8q",
+		"ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHk7Qw2LzPx4RbT9kVm3Fq8Jd user@laptop",
+		`"pgbouncer_auth" "ExampleUser"`,
 	}
 	for _, s := range plain {
 		if Sensitive(s) {

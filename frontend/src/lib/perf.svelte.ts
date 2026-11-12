@@ -1,6 +1,17 @@
 import * as Terminals from '../../bindings/github.com/vgrigolaia/tuxshell/internal/terminal/service'
 import type { Echo } from '../../bindings/github.com/vgrigolaia/tuxshell/internal/terminal/models'
 
+/** Where a new terminal's time went (ms): font, building xterm, GPU drawing,
+ * starting the shell or ssh, then its first output; total is up to that output. */
+export interface NewTab {
+  font: number
+  terminal: number
+  gpu: number
+  start: number
+  output: number
+  total: number
+}
+
 /** A moment the window stopped responding. */
 export interface Freeze {
   at: number
@@ -10,11 +21,13 @@ export interface Freeze {
 // WebKit keeps about 16 WebGL contexts and silently drops the oldest beyond
 // that, which left those terminals on the slow DOM renderer for good. Only the
 // most recently shown terminals keep one; the others give theirs back.
-const MAX_GPU = 8
+export const MAX_GPU = 12
 // A timer that fires this much late means the window was busy (not counted
 // while hidden, or after a suspend).
 const FREEZE_MS = 150
 const MAX_FREEZES = 20
+// How often the send/draw times shown in the status bar are refreshed.
+const PUBLISH_MS = 250
 
 /** Speed of the active terminal and of the window, for the status bar and Preferences → About. */
 class Perf {
@@ -26,11 +39,28 @@ class Perf {
   send = $state<Record<string, number>>({})
   /** Window stalls, newest first. */
   freezes = $state<Freeze[]>([])
+  /** Switching to an open tab until it's drawn (ms): the last one and a moving average. */
+  tabSwitch = $state<{ last: number; avg: number } | null>(null)
+  /** The last new terminal's steps (ms) and the average total, for Diagnostics. */
+  newTab = $state<{ last: NewTab; avg: number } | null>(null)
   /** How each terminal draws, by pane token. */
   renderer = $state<Record<number, 'gpu' | 'standard'>>({})
 
   private order = $state<number[]>([])
   private nextToken = 1
+  // Averages are kept here on every key and copied to draw/send at most every
+  // PUBLISH_MS, so typing doesn't re-render the status bar for each key.
+  private rawDraw: Record<string, number> = {}
+  private rawSend: Record<string, number> = {}
+  private publishTimer: ReturnType<typeof setTimeout> | undefined
+
+  private publish() {
+    this.publishTimer ??= setTimeout(() => {
+      this.publishTimer = undefined
+      this.draw = { ...this.rawDraw }
+      this.send = { ...this.rawSend }
+    }, PUBLISH_MS)
+  }
 
   /** Starts the freeze monitor; returns its stop function. */
   start() {
@@ -58,19 +88,34 @@ class Perf {
 
   /** Records one echo's drawing time for a session. */
   drawn(id: string, ms: number) {
-    const avg = this.draw[id]
-    this.draw[id] = avg === undefined ? ms : avg + (ms - avg) / 8
+    const avg = this.rawDraw[id]
+    this.rawDraw[id] = avg === undefined ? ms : avg + (ms - avg) / 8
+    this.publish()
   }
 
   /** Records how long one write of typed keys took to reach Go and return. */
   sent(id: string, ms: number) {
-    const avg = this.send[id]
-    this.send[id] = avg === undefined ? ms : avg + (ms - avg) / 8
+    const avg = this.rawSend[id]
+    this.rawSend[id] = avg === undefined ? ms : avg + (ms - avg) / 8
+    this.publish()
   }
 
   forgetSession(id: string) {
-    delete this.draw[id]
-    delete this.send[id]
+    delete this.rawDraw[id]
+    delete this.rawSend[id]
+    this.publish()
+  }
+
+  /** Records one switch to an already open tab. */
+  tabSwitched(ms: number) {
+    const avg = this.tabSwitch?.avg
+    this.tabSwitch = { last: ms, avg: avg === undefined ? ms : avg + (ms - avg) / 4 }
+  }
+
+  /** Records how long a new terminal took, step by step. */
+  newTabDone(t: NewTab) {
+    const avg = this.newTab?.avg
+    this.newTab = { last: t, avg: avg === undefined ? t.total : avg + (t.total - avg) / 4 }
   }
 
   /** A token for a new terminal pane. */

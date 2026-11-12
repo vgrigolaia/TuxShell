@@ -56,7 +56,7 @@ func TestSessionAndBatchArgs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{fake, "-o", "ControlMaster=auto", "-o", "ControlPath=/run/user/1000/tuxshell/cm-%C", "-o", "ControlPersist=120", "-p", "22", "--", "web.internal"}
+	want := []string{fake, "-o", "ControlMaster=auto", "-o", "ControlPath=/run/user/1000/tuxshell/cm-%C", "-o", "ControlPersist=60", "-p", "22", "--", "web.internal"}
 	if !slices.Equal(cmd.Args, want) {
 		t.Fatalf("session args = %q", cmd.Args)
 	}
@@ -99,5 +99,74 @@ func TestSessionAndBatchArgs(t *testing.T) {
 	}
 	if _, err := r.HostRemote(h.ID, "-oProxyCommand=x"); err == nil {
 		t.Fatal("option-like user accepted for file access")
+	}
+}
+
+func TestCloseShared(t *testing.T) {
+	bin := t.TempDir()
+	fake := filepath.Join(bin, "ssh")
+	os.WriteFile(fake, []byte("#!/bin/sh\n"), 0o755)
+	t.Setenv("PATH", bin)
+
+	store, err := hosts.Open(filepath.Join(t.TempDir(), "hosts.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	h, _ := store.Save(hosts.Host{Name: "web", Hostname: "web.internal", User: "deploy", Port: 22, ProxyJump: "bastion"})
+	r := Resolver{Store: store, ControlDir: "/run/user/1000/tuxshell"}
+	stop := []string{fake, "-o", "ControlPath=/run/user/1000/tuxshell/cm-%C", "-O", "exit"}
+
+	// The same host arguments as the session, so ssh finds the same socket.
+	cases := []struct {
+		hostID       int64
+		user, target string
+		want         []string
+	}{
+		{h.ID, "", "", []string{"-p", "22", "-l", "deploy", "-J", "bastion", "--", "web.internal"}},
+		{h.ID, "admin", "", []string{"-p", "22", "-l", "admin", "-J", "bastion", "--", "web.internal"}},
+		{0, "", "root@db.internal:2222", []string{"-p", "2222", "-l", "root", "--", "db.internal"}},
+	}
+	for _, c := range cases {
+		cmd, err := r.CloseShared(c.hostID, c.user, c.target)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := append(slices.Clone(stop), c.want...); !slices.Equal(cmd.Args, want) {
+			t.Errorf("CloseShared(%d, %q, %q) = %q, want %q", c.hostID, c.user, c.target, cmd.Args, want)
+		}
+	}
+	if _, err := (Resolver{Store: store}).CloseShared(h.ID, "", ""); err == nil {
+		t.Error("CloseShared worked without a control directory")
+	}
+}
+
+func TestInstanceDirs(t *testing.T) {
+	base := t.TempDir()
+	a, unlockA, err := InstanceDir(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, unlockB, err := InstanceDir(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unlockB()
+	if a == b || filepath.Dir(a) != base {
+		t.Fatalf("instance dirs %q and %q", a, b)
+	}
+	// A run that ended leaves its folder unlocked; the next start removes it.
+	unlockA()
+	other := filepath.Join(base, "edit-123")
+	os.Mkdir(other, 0o700)
+	c, unlockC, err := InstanceDir(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unlockC()
+	for dir, want := range map[string]bool{a: false, b: true, c: true, other: true} {
+		if _, err := os.Stat(dir); (err == nil) != want {
+			t.Errorf("%s exists = %v, want %v", dir, err == nil, want)
+		}
 	}
 }
