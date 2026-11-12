@@ -56,7 +56,7 @@ func TestSessionAndBatchArgs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{fake, "-o", "ControlMaster=auto", "-o", "ControlPath=/run/user/1000/tuxshell/cm-%C", "-o", "ControlPersist=120", "-p", "22", "--", "web.internal"}
+	want := []string{fake, "-o", "ControlMaster=auto", "-o", "ControlPath=/run/user/1000/tuxshell/cm-%C", "-o", "ControlPersist=600", "-p", "22", "--", "web.internal"}
 	if !slices.Equal(cmd.Args, want) {
 		t.Fatalf("session args = %q", cmd.Args)
 	}

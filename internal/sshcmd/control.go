@@ -17,9 +17,10 @@ import (
 // hex characters, so the directory must leave room for "/cm-" plus that.
 const maxSocketPath = 104
 
-// ControlPersist keeps a shared connection open this long after its last
-// session ends, so the file browser keeps working briefly after a disconnect.
-const controlPersist = "120"
+// ControlPersist keeps a shared connection open this long (seconds) after its
+// last session ends: the file browser keeps working after a disconnect, and
+// opening the host again soon skips a new login.
+const controlPersist = "600"
 
 // ControlDir returns a private directory for ssh ControlMaster sockets:
 // $XDG_RUNTIME_DIR/tuxshell, or /tmp/tuxshell-<uid> when that path is too
