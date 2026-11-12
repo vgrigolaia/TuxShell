@@ -22,7 +22,7 @@
   import * as HostIO from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/hostio/service'
   import * as SettingsService from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/settings/service'
   import * as Recordings from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/recordings/service'
-  import { perf } from '../perf.svelte'
+  import { MAX_GPU, perf } from '../perf.svelte'
 
   const REPO = 'https://github.com/vgrigolaia/TuxShell'
 
@@ -966,7 +966,7 @@
           {/if}
           <p class="mt-3 text-xs text-subtle">
             A slow key time with few freezes means the network or server is slow; the status bar shows it for the active terminal. Freezes mean
-            TuxShell itself was busy. Only the 8 most recently shown terminals draw on the GPU; the others switch back when you show them.
+            TuxShell itself was busy. Only the {MAX_GPU} most recently shown terminals draw on the GPU; the others switch back when you show them.
           </p>
         </section>
       {:else}
