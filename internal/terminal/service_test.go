@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -414,4 +415,31 @@ func TestReleaseWhenTheOnlyTabCloses(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("closing the only tab didn't release its connection")
 	}
+}
+
+func TestNewSessionWaitsForItsConnectionToClose(t *testing.T) {
+	rec := &recorder{exits: make(chan ExitEvent, 4)}
+	svc := NewService(rec.emit, nil, nil)
+	unblock := make(chan struct{})
+	var closed atomic.Bool
+	SetRelease(svc, func(int64, string, string) {
+		<-unblock
+		closed.Store(true)
+	})
+	host := visit{hostID: 3}
+	if _, err := svc.start(exec.Command("true"), 80, 24, host); err != nil {
+		t.Fatal(err)
+	}
+	rec.waitExit(t)
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		close(unblock)
+	}()
+	if _, err := svc.start(exec.Command("true"), 80, 24, host); err != nil {
+		t.Fatal(err)
+	}
+	if !closed.Load() {
+		t.Fatal("the new session started before the old connection was closed")
+	}
+	rec.waitExit(t)
 }

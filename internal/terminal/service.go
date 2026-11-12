@@ -125,6 +125,8 @@ type Service struct {
 	auth     Auth
 	history  History
 	release  func(hostID int64, user, target string)
+	// releasing holds connections being closed; a new session to one waits.
+	releasing map[visit]chan struct{}
 	// quitting is set at shutdown, which releases connections itself.
 	quitting bool
 	recDir   string
@@ -257,6 +259,17 @@ func (s *Service) start(cmd *exec.Cmd, cols, rows int, v visit) (string, error) 
 		base = os.Environ()
 	}
 	cmd.Env = append(base, "TERM=xterm-256color", "COLORTERM=truecolor")
+	// Reconnect: let the old connection finish closing, or the new ssh could
+	// join it just before it goes away.
+	s.mu.Lock()
+	closing := s.releasing[v]
+	s.mu.Unlock()
+	if closing != nil {
+		select {
+		case <-closing:
+		case <-time.After(releaseWait):
+		}
+	}
 	started, end := func(int) {}, func() {}
 	if s.auth != nil && hostID != 0 {
 		var env []string
@@ -326,10 +339,23 @@ func (s *Service) pump(id string, cmd *exec.Cmd, ptmx *os.File, echo *echoTimer,
 		sess.end()
 	}
 	delete(s.sessions, id)
-	release := sess != nil && s.release != nil && !s.quitting && sess.v.remote() && !s.connectedLocked(sess.v)
+	var released chan struct{}
+	if sess != nil && s.release != nil && !s.quitting && sess.v.remote() && !s.connectedLocked(sess.v) && s.releasing[sess.v] == nil {
+		released = make(chan struct{})
+		if s.releasing == nil {
+			s.releasing = map[visit]chan struct{}{}
+		}
+		s.releasing[sess.v] = released
+	}
 	s.mu.Unlock()
-	if release {
-		go s.release(sess.v.hostID, sess.v.user, sess.v.target)
+	if released != nil {
+		go func(v visit) {
+			s.release(v.hostID, v.user, v.target)
+			s.mu.Lock()
+			delete(s.releasing, v)
+			s.mu.Unlock()
+			close(released)
+		}(sess.v)
 	}
 	if sess != nil && sess.visited != nil {
 		sess.visited(code)
