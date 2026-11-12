@@ -92,6 +92,11 @@
   </branding>
 
   <releases>
+    <release version="1.6.0" date="2026-11-12">
+      <description>
+        <p>Star host groups to see them first, with a Favourites view on Home. New shortcuts for splitting right and switching tabs, shown in the menus. Closing a host's last tab closes its connection, the Files panel stays with its host, and a click copies a clip from the clipboard history. Faster with the clipboard panel open, and the status bar now only warns about slow connections.</p>
+      </description>
+    </release>
     <release version="1.5.5" date="2026-11-05">
       <description>
         <p>Typing stays fast when other tabs are busy, and copying or switching back to the window no longer reloads the clipboard history. Right-click a host group to add a host to it or create a new group.</p>
