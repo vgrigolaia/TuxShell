@@ -8,7 +8,7 @@
   import Icon from './Icon.svelte'
   import { hostStatus } from '../status.svelte'
   import { updates, VERSION } from '../updates.svelte'
-  import { Browser, Window } from '@wailsio/runtime'
+  import { Browser, Clipboard, Window } from '@wailsio/runtime'
   import * as Terminals from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/terminal/service'
   import Logo from './Logo.svelte'
   import ExportHosts from './ExportHosts.svelte'
@@ -197,6 +197,23 @@
   // About → Performance.
   const rendererKinds = $derived(Object.values(perf.renderer))
   const gpuCount = $derived(rendererKinds.filter((k) => k === 'gpu').length)
+
+  // Plain text for a bug report: no host names, paths or anything typed.
+  let diagCopied = $state(false)
+  async function copyDiagnostics() {
+    const lines = [
+      `TuxShell ${VERSION}`,
+      `Platform: ${navigator.platform || 'unknown'}${displayServer ? ` · ${displayServer}` : ''}`,
+      `Web view: ${navigator.userAgent}`,
+      `Typing: ${perf.echo ? `${Math.round(perf.echo.avgMs)} ms echo (last ${Math.round(perf.echo.lastMs)} ms)` : 'not measured'}`,
+      `Tab switch: ${perf.tabSwitch ? `${Math.round(perf.tabSwitch.avg)} ms average, last ${Math.round(perf.tabSwitch.last)} ms` : 'not measured'}`,
+      `Graphics: ${gpuCount} of ${rendererKinds.length} terminals on the GPU (limit ${MAX_GPU})`,
+      `Pauses: ${perf.freezes.length ? perf.freezes.map((f) => `${new Date(f.at).toLocaleTimeString()} ${f.ms} ms`).join(', ') : 'none'}`,
+    ]
+    await Clipboard.SetText(lines.join('\n'))
+    diagCopied = true
+    setTimeout(() => (diagCopied = false), 1500)
+  }
 </script>
 
 <dialog
@@ -665,6 +682,14 @@
               ></span
             >
           </label>
+          <label class={check}>
+            <input type="checkbox" class="mt-0.5 accent-accent" checked={prefs.value.statusTimings ?? false} onchange={(e) => prefs.setStatusTimings(e.currentTarget.checked)} />
+            <span
+              >Show typing times in the status bar<span class={hint}
+                >How long typed keys take to reach the server and come back. When this is off, the status bar only says when a connection is slow.</span
+              ></span
+            >
+          </label>
 
           <fieldset class="flex flex-col gap-3 border-t border-line pt-4">
             <legend class="{label} pt-4">Connection history</legend>
@@ -941,14 +966,14 @@
           {/if}
         </section>
 
-        <section class="mt-6 border-t border-line pt-5" aria-labelledby="{id}-perf">
-          <h4 id="{id}-perf" class={label}>Performance</h4>
-          <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[13px]">
-            <dt class="text-muted">Active terminal</dt>
+        <details class="mt-6 border-t border-line pt-5">
+          <summary class="{label} cursor-pointer select-none">Diagnostics</summary>
+          <p class="mt-1 text-xs text-subtle">Use this when reporting a slow or frozen window: copy it into the report.</p>
+          <dl class="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[13px]">
+            <dt class="text-muted">Typing</dt>
             <dd>
               {#if perf.echo}
                 Keys come back in <span class="font-mono">{Math.round(perf.echo.avgMs)} ms</span>
-                (last <span class="font-mono">{Math.round(perf.echo.lastMs)} ms</span>)
               {:else}
                 <span class="text-subtle">Type in a terminal to measure.</span>
               {/if}
@@ -956,27 +981,24 @@
             <dt class="text-muted">Tab switch</dt>
             <dd>
               {#if perf.tabSwitch}
-                <span class="font-mono">{Math.round(perf.tabSwitch.avg)} ms</span> on average (last <span class="font-mono">{Math.round(perf.tabSwitch.last)} ms</span>)
+                <span class="font-mono">{Math.round(perf.tabSwitch.avg)} ms</span>
               {:else}
                 <span class="text-subtle">Switch between open tabs to measure.</span>
               {/if}
             </dd>
-            <dt class="text-muted">Drawing</dt>
-            <dd>{gpuCount} of {rendererKinds.length} {rendererKinds.length === 1 ? 'terminal' : 'terminals'} on the GPU</dd>
-            <dt class="text-muted">Freezes</dt>
-            <dd>{perf.freezes.length ? `${perf.freezes.length} recently` : 'None since TuxShell started'}</dd>
+            <dt class="text-muted">Graphics</dt>
+            <dd>{gpuCount} of {rendererKinds.length} {rendererKinds.length === 1 ? 'terminal' : 'terminals'} drawn by the graphics card</dd>
+            <dt class="text-muted">Pauses</dt>
+            <dd>{perf.freezes.length ? `${perf.freezes.length}, longest ${Math.max(...perf.freezes.map((f) => f.ms))} ms` : 'None'}</dd>
           </dl>
-          {#if perf.freezes.length}
-            <ul class="mt-2 flex flex-col gap-0.5 font-mono text-xs text-subtle" aria-label="Recent freezes">
-              {#each perf.freezes as f (f.at)}<li>{new Date(f.at).toLocaleTimeString()} · window busy for {f.ms} ms</li>{/each}
-            </ul>
-            <button class="mt-2 rounded-lg border border-line px-2.5 py-1 text-xs text-muted hover:bg-raised hover:text-fg" onclick={() => (perf.freezes = [])}>Clear</button>
-          {/if}
-          <p class="mt-3 text-xs text-subtle">
-            A slow key time with few freezes means the network or server is slow; the status bar shows it for the active terminal. Freezes mean
-            TuxShell itself was busy. A tab switch includes waiting for the screen's next two frames (about 33 ms at 60 Hz). Only the {MAX_GPU} most recently shown terminals draw on the GPU; the others switch back when you show them.
-          </p>
-        </section>
+          <div class="mt-3 flex items-center gap-2">
+            <button class="rounded-lg border border-line px-2.5 py-1 text-xs text-muted hover:bg-raised hover:text-fg" onclick={copyDiagnostics}>Copy diagnostics</button>
+            {#if perf.freezes.length}
+              <button class="rounded-lg border border-line px-2.5 py-1 text-xs text-muted hover:bg-raised hover:text-fg" onclick={() => (perf.freezes = [])}>Clear pauses</button>
+            {/if}
+            {#if diagCopied}<span class="text-xs text-success" role="status">Copied</span>{/if}
+          </div>
+        </details>
       {:else}
         <ShortcutsSettings />
       {/if}

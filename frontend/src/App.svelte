@@ -441,6 +441,9 @@
     requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => perf.tabSwitched(performance.now() - t))))
   })
 
+  // A server echo this slow (ms, recent average) gets a warning in the status bar.
+  const SLOW_ECHO_MS = 200
+
   // The status bar shows how fast the active terminal answers.
   const watched = $derived(!home && active && !active.exited ? active.session : '')
   $effect(() => perf.watch(watched))
@@ -619,7 +622,12 @@
       </span>
     {/if}
     {#if activeHost?.proxyJump}<span>via {activeHost.proxyJump} · ProxyJump</span>{/if}
-    {#if watched && perf.echo}
+    {#if watched && perf.echo && !prefs.value.statusTimings && active?.source.kind !== 'shell' && perf.echo.avgMs >= SLOW_ECHO_MS}
+      <!-- Only said when it matters; the exact times are an option (Preferences → General). -->
+      <span class="flex items-center gap-1.5 font-semibold text-warning" title="Typed keys take {Math.round(perf.echo.avgMs)} ms to come back from the server, so typing feels delayed. This is the network or the server, not TuxShell.">
+        <Icon name="alert" size={12} /> Slow connection · {Math.round(perf.echo.avgMs)} ms
+      </span>
+    {:else if watched && perf.echo && prefs.value.statusTimings}
       {@const draw = perf.draw[watched]}
       {@const send = perf.send[watched]}
       <span

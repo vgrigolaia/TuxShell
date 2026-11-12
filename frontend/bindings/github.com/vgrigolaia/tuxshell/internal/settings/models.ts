@@ -269,6 +269,12 @@ export interface Settings {
     "hiddenSshConfigHosts": string[] | null;
 
     /**
+     * StatusTimings shows the typing times (send/echo/draw) in the status bar;
+     * off by default, when only a slow connection is pointed out.
+     */
+    "statusTimings": boolean;
+
+    /**
      * HostStatus pings saved hosts in the background to show which are up.
      */
     "hostStatus": boolean;

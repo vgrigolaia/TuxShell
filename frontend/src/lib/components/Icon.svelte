@@ -40,6 +40,7 @@
     selectAll: 'M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M9 9h6v6H9z',
     eraser: 'M8 20h12M5 15l9-9 5 5-8 8H8z',
     tag: 'M4 4h8l8 8-8 8-8-8zM8.5 8.5h.01',
+    alert: 'M12 4l9 16H3zM12 10v4M12 17h.01',
     star: 'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z',
     splitAuto: 'M4 5h16v14H4zM12 5v14M12 12h8',
     tab: 'M3 8h7V5h11v14H3zM10 8V5',

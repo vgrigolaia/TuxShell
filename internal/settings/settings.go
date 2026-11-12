@@ -42,6 +42,9 @@ type Settings struct {
 	// HiddenSSHConfigHosts are ~/.ssh/config aliases the user chose not to be
 	// reminded about on Home; a new alias brings the reminder back.
 	HiddenSSHConfigHosts []string `json:"hiddenSshConfigHosts"`
+	// StatusTimings shows the typing times (send/echo/draw) in the status bar;
+	// off by default, when only a slow connection is pointed out.
+	StatusTimings bool `json:"statusTimings"`
 	// HostStatus pings saved hosts in the background to show which are up.
 	HostStatus bool `json:"hostStatus"`
 	// UpdateCheck asks GitHub for a newer release at startup (on by default;
