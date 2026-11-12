@@ -5,6 +5,39 @@ All notable changes to TuxShell are listed here. Versions follow
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-11-12
+
+### Added
+
+- Favourite host groups: right-click a group in the sidebar or on Home and choose *Add to favourites*.
+  Starred groups come first, and Home opens on a *Favourites* view with just their hosts.
+- On Home: a *New group* button, drag host cards onto a group chip to move them, rename a group from
+  its chip, and expand or collapse all groups (also in the sidebar).
+- New shortcuts: *Split right* (Ctrl+Shift+R), *Next tab* / *Previous tab* (Ctrl+PageDown / Ctrl+PageUp),
+  plus *Duplicate tab*, *Reconnect*, *Close tab* and *Split with another host* to set in
+  Preferences → Shortcuts. Menus and buttons show their keys.
+- Click a clip in the clipboard history to copy it; double-click pastes it into the terminal.
+- Preferences → About → Diagnostics (folded): typing, tab switch and new tab times, and *Copy
+  diagnostics* for bug reports.
+
+### Changed
+
+- Closing the last tab of a host now closes its ssh connection, and quitting TuxShell closes them all.
+  Nothing stays connected in the background (a tunnel that uses the connection keeps it open).
+- The Files panel stays with the host it was opened on: it hides on other hosts' tabs instead of
+  logging in there, and comes back in the same folder.
+- The status bar only warns about a slow connection; the exact typing times are an option in
+  Preferences → General.
+- The clipboard panel closes when you change tabs, unless you keep it open in its settings.
+- Save and Save & connect close the host form.
+- Faster with the clipboard panel open, and faster with many terminals: twelve keep fast drawing.
+
+### Fixed
+
+- Clipboard history no longer keeps lines with a password inside, such as pgbouncer userlist entries.
+- A clip copied again keeps the host it came from.
+- The apt instructions install curl first.
+
 ## [1.5.5] - 2026-11-05
 
 ### Added
@@ -410,6 +443,7 @@ First release.
 - Dark and light themes, or follow the system.
 - Packages for Fedora/RHEL (.rpm), Debian/Ubuntu (.deb) and an AppImage.
 
+[1.6.0]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.6.0
 [1.5.5]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.5.5
 [1.5.4]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.5.4
 [1.5.3]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.5.3
