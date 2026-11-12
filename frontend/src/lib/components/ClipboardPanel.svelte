@@ -124,7 +124,7 @@
 <aside
   bind:this={panelEl}
   aria-label="Clipboard history"
-  class="clip-panel absolute top-2 right-2 bottom-2 z-30 flex w-80 flex-col gap-2.5 rounded-panel border px-3 py-3.5 backdrop-blur"
+  class="clip-panel absolute top-2 right-2 bottom-2 z-30 flex w-80 flex-col gap-2.5 rounded-panel border px-3 py-3.5"
 >
   <div class="flex items-center gap-2 px-1">
     <span class="text-accent"><Icon name="clipboard" size={16} /></span>
@@ -218,8 +218,10 @@
 </aside>
 
 <style>
+  /* Solid, no backdrop blur: WebKitGTK re-blurs every frame drawn under it,
+     which made opening tabs and terminal output slow while the panel was open. */
   .clip-panel {
-    background: color-mix(in srgb, var(--color-panel) 95%, transparent);
+    background: var(--color-panel);
     border-color: var(--color-strong);
     box-shadow: 0 30px 80px rgb(0 0 0 / 0.45);
   }
