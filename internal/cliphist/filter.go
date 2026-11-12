@@ -18,6 +18,8 @@ var secretPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`\bxox[abprs]-[A-Za-z0-9-]{10,}\b`),                               // Slack
 	regexp.MustCompile(`\bsk-[A-Za-z0-9_-]{20,}\b`),                                      // API keys (OpenAI-style etc.)
 	regexp.MustCompile(`\bglpat-[A-Za-z0-9_-]{20,}\b`),                                   // GitLab
+	regexp.MustCompile(`SCRAM-SHA-256\$\d+:`),                                            // PostgreSQL password hash
+	regexp.MustCompile(`\bmd5[0-9a-f]{32}\b`),                                            // PostgreSQL md5 password hash
 	// key=value / key: value where the key names a secret.
 	regexp.MustCompile(`(?i)\b(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|private[_-]?key|auth)\b\s*[:=]\s*\S+`),
 }
@@ -32,10 +34,38 @@ func Sensitive(text string) bool {
 	}
 	// A single "word" that looks random is most likely a generated password or token.
 	t := strings.TrimSpace(text)
-	if !strings.ContainsAny(t, " \t\n") && looksRandom(t) {
-		return true
+	if !strings.ContainsAny(t, " \t\n") {
+		return looksRandom(t)
+	}
+	// Inside a line (e.g. a pgbouncer userlist entry: "user" "secret") a word
+	// must look clearly generated, so commands and package names stay. Public
+	// keys are meant to be shared.
+	if publicKey.MatchString(t) {
+		return false
+	}
+	for _, word := range strings.FieldsFunc(t, func(r rune) bool { return unicode.IsSpace(r) || strings.ContainsRune("\"'`,;()[]{}<>", r) }) {
+		if looksGenerated(word) {
+			return true
+		}
 	}
 	return false
+}
+
+var publicKey = regexp.MustCompile(`\b(?:ssh-(?:ed25519|rsa|dss)|ecdsa-sha2-nistp\d+|sk-(?:ssh-ed25519|ecdsa-sha2-nistp256)@openssh\.com) AAAA`)
+
+// looksGenerated is looksRandom for a word inside a longer line: 16+ chars
+// with lower case, upper case and digits.
+func looksGenerated(s string) bool {
+	if len(s) < 16 || !looksRandom(s) {
+		return false
+	}
+	var lower, upper, digit bool
+	for _, r := range s {
+		lower = lower || unicode.IsLower(r)
+		upper = upper || unicode.IsUpper(r)
+		digit = digit || unicode.IsDigit(r)
+	}
+	return lower && upper && digit
 }
 
 // looksRandom flags 12+ char strings mixing at least three character classes
