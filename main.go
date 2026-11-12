@@ -5,9 +5,11 @@ import (
 	"embed"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -92,7 +94,16 @@ func main() {
 
 	// Shared ssh connections let the file browser reuse a terminal's login.
 	// Without a usable socket directory, sessions just don't share.
+	// Each run has its own folder, so closing a host's last tab can close its
+	// connection without touching another TuxShell's sessions.
 	controlDir, err := sshcmd.ControlDir()
+	if err == nil {
+		var unlock func()
+		if controlDir, unlock, err = sshcmd.InstanceDir(controlDir); err == nil {
+			// Held (not just referenced) until main returns, so the lock lasts the whole run.
+			defer unlock()
+		}
+	}
 	if err != nil {
 		log.Printf("ssh connection sharing disabled: %v", err)
 		controlDir = ""
@@ -224,6 +235,16 @@ func main() {
 			return hosts.HistoryLimits{Days: h.Days, Max: h.Max}
 		},
 		Changed: func() { app.Event.Emit(hosts.EventHistoryChanged) },
+	})
+	// Closing a host's last tab (or quitting) closes its shared ssh connection,
+	// unless a tunnel still rides on it.
+	terminal.SetRelease(terminals, func(hostID int64, user, target string) {
+		if hostID != 0 && tunnels.SharesConnection(forwards, hostID) {
+			return
+		}
+		if cmd, err := resolver.CloseShared(hostID, user, target); err == nil {
+			runBriefly(cmd, 5*time.Second)
+		}
 	})
 
 	app = application.New(application.Options{
@@ -413,4 +434,22 @@ func (p rdpPasswords) Save(id int64, password string) error {
 		return login.ErrDisabled
 	}
 	return p.logins.SavePassword(id, password)
+}
+
+// runBriefly runs cmd, killing it if it takes longer than limit.
+func runBriefly(cmd *exec.Cmd, limit time.Duration) {
+	if cmd.Start() != nil {
+		return
+	}
+	done := make(chan struct{})
+	go func() {
+		_ = cmd.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(limit):
+		_ = cmd.Process.Kill()
+		<-done
+	}
 }

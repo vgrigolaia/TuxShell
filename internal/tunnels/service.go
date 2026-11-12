@@ -210,6 +210,19 @@ func (s *Service) shared(hostID int64, f sshcmd.Forward) bool {
 	return err == nil && fwd.Run() == nil
 }
 
+// SharesConnection reports whether a running forward rides on the host's open
+// terminal connection, which must then stay up. A function, so it isn't bound.
+func SharesConnection(s *Service, hostID int64) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, l := range s.running {
+		if l.shared && l.hostID == hostID {
+			return true
+		}
+	}
+	return false
+}
+
 // Stop closes a tunnel.
 func (s *Service) Stop(id int64) {
 	s.mu.Lock()
