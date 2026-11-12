@@ -94,11 +94,13 @@ class HostStore {
     }
     // Made with "New group" and still waiting for hosts.
     for (const name of prefs.value.emptyGroups ?? []) if (![...byName.keys()].some((k) => same(k, name))) byName.set(name, [])
-    // The order the user dragged them into; groups not in it keep their place after those.
+    // Starred groups first; within each part, the order the user dragged them into
+    // (groups not in it keep their place after those).
     const order = new Map((prefs.value.groupOrder ?? []).map((g, i) => [g, i]))
+    const favs = new Set(prefs.value.favoriteGroups ?? [])
     return [...byName]
-      .map(([name, hosts], i) => ({ name, hosts, rank: order.get(name) ?? order.size + i }))
-      .sort((a, b) => a.rank - b.rank)
+      .map(([name, hosts], i) => ({ name, hosts, fav: favs.has(name), rank: order.get(name) ?? order.size + i }))
+      .sort((a, b) => Number(b.fav) - Number(a.fav) || a.rank - b.rank)
       .map(({ name, hosts }) => ({ name, hosts }))
   })
 

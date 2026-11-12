@@ -139,8 +139,8 @@
   const greeting = hour < 5 ? 'Good evening' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
 
   // Empty groups are listed too, so a new group can be seen and dragged into.
-  // Starred groups first, then the rest in their usual order.
-  const groups = $derived([...hostStore.groups].sort((a, b) => Number(hostStore.favorites.has(b.name)) - Number(hostStore.favorites.has(a.name))))
+  // Starred groups come first (hostStore.groups sorts them).
+  const groups = $derived(hostStore.groups)
 
   // Drag a card onto a group chip to move that host. Pointer events, because HTML5 drag is unreliable in WebKitGTK.
   let drag = $state<{ host: Host; x: number; y: number; moved: boolean; over: string | null } | null>(null)
