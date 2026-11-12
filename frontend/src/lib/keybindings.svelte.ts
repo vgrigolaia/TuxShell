@@ -16,7 +16,14 @@ export type ActionId =
   | 'broadcast'
   | 'splitAuto'
   | 'splitDown'
+  | 'splitRight'
+  | 'splitOther'
   | 'newTab'
+  | 'nextTab'
+  | 'prevTab'
+  | 'duplicateTab'
+  | 'reconnect'
+  | 'closeTab'
   | 'maximize'
   | 'scrollbar'
   | 'rename'
@@ -34,7 +41,7 @@ export type ActionId =
 export interface Action {
   id: ActionId
   label: string
-  group: 'App' | 'Panes' | 'Terminal'
+  group: 'App' | 'Tabs' | 'Panes' | 'Terminal'
   /** The default combo; ⌘ replaces Ctrl on macOS. */
   combo: string
   /** Extra defaults that work until the action is changed. */
@@ -63,8 +70,15 @@ export const ACTIONS: Action[] = [
   { id: 'toggleClipboard', group: 'App', label: 'Clipboard history', combo: mod('Ctrl+Shift+H') },
   { id: 'broadcast', group: 'Panes', label: 'Broadcast typing to split panes', combo: mod('Ctrl+Shift+B') },
   { id: 'splitAuto', group: 'Panes', label: 'Split auto (same connection)', combo: mod('Ctrl+Shift+A') },
+  { id: 'nextTab', group: 'Tabs', label: 'Next tab', combo: mod('Ctrl+PageDown') },
+  { id: 'prevTab', group: 'Tabs', label: 'Previous tab', combo: mod('Ctrl+PageUp') },
+  { id: 'newTab', group: 'Tabs', label: 'Open the same connection in a new tab', combo: mod('Ctrl+Shift+T') },
+  { id: 'duplicateTab', group: 'Tabs', label: 'Duplicate tab', combo: '' },
+  { id: 'reconnect', group: 'Tabs', label: 'Reconnect the tab', combo: '' },
+  { id: 'closeTab', group: 'Tabs', label: 'Close tab', combo: '' },
+  { id: 'splitRight', group: 'Panes', label: 'Split right (same connection)', combo: mod('Ctrl+Shift+R') },
   { id: 'splitDown', group: 'Panes', label: 'Split down (same connection)', combo: mod('Ctrl+Shift+O') },
-  { id: 'newTab', group: 'Panes', label: 'Open the same connection in a new tab', combo: mod('Ctrl+Shift+T') },
+  { id: 'splitOther', group: 'Panes', label: 'Split with another host…', combo: '' },
   { id: 'maximize', group: 'Panes', label: 'Maximize pane / restore split', combo: mod('Ctrl+Shift+X') },
   { id: 'scrollbar', group: 'Panes', label: 'Show or hide the scrollbar', combo: mod('Ctrl+Shift+S') },
   { id: 'rename', group: 'Panes', label: 'Set pane title', combo: mod('Ctrl+Alt+W') },

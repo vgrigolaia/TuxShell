@@ -163,10 +163,10 @@
             <!-- Tile actions show on hover/focus to keep headers calm, as in the design. -->
             <span class="hidden items-center gap-0.5 group-focus-within/tile:flex group-hover/tile:flex">
               {#if at.tab.paneIds.length < MAX_PANES}
-                <button class={tileBtn} aria-label="Split {pane.title} right" title="Split right" onclick={() => actions(pane.id).split?.('row')}>
+                <button class={tileBtn} aria-label="Split {pane.title} right" title={keybindings.title('Split right', 'splitRight')} onclick={() => actions(pane.id).split?.('row')}>
                   <Icon name="splitRight" size={13} />
                 </button>
-                <button class={tileBtn} aria-label="Split {pane.title} down" title="Split down" onclick={() => actions(pane.id).split?.('column')}>
+                <button class={tileBtn} aria-label="Split {pane.title} down" title={keybindings.title('Split down', 'splitDown')} onclick={() => actions(pane.id).split?.('column')}>
                   <Icon name="splitDown" size={13} />
                 </button>
               {/if}

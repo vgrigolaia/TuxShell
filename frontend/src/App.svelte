@@ -209,6 +209,15 @@
   }
   const home = $derived(workspace.activeKey === HOME)
 
+  // Next/previous open tab, wrapping around; from Home it goes to the first or last tab.
+  function cycleTab(step: 1 | -1) {
+    const tabs = workspace.tabs
+    if (!tabs.length) return
+    const i = tabs.findIndex((t) => t.key === workspace.activeKey)
+    const next = i < 0 ? (step > 0 ? 0 : tabs.length - 1) : (i + step + tabs.length) % tabs.length
+    workspace.activeKey = tabs[next].key
+  }
+
   // What each shortcut does (Preferences → Shortcuts changes the keys).
   const run: Record<Exclude<ActionId, 'copy' | 'paste'>, () => void> = {
     quickConnect: () => !importOpen && openQuick(null),
@@ -219,7 +228,14 @@
     broadcast: () => workspace.activeTab && workspace.toggleBroadcast(workspace.activeTab.key),
     splitAuto: () => active && splitSame(active.id, 'auto'),
     splitDown: () => active && splitSame(active.id, 'column'),
+    splitRight: () => active && splitSame(active.id, 'row'),
+    splitOther: () => active && paneActions(active.id).splitOther?.(),
     newTab: () => active && newTabSame(active.id),
+    nextTab: () => cycleTab(1),
+    prevTab: () => cycleTab(-1),
+    duplicateTab: () => !home && workspace.activeTab && tabActions.duplicate(workspace.activeTab.key),
+    reconnect: () => !home && workspace.activeTab && tabActions.reconnect(workspace.activeTab.key),
+    closeTab: () => !home && workspace.activeTab && tabActions.close(workspace.activeTab.key),
     maximize: () => active && workspace.toggleMaximized(active.id),
     scrollbar: () => active && workspace.updatePane(active.id, { showScrollbar: !active.showScrollbar }),
     rename: () => active && (renaming = { paneId: active.id, title: active.title }),
