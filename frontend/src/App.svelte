@@ -30,7 +30,7 @@
   import { tunnels } from './lib/tunnels.svelte'
   import { snippets } from './lib/snippets.svelte'
   import { emptyHost, errorMessage, hostStore, type Host } from './lib/hosts.svelte'
-  import { HOME, workspace } from './lib/workspace.svelte'
+  import { HOME, workspace, type Pane } from './lib/workspace.svelte'
   import Launchpad from './lib/components/Launchpad.svelte'
   import { MAX_PANES, type Orientation } from './lib/layout'
   import { layouts } from './lib/layouts.svelte'
@@ -38,7 +38,7 @@
   import Notices from './lib/components/Notices.svelte'
   import type { PaneActions, Source, TabInfo } from './lib/tabs'
 
-  type Panel = { kind: 'none' } | { kind: 'clipboard' } | { kind: 'files' } | { kind: 'host'; host: Host }
+  type Panel = { kind: 'none' } | { kind: 'clipboard' } | { kind: 'files'; source: string } | { kind: 'host'; host: Host }
 
   let panel = $state<Panel>({ kind: 'none' })
   let importOpen = $state(false)
@@ -342,8 +342,31 @@
     panel = panel.kind === 'clipboard' ? { kind: 'none' } : { kind: 'clipboard' }
   }
 
+  // The Files panel belongs to the host it was opened on. On another host's tab it hides (it never logs in there) and
+  // comes back, in the same folder, when you return. Local shells, remote desktops and Home browse this computer.
+  function filesSource(pane: Pane | undefined): string {
+    const s = pane?.source
+    if (s?.kind === 'host') return `host:${s.hostId}`
+    if (s?.kind === 'target') return `target:${s.target}`
+    return 'local'
+  }
+  const currentFilesSource = $derived(filesSource(home ? undefined : active))
+  const filesVisible = $derived(panel.kind === 'files' && panel.source === currentFilesSource)
+  let lastFilesPane: Pane | undefined
+  // While hidden, the panel keeps its last pane, so it doesn't reload or connect anywhere.
+  const filesPane = $derived.by(() => {
+    if (filesVisible) lastFilesPane = home ? undefined : active
+    return lastFilesPane
+  })
+  // Close it once every pane of its host is gone.
+  $effect(() => {
+    if (panel.kind !== 'files' || panel.source === 'local') return
+    const source = panel.source
+    if (!workspace.panes.some((p) => filesSource(p) === source)) panel = { kind: 'none' }
+  })
+
   function toggleFiles() {
-    panel = panel.kind === 'files' ? { kind: 'none' } : { kind: 'files' }
+    panel = filesVisible ? { kind: 'none' } : { kind: 'files', source: currentFilesSource }
   }
 
   // Clears the current input line (Ctrl+U) and runs line in the pane's shell.
@@ -474,7 +497,7 @@
     clipboardOpen={panel.kind === 'clipboard'}
     {hostsOpen}
     onToggleHosts={toggleHosts}
-    filesOpen={panel.kind === 'files'}
+    filesOpen={filesVisible}
     onToggleFiles={toggleFiles}
     showTabs={!tabsLeft}
     actions={tabActions}
@@ -545,14 +568,16 @@
     {/if}
 
     {#if panel.kind === 'files'}
-      <!-- On Home there is no terminal, so it browses this computer. -->
-      <FilePanel
-        pane={home ? undefined : active}
-        onRunInPane={runInPane}
-        onOpenTarget={(target) => workspace.openTab({ kind: 'target', target }, target)}
-        onAddHost={(ssh) => (panel = { kind: 'host', host: { ...emptyHost(), name: ssh.host, hostname: ssh.host, user: ssh.user, port: ssh.port || 22 } })}
-        onClose={() => (panel = { kind: 'none' })}
-      />
+      <!-- On Home there is no terminal, so it browses this computer. Hidden (not closed) on another host's tab. -->
+      <div class={filesVisible ? 'contents' : 'hidden'}>
+        <FilePanel
+          pane={filesPane}
+          onRunInPane={runInPane}
+          onOpenTarget={(target) => workspace.openTab({ kind: 'target', target }, target)}
+          onAddHost={(ssh) => (panel = { kind: 'host', host: { ...emptyHost(), name: ssh.host, hostname: ssh.host, user: ssh.user, port: ssh.port || 22 } })}
+          onClose={() => (panel = { kind: 'none' })}
+        />
+      </div>
     {:else if home}
       <!-- Home shows the editor inside the launchpad. -->
     {:else if panel.kind === 'host'}
