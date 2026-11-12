@@ -87,6 +87,18 @@
     { label: 'Delete…', run: () => onDelete(host), danger: true },
   ]
   let group = $state<string | null>(null)
+  // The "Favourites" chip: hosts of every starred group. Home opens on it while any group is starred.
+  const FAVORITES = '\u0000favorites'
+  let picked = false
+  function pick(name: string | null) {
+    picked = true
+    group = name
+  }
+  $effect(() => {
+    const any = hostStore.favorites.size > 0
+    if (any && !picked) group = FAVORITES
+    else if (!any && group === FAVORITES) group = null
+  })
   // Right-click on a group chip: add a host to it, or a new group.
   let chipMenu = $state<{ x: number; y: number; name: string } | null>(null)
   let newGroup = $state(false)
@@ -99,6 +111,7 @@
     ...(name === JUMP_GROUP ? [] : [{ label: 'Add host here', run: () => onNew(name === NO_GROUP ? undefined : name) }]),
     { label: 'New group…', run: () => (newGroup = true) },
     ...(name === NO_GROUP || name === JUMP_GROUP ? [] : [{ label: 'Rename group…', separator: true, run: () => (renaming = name) }]),
+    { label: hostStore.favorites.has(name) ? 'Remove from favourites' : 'Add to favourites', icon: 'star', separator: name === NO_GROUP || name === JUMP_GROUP, run: () => hostStore.toggleFavorite(name) },
   ]
   // Unsaved ~/.ssh/config aliases; the banner leaves out the ones hidden with its ×.
   let unsaved = $state<string[]>([])
@@ -126,7 +139,8 @@
   const greeting = hour < 5 ? 'Good evening' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
 
   // Empty groups are listed too, so a new group can be seen and dragged into.
-  const groups = $derived(hostStore.groups)
+  // Starred groups first, then the rest in their usual order.
+  const groups = $derived([...hostStore.groups].sort((a, b) => Number(hostStore.favorites.has(b.name)) - Number(hostStore.favorites.has(a.name))))
 
   // Drag a card onto a group chip to move that host. Pointer events, because HTML5 drag is unreliable in WebKitGTK.
   let drag = $state<{ host: Host; x: number; y: number; moved: boolean; over: string | null } | null>(null)
@@ -168,7 +182,15 @@
 
   const cards = $derived.by(() => {
     const q = query.trim()
-    const inGroup = group ? (groups.find((g) => g.name === group)?.hosts ?? []) : groups.flatMap((g) => g.hosts)
+    // Searching from the Favourites view looks through every host.
+    const inGroup =
+      group === FAVORITES
+        ? q
+          ? groups.flatMap((g) => g.hosts)
+          : groups.filter((g) => hostStore.favorites.has(g.name)).flatMap((g) => g.hosts)
+        : group
+          ? (groups.find((g) => g.name === group)?.hosts ?? [])
+          : groups.flatMap((g) => g.hosts)
     if (!q) return inGroup
     return inGroup
       .map((h) => ({ h, s: best(q, [h.name, h.hostname, h.alias, h.group, describe(h), ...(h.tags ?? [])]) }))
@@ -253,7 +275,7 @@
       <div class="ml-auto flex gap-2.5">
         <button class="h-[42px] rounded-[13px] border border-strong bg-panel px-4 text-sm font-semibold hover:bg-raised" onclick={() => onImport()}>Import</button>
         <button class="h-[42px] rounded-[13px] border border-strong bg-panel px-4 text-sm font-semibold hover:bg-raised" onclick={() => (newGroup = true)}>New group</button>
-        <button class="new-host h-[42px] rounded-[13px] bg-accent px-[18px] text-sm font-bold text-on-accent hover:bg-accent/90" onclick={() => onNew(group && group !== NO_GROUP && group !== JUMP_GROUP ? group : undefined)}>+ New host</button>
+        <button class="new-host h-[42px] rounded-[13px] bg-accent px-[18px] text-sm font-bold text-on-accent hover:bg-accent/90" onclick={() => onNew(group && group !== NO_GROUP && group !== JUMP_GROUP && group !== FAVORITES ? group : undefined)}>+ New host</button>
       </div>
     </header>
 
@@ -298,11 +320,19 @@
 
     {#if hostStore.list.length}
       <div role="radiogroup" aria-label="Group" class="flex flex-wrap gap-2">
-        <button role="radio" aria-checked={group === null} data-chip="" class="{chip} {group === null ? 'bg-fg text-panel' : 'chip-off'}" onclick={() => (group = null)}>
+        <button role="radio" aria-checked={group === null} data-chip="" class="{chip} {group === null ? 'bg-fg text-panel' : 'chip-off'}" onclick={() => pick(null)}>
           All {hostStore.list.length}
         </button>
+        {#if hostStore.favorites.size}
+          {@const favCount = groups.filter((g) => hostStore.favorites.has(g.name)).reduce((n, g) => n + g.hosts.length, 0)}
+          <button role="radio" aria-checked={group === FAVORITES} class="{chip} {group === FAVORITES ? 'bg-fg text-panel' : 'chip-off'}" onclick={() => pick(FAVORITES)}>
+            <Icon name="star" size={13} /> Favourites {favCount}
+          </button>
+        {/if}
         {#each groups as g (g.name)}
-          <button role="radio" aria-checked={group === g.name} data-chip={g.name} class="{chip} {group === g.name ? 'bg-fg text-panel' : 'chip-off'} {drag?.moved && drag.over === g.name ? 'chip-drop' : ''}" onclick={() => (group = g.name)} oncontextmenu={(e) => openChipMenu(e, g.name)}>
+          {@const fav = hostStore.favorites.has(g.name)}
+          <button role="radio" aria-checked={group === g.name} data-chip={g.name} class="{chip} {group === g.name ? 'bg-fg text-panel' : 'chip-off'} {drag?.moved && drag.over === g.name ? 'chip-drop' : ''}" onclick={() => pick(g.name)} oncontextmenu={(e) => openChipMenu(e, g.name)}>
+            {#if fav}<span class="text-warning" role="img" aria-label="Favourite"><Icon name="star" size={12} /></span>{/if}
             {g.name} {g.hosts.length}
           </button>
         {/each}
@@ -316,7 +346,9 @@
         <p class="max-w-sm text-sm text-subtle">Add one, import your ~/.ssh/config, or type user@host above and press Enter to connect right away.</p>
       </div>
     {:else if !query && group && !cards.length}
-      <p class="py-6 text-center text-sm text-subtle">No hosts in {group} yet. Drag a host onto this group, or use + New host.</p>
+      <p class="py-6 text-center text-sm text-subtle">
+        {group === FAVORITES ? 'Your favourite groups have no hosts yet. Drag hosts onto them, or use + New host.' : `No hosts in ${group} yet. Drag a host onto this group, or use + New host.`}
+      </p>
     {:else if query && !cards.length}
       <p class="py-6 text-center text-sm text-subtle">
         No saved host matches “{query}”.{#if looksLikeTarget(query.trim())} Press Enter to connect to it.{/if}

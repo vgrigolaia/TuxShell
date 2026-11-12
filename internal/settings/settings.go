@@ -36,6 +36,9 @@ type Settings struct {
 	// EmptyGroups are host groups made with "New group" that have no hosts
 	// yet; a group with hosts exists through its hosts.
 	EmptyGroups []string `json:"emptyGroups"`
+	// FavoriteGroups are host groups starred on Home: listed first, and Home
+	// opens showing their hosts.
+	FavoriteGroups []string `json:"favoriteGroups"`
 	// HiddenSSHConfigHosts are ~/.ssh/config aliases the user chose not to be
 	// reminded about on Home; a new alias brings the reminder back.
 	HiddenSSHConfigHosts []string `json:"hiddenSshConfigHosts"`
@@ -223,6 +226,7 @@ func Defaults() Settings {
 		Profiles:             []NamedProfile{},
 		GroupOrder:           []string{},
 		EmptyGroups:          []string{},
+		FavoriteGroups:       []string{},
 		HiddenSSHConfigHosts: []string{},
 		History:              History{Enabled: true, Days: 90, Max: 1000},
 		RDPClient:            "auto",
@@ -308,6 +312,7 @@ func (s *Settings) normalize() {
 	}
 	s.GroupOrder = cleanGroupOrder(s.GroupOrder)
 	s.EmptyGroups = cleanGroupOrder(s.EmptyGroups)
+	s.FavoriteGroups = cleanGroupOrder(s.FavoriteGroups)
 	s.HiddenSSHConfigHosts = cleanGroupOrder(s.HiddenSSHConfigHosts)
 	s.Keybindings = cleanKeybindings(s.Keybindings)
 	s.Layouts = cleanLayouts(s.Layouts)
@@ -420,7 +425,7 @@ const (
 	MaxSidebarWidth = 520
 )
 
-// Limits for GroupOrder, EmptyGroups and HiddenSSHConfigHosts, so a hand-edited file stays small.
+// Limits for GroupOrder, EmptyGroups, FavoriteGroups and HiddenSSHConfigHosts, so a hand-edited file stays small.
 const (
 	maxGroups      = 1000
 	maxGroupLength = 200

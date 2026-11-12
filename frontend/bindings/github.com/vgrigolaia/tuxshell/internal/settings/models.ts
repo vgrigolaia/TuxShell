@@ -257,6 +257,12 @@ export interface Settings {
     "emptyGroups": string[] | null;
 
     /**
+     * FavoriteGroups are host groups starred on Home: listed first, and Home
+     * opens showing their hosts.
+     */
+    "favoriteGroups": string[] | null;
+
+    /**
      * HiddenSSHConfigHosts are ~/.ssh/config aliases the user chose not to be
      * reminded about on Home; a new alias brings the reminder back.
      */

@@ -102,6 +102,14 @@ class HostStore {
       .map(({ name, hosts }) => ({ name, hosts }))
   })
 
+  /** Groups starred on Home (only ones that still exist). */
+  favorites = $derived(new Set((prefs.value.favoriteGroups ?? []).filter((f) => this.groups.some((g) => g.name === f))))
+
+  toggleFavorite(name: string) {
+    const list = prefs.value.favoriteGroups ?? []
+    prefs.setFavoriteGroups(list.includes(name) ? list.filter((f) => f !== name) : [...list, name])
+  }
+
   /** Moves group name to position index among the groups and saves the order. */
   moveGroup(name: string, index: number) {
     const names = this.groups.map((g) => g.name).filter((g) => g !== name)
@@ -140,6 +148,9 @@ class HostStore {
     const merge = names.includes(to)
     await this.regroup(from, to)
     prefs.setGroupOrder(names.flatMap((g) => (g === from ? (merge ? [] : [to]) : [g])))
+    // A starred group stays starred under its new name (or makes the merged group starred).
+    const favs = prefs.value.favoriteGroups ?? []
+    if (favs.includes(from)) prefs.setFavoriteGroups([...new Set(favs.map((f) => (f === from ? to : f)))])
   }
 
   /** Deletes a group; its hosts stay, without a group. */
@@ -147,6 +158,8 @@ class HostStore {
     const names = this.groups.map((g) => g.name).filter((g) => g !== name)
     await this.regroup(name, '')
     prefs.setGroupOrder(names)
+    const favs = prefs.value.favoriteGroups ?? []
+    if (favs.includes(name)) prefs.setFavoriteGroups(favs.filter((f) => f !== name))
   }
 
   private async regroup(from: string, to: string) {

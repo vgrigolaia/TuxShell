@@ -66,6 +66,7 @@ const defaults = (): Settings => ({
   tabsPosition: 'left',
   groupOrder: [],
   emptyGroups: [],
+  favoriteGroups: [],
   layouts: [],
   window: { start: 'last', alwaysOnTop: false },
   hiddenSshConfigHosts: [],
@@ -248,6 +249,11 @@ class Preferences {
 
   setEmptyGroups(names: string[]) {
     this.value.emptyGroups = names
+    this.queueSave()
+  }
+
+  setFavoriteGroups(names: string[]) {
+    this.value.favoriteGroups = names
     this.queueSave()
   }
 
