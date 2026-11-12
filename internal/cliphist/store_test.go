@@ -273,3 +273,23 @@ func TestSourceIsKeptAndBound(t *testing.T) {
 		}
 	}
 }
+
+func TestRecopyKeepsSource(t *testing.T) {
+	s := openStore(t, filepath.Join(t.TempDir(), "clip.db"), testKey(1))
+	s.AddFrom("df -h", "pg-primary", DefaultSettings)
+	s.Add("something else", DefaultSettings)
+	// Copied again from the history panel: the clipboard read has no host.
+	if changed, err := s.Add("df -h", DefaultSettings); err != nil || !changed {
+		t.Fatalf("re-add = %v, %v", changed, err)
+	}
+	list, _ := s.List()
+	if len(list) == 0 || list[0].Text != "df -h" || list[0].Source != "pg-primary" {
+		t.Fatalf("newest = %+v, want df -h from pg-primary", list[0])
+	}
+	// A new host replaces it.
+	s.AddFrom("df -h", "pg-replica", DefaultSettings)
+	list, _ = s.List()
+	if list[0].Source != "pg-replica" {
+		t.Fatalf("source = %q, want pg-replica", list[0].Source)
+	}
+}
