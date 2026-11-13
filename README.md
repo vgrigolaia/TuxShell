@@ -54,7 +54,8 @@ Website: [tuxshell.io](https://tuxshell.io)
 - **Tabs and split view**: up to four panes per tab. Merge tabs into a split, move a pane
   out to its own tab, maximize a pane, drag dividers to resize. Open tabs are listed in the
   left panel above your hosts (or shrink to a strip of icons when it's hidden); drag to
-  reorder them. Prefer the classic strip? Preferences → General → Open tabs.
+  reorder them. Prefer the classic strip? Preferences → General → Open tabs. Right-click a
+  tab to duplicate, reconnect or rename it, or to edit its saved host while it's open.
 - **Saved layouts**: save a set of tabs with their split panes (right-click a tab → Save tab
   as layout, or Home → Layouts) and open them all again in one click, from Home or Ctrl+K.
   One layout can open at startup. A layout keeps which hosts are open and how they're split,
@@ -113,9 +114,10 @@ Website: [tuxshell.io](https://tuxshell.io)
   links to the new release; it never downloads or installs anything itself.
 
 All shortcuts are listed in Preferences → Shortcuts, where you can change them or turn them off
-(click Change and press the new keys). A shortcut needs Ctrl, Alt or an F key, and keys the
-terminal needs, like Ctrl+C, can't be taken. Shift with a key (Shift+Space) is allowed after a
-warning, since it's easy to press while typing; in text fields such a key still types. On macOS the app's shortcuts use ⌘ where this page
+(click Change and press the new keys; Esc cancels). Any key or combo works. If the terminal or
+the system needs it (Ctrl+C, a key on its own, ⌘Q or ⌘Space on macOS), you're warned first and
+can still use it. Shortcuts with Ctrl, Alt, ⌘ or an F key leave normal typing alone; in text
+fields a key without them still types. On macOS the app's shortcuts use ⌘ where this page
 says Ctrl (Ctrl+Shift+L becomes ⇧⌘L), and the terminal copies and pastes with ⌘C and ⌘V, so Ctrl
 stays with the programs in the terminal.
 
@@ -200,8 +202,12 @@ TuxShell uses the `ssh` that comes with macOS. Optional, with [Homebrew](https:/
 `brew install freerdp` for remote desktops in their own window, and the 1Password CLI for
 1Password references. Remote desktops in a tab need nothing extra.
 
+To use ⌘Space in TuxShell, first give Spotlight another shortcut in System Settings → Keyboard →
+Keyboard Shortcuts.
+
 macOS support is new, so please [report](https://github.com/vgrigolaia/TuxShell/issues) anything
-that doesn't work.
+that doesn't work. Test builds (versions like `1.6.1-beta.1`) appear on the releases page as
+pre-releases, with only the `.dmg`; the update check never offers them.
 
 ## Where your data lives
 
@@ -319,7 +325,8 @@ On macOS you need the Xcode Command Line Tools (`xcode-select --install`) instea
 packages. `task dev` works the same, and `task darwin:package:universal` builds `bin/tuxshell.app`
 for Apple silicon and Intel. The release `.dmg` is built by the
 [macOS workflow](.github/workflows/macos.yml) on GitHub Actions, which also runs the tests on
-macOS for every release tag and adds the `.dmg` to that release.
+macOS for every release tag and adds the `.dmg` to that release. A `vX.Y.Z-beta.N` tag does the
+same as a pre-release, which the package repository skips.
 
 ## Contributing
 
