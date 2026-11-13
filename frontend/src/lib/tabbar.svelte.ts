@@ -13,6 +13,8 @@ export interface TabActions {
   split: (key: number, orientation: Orientation) => void
   unsplit: (key: number) => void
   rename: (key: number) => void
+  /** Opens the saved host's form (the tab's first pane). */
+  editHost: (hostId: number) => void
   /** Opens a copy of the tab next to it (new connections to the same hosts). */
   duplicate: (key: number) => void
   /** Ends the tab's sessions and connects them again. */
@@ -77,6 +79,8 @@ export function tabMenu(tabs: TabInfo[], key: number, a: TabActions): MenuItem[]
   if (tab.panes > 1) items.push({ label: 'Unsplit into tabs', run: () => a.unsplit(key) })
   items.push({ label: 'Duplicate tab', shortcut: keybindings.combo('duplicateTab'), separator: true, run: () => a.duplicate(key) })
   if (tab.kind !== 'rdp') items.push({ label: tab.panes > 1 ? 'Reconnect all panes' : 'Reconnect', shortcut: keybindings.combo('reconnect'), run: () => a.reconnect(key) })
+  const hostId = tab.hostId
+  if (hostId) items.push({ label: 'Edit host…', run: () => a.editHost(hostId) })
   items.push({ label: 'Rename tab…', run: () => a.rename(key) })
   items.push({ label: 'Save tab as layout…', run: () => a.saveLayout([key]) })
   if (tabs.length > 1) items.push({ label: `Save all ${tabs.length} tabs as layout…`, run: () => a.saveLayout(tabs.map((t) => t.key)) })

@@ -197,6 +197,10 @@
       const t = workspace.tabs.find((x) => x.key === key)
       if (t) renamingTab = { key, name: workspace.tabTitle(t) }
     },
+    editHost: (hostId) => {
+      const host = hostStore.get(hostId)
+      if (host) panel = { kind: 'host', host }
+    },
     duplicate: (key) => layouts.duplicate(key),
     reconnect: (key) => workspace.tabs.find((t) => t.key === key)?.paneIds.forEach((id) => panes[id]?.restart()),
     move: (key, index) => workspace.moveTab(key, index),
