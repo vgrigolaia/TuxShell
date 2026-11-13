@@ -276,6 +276,12 @@ func TestSourceIsKeptAndBound(t *testing.T) {
 
 func TestRecopyKeepsSource(t *testing.T) {
 	s := openStore(t, filepath.Join(t.TempDir(), "clip.db"), testKey(1))
+	// Each add a second later: on a fast machine they'd share a millisecond and the order would be by id.
+	clock := time.Unix(1_700_000_000, 0)
+	s.now = func() time.Time {
+		clock = clock.Add(time.Second)
+		return clock
+	}
 	s.AddFrom("df -h", "pg-primary", DefaultSettings)
 	s.Add("something else", DefaultSettings)
 	// Copied again from the history panel: the clipboard read has no host.
