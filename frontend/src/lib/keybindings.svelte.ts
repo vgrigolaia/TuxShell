@@ -124,6 +124,7 @@ const CODES: Record<string, string> = {
   NumpadEnter: 'Enter',
   Space: 'Space',
   Backspace: 'Backspace',
+  Escape: 'Esc',
 }
 
 function keyOf(e: KeyboardEvent): string | null {
@@ -192,6 +193,7 @@ const ARIA_KEYS: Record<string, string> = {
   Left: 'ArrowLeft',
   Right: 'ArrowRight',
   Space: 'Space',
+  Esc: 'Escape',
 }
 
 /** A combo in aria-keyshortcuts form ("Control+Shift+L"). */
@@ -299,33 +301,32 @@ class Keybindings {
 export const keybindings = new Keybindings()
 
 /**
- * Whether combo can be a shortcut. An error refuses it; a warning asks first.
- * Shortcuts are caught before the terminal, so keys the shell needs are kept free.
+ * What to tell people before combo becomes a shortcut. Any combo is allowed (the
+ * user decides); a warning says what the terminal or the system loses and asks first.
+ * Shortcuts are caught before the terminal, so the shell no longer gets that key.
  */
-export function checkCombo(combo: string): {
-  error?: string
-  warning?: string
-} {
+export function checkCombo(combo: string): { warning?: string } {
   const parts = combo.split('+')
   const key = parts.pop() ?? ''
   const has = (m: string) => parts.includes(m)
   const only = (...mods: string[]) => parts.length === mods.length && mods.every(has)
   const shown = formatCombo(combo)
-  if (/^F\d+$/.test(key)) return {}
+  const safer = isMac ? '⌘, ⌥ or ⌃' : 'Ctrl or Alt'
+  if (/^F\d+$/.test(key) && !parts.length) return {}
   if (!has('Ctrl') && !has('Alt') && !has('Cmd')) {
     if (!has('Shift'))
       return {
-        error: `${shown} alone would stop that key from typing. Add ${isMac ? '⌘, ⌥ or ⌃' : 'Ctrl or Alt'}, or use an F key.`,
+        warning: `${shown} alone stops that key from typing in the terminal. ${safer} is safer.`,
       }
-    // Allowed, but it's easy to press while typing with Shift held for capitals.
     return {
-      warning: `${shown} is easy to press while typing (Shift held for capitals); the terminal won't get it any more. ${isMac ? '⌘, ⌥ or ⌃' : 'Ctrl or Alt'} is safer.`,
+      warning: `${shown} is easy to press while typing (Shift held for capitals); the terminal won't get it any more. ${safer} is safer.`,
     }
   }
-  if (isMac && only('Cmd') && ['Q', 'H', 'M', 'W', 'Tab'].includes(key)) return { error: `macOS uses ${shown} itself.` }
-  if (!isMac && only('Ctrl') && ['C', 'D', 'Z'].includes(key))
+  if (isMac && only('Cmd') && ['Q', 'H', 'M', 'W', 'Tab', 'Space'].includes(key))
+    return { warning: `macOS uses ${shown} itself, so it may never reach TuxShell. Free it in System Settings → Keyboard first.` }
+  if (only('Ctrl') && ['C', 'D', 'Z'].includes(key))
     return {
-      error: `The terminal needs ${shown} (${key === 'C' ? 'interrupt' : key === 'D' ? 'end of input' : 'suspend'}).`,
+      warning: `The terminal uses ${shown} (${key === 'C' ? 'interrupt' : key === 'D' ? 'end of input' : 'suspend'}); it won't reach the server any more.`,
     }
   if (only('Ctrl') && LETTER.test(key))
     return {

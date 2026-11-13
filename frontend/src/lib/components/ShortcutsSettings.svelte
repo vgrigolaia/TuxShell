@@ -5,7 +5,7 @@
 
   // The action waiting for keys, and a pressed combo that needs a decision.
   let recording = $state<ActionId | null>(null)
-  let pending = $state<{ id: ActionId; combo: string; error?: string; warning?: string; usedBy?: Action; extra?: boolean } | null>(null)
+  let pending = $state<{ id: ActionId; combo: string; warning?: string; usedBy?: Action; extra?: boolean } | null>(null)
 
   const groups = ['App', 'Tabs', 'Panes', 'Terminal'] as const
 
@@ -45,12 +45,7 @@
     // A modifier on its own: wait for the key.
     if (!combo) return
     const id = recording
-    const { error, warning } = checkCombo(combo)
-    if (error) {
-      // Keep listening, so the next try is one key press away.
-      pending = { id, combo, error }
-      return
-    }
+    const { warning } = checkCombo(combo)
     stop()
     if (combo === keybindings.combo(id)) return void (pending = null)
     const other = keybindings.usedBy(combo, id)
@@ -74,7 +69,7 @@
 
 <h3 class="sr-only">Shortcuts</h3>
 <p class="mb-4 text-xs text-subtle">
-  Click Change and press the new keys (Esc cancels). A shortcut needs {isMac ? '⌘, ⌥ or ⌃' : 'Ctrl or Alt'}, or an F key, so normal typing still reaches the terminal.
+  Click Change and press the new keys (Esc cancels). Any key or combo works; if the terminal or the system needs it, you're told first. Shortcuts with {isMac ? '⌘, ⌥ or ⌃' : 'Ctrl or Alt'}, or an F key, leave normal typing alone.
 </p>
 
 {#each groups as group (group)}
@@ -108,16 +103,12 @@
         </div>
         {#if pending?.id === a.id}
           <p class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" role="status">
-            {#if pending.error}
-              <span class="text-warning">{pending.error}</span>
-            {:else}
-              <span class="text-warning">
-                {#if pending.usedBy}{formatCombo(pending.combo)} is used by “{pending.usedBy.label}”.{pending.extra ? '' : ' Using it here turns that one off.'}{/if}
-                {pending.warning ?? ''}
-              </span>
-              <button class="font-medium text-accent-text underline" onclick={accept}>Use {formatCombo(pending.combo)}</button>
-              <button class="text-muted underline hover:text-fg" onclick={() => (pending = null)}>Cancel</button>
-            {/if}
+            <span class="text-warning">
+              {#if pending.usedBy}{formatCombo(pending.combo)} is used by “{pending.usedBy.label}”.{pending.extra ? '' : ' Using it here turns that one off.'}{/if}
+              {pending.warning ?? ''}
+            </span>
+            <button class="font-medium text-accent-text underline" onclick={accept}>Use {formatCombo(pending.combo)}</button>
+            <button class="text-muted underline hover:text-fg" onclick={() => (pending = null)}>Cancel</button>
           </p>
         {/if}
       </li>
