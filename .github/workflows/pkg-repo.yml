@@ -32,6 +32,8 @@ env:
 
 jobs:
   publish:
+    # Test builds (pre-releases, v1.2.3-beta.N) stay out of the apt/dnf repository.
+    if: ${{ !github.event.release.prerelease && !contains(github.event.release.tag_name || inputs.tag, '-') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
