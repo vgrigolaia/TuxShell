@@ -7,6 +7,7 @@
   import HostBadge from './HostBadge.svelte'
   import { OSES } from '../os'
   import Icon from './Icon.svelte'
+  import JumpHostPicker from './JumpHostPicker.svelte'
   import * as Login from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/login/service'
   import * as OnePassword from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/onepassword/service'
   import * as KeePassXC from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/keepassxc/service'
@@ -523,12 +524,8 @@
         {/if}
         <div class="col-span-3">
           <label class={label} for="host-proxyJump">{isRDP ? 'SSH jump host' : 'Jump host'} {#if isRDP}<span class="font-normal text-subtle">(optional)</span>{/if}</label>
-          <select id="host-proxyJump" class={input} value={jumpPick} onchange={(e) => pickJump(e.currentTarget.value)}
-            aria-invalid={!!fieldError('proxyJump') && jumpPick !== OTHER_JUMP} aria-describedby="host-proxyJump-hint host-proxyJump-error">
-            <option value="">None (connect directly)</option>
-            {#each jumpHosts as j (j.name)}<option value={j.name}>{j.name}{j.address && j.address !== j.name ? ` · ${j.address}` : ''}</option>{/each}
-            <option value={OTHER_JUMP}>Other (type an address)…</option>
-          </select>
+          <JumpHostPicker id="host-proxyJump" value={jumpPick} other={OTHER_JUMP} hosts={jumpHosts} onpick={pickJump}
+            invalid={!!fieldError('proxyJump') && jumpPick !== OTHER_JUMP} describedby="host-proxyJump-hint host-proxyJump-error" />
           {#if jumpPick === OTHER_JUMP}
             <input id="host-proxyJump-other" class="{input} mt-2 font-mono text-xs" bind:value={draft.proxyJump} placeholder="user@host:port"
               aria-label="Jump host address" aria-invalid={!!fieldError('proxyJump')} aria-describedby="host-proxyJump-error"
