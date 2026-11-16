@@ -223,6 +223,7 @@ func (r Resolver) DraftRemote(h hosts.Host) (Remote, error) {
 	if err := h.Validate(); err != nil {
 		return Remote{}, err
 	}
+	h.ProxyJump = r.resolveJump(h)
 	return r.remote(h)
 }
 

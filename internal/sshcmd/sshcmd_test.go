@@ -1,6 +1,7 @@
 package sshcmd
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -265,5 +266,32 @@ func TestParseEndpoint(t *testing.T) {
 	}
 	if e := parseEndpoint("hostname db\nport 22\nproxycommand nc -X 5 %h %p\n"); !e.Proxied {
 		t.Fatalf("proxy command: %+v", e)
+	}
+}
+
+// The host editor's Test button sends unsaved values; their jump hop resolves too.
+func TestDraftRemoteResolvesSavedJump(t *testing.T) {
+	bin := t.TempDir()
+	if err := os.WriteFile(filepath.Join(bin, "ssh"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin)
+
+	store, err := hosts.Open(filepath.Join(t.TempDir(), "hosts.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	if _, err := store.Save(hosts.Host{Name: "fj-jh", Hostname: "203.0.113.7", User: "jump.user"}); err != nil {
+		t.Fatal(err)
+	}
+
+	r, err := Resolver{Store: store, ControlDir: t.TempDir()}.DraftRemote(hosts.Host{Name: "draft", Hostname: "172.16.0.5", ProxyJump: "fj-jh"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	args := r.Command(context.Background(), "true").Args
+	if i := slices.Index(args, "-J"); i < 0 || args[i+1] != "jump.user@203.0.113.7" {
+		t.Fatalf("args = %q, want -J jump.user@203.0.113.7", args)
 	}
 }
