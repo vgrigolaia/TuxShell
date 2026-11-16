@@ -162,6 +162,47 @@ func TestHostCommandAs(t *testing.T) {
 	}
 }
 
+// A jump hop naming a saved host becomes that host's address (with its user,
+// port and own jump hosts); other hops stay as typed.
+func TestHostCommandResolvesSavedJump(t *testing.T) {
+	bin := t.TempDir()
+	fake := filepath.Join(bin, "ssh")
+	if err := os.WriteFile(fake, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin)
+
+	store, err := hosts.Open(filepath.Join(t.TempDir(), "hosts.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	save := func(h hosts.Host) hosts.Host {
+		t.Helper()
+		s, err := store.Save(h)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	save(hosts.Host{Name: "edge", Hostname: "198.51.100.1", User: "ops"})
+	save(hosts.Host{Name: "fj-jh", Alias: "fj-jh", Hostname: "203.0.113.7", User: "jump.user", Port: 2222, ProxyJump: "edge"})
+	db := save(hosts.Host{Name: "pg01", Hostname: "172.16.0.5", User: "ansible", ProxyJump: "FJ-JH,bastion.example"})
+
+	cmd, err := Resolver{Store: store}.HostCommand(db.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{fake, "-p", "22", "-l", "ansible", "-J", "ops@198.51.100.1,jump.user@203.0.113.7:2222,bastion.example", "--", "172.16.0.5"}
+	if !slices.Equal(cmd.Args, want) {
+		t.Fatalf("args = %q, want %q", cmd.Args, want)
+	}
+	// Only the command changes; the host keeps the names the user typed.
+	if got, _ := store.Get(db.ID); got.ProxyJump != "FJ-JH,bastion.example" {
+		t.Fatalf("stored jump = %q", got.ProxyJump)
+	}
+}
+
 func TestJumpTunnelCommand(t *testing.T) {
 	bin := t.TempDir()
 	fake := filepath.Join(bin, "ssh")

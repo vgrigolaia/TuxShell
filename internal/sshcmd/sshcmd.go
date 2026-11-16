@@ -148,7 +148,26 @@ func (r Resolver) host(id int64, user *string) (hosts.Host, error) {
 	if err := h.Validate(); err != nil {
 		return h, fmt.Errorf("host %q: %w", h.Name, err)
 	}
+	h.ProxyJump = r.resolveJump(h)
 	return h, nil
+}
+
+// resolveJump turns jump hops that name a saved SSH host into that host's
+// [user@]address[:port], so ssh -J can reach them; other hops (ssh_config
+// aliases, plain addresses) are kept as typed.
+func (r Resolver) resolveJump(h hosts.Host) string {
+	if h.ProxyJump == "" {
+		return ""
+	}
+	list, err := r.Store.List()
+	if err != nil {
+		return h.ProxyJump
+	}
+	byName := make(map[string]hosts.Host, len(list))
+	for _, x := range list {
+		byName[strings.ToLower(x.Name)] = x
+	}
+	return hosts.ResolveJump(h.Name, h.ProxyJump, byName)
 }
 
 // HostCommand returns the interactive command for a saved host.
