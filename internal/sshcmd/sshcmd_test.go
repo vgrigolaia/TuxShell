@@ -291,7 +291,16 @@ func TestDraftRemoteResolvesSavedJump(t *testing.T) {
 		t.Fatal(err)
 	}
 	args := r.Command(context.Background(), "true").Args
-	if i := slices.Index(args, "-J"); i < 0 || args[i+1] != "jump.user@203.0.113.7" {
-		t.Fatalf("args = %q, want -J jump.user@203.0.113.7", args)
+	// The jump host goes through its shared connection, with the saved host's address.
+	i := slices.Index(args, "-o")
+	for i >= 0 && i+1 < len(args) && !strings.HasPrefix(args[i+1], "ProxyCommand=") {
+		if j := slices.Index(args[i+1:], "-o"); j >= 0 {
+			i += j + 1
+		} else {
+			i = -1
+		}
+	}
+	if i < 0 || !strings.Contains(args[i+1], "'-l' 'jump.user'") || !strings.Contains(args[i+1], "'--' '203.0.113.7'") {
+		t.Fatalf("args = %q, want a ProxyCommand to jump.user@203.0.113.7", args)
 	}
 }
