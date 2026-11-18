@@ -130,8 +130,11 @@ func (s *Service) round(ctx context.Context, full bool) {
 	s.rounds++
 	recheck := full || s.rounds%recheckEvery == 0
 	prev := s.results
-	downs := make(map[int64]int, len(s.downs))
-	for id, n := range s.downs {
+	// wasDown is only read (the ping goroutines write downs): s.downs is
+	// replaced at the end of a round, never changed in place.
+	wasDown := s.downs
+	downs := make(map[int64]int, len(wasDown))
+	for id, n := range wasDown {
 		downs[id] = n
 	}
 	s.mu.Unlock()
@@ -155,7 +158,7 @@ func (s *Service) round(ctx context.Context, full bool) {
 			mu.Unlock()
 			continue
 		}
-		if old, ok := prev[h.ID]; ok && !recheck && old.State == "down" && downs[h.ID] >= downAfter {
+		if old, ok := prev[h.ID]; ok && !recheck && old.State == "down" && wasDown[h.ID] >= downAfter {
 			mu.Lock()
 			out = append(out, old)
 			mu.Unlock()
