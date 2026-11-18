@@ -257,7 +257,7 @@ func (r Resolver) TunnelCommand(id int64, f Forward) (*exec.Cmd, error) {
 		return nil, err
 	}
 	args := append(tunnelOptions(), f[0], f[1])
-	return r.command(ssh, append(args, r.args(h, true)...)...), nil
+	return r.command(ssh, append(args, Args(h)...)...), nil
 }
 
 // JumpTunnelCommand returns a forward-only ssh through jump, a ProxyJump
@@ -282,7 +282,7 @@ func (r Resolver) JumpTunnelCommand(jump string, f Forward) (*exec.Cmd, error) {
 		return nil, err
 	}
 	args := append(tunnelOptions(), f[0], f[1])
-	return r.command(ssh, append(args, r.args(h, true)...)...), nil
+	return r.command(ssh, append(args, Args(h)...)...), nil
 }
 
 // ControlCommand asks the host's shared connection (an open terminal) to
@@ -308,7 +308,7 @@ func (r Resolver) ControlCommand(id int64, op string, f Forward) (*exec.Cmd, err
 	if op != "check" {
 		args = append(args, f[0], f[1])
 	}
-	return r.command(ssh, append(args, r.args(h, true)...)...), nil
+	return r.command(ssh, append(args, Args(h)...)...), nil
 }
 
 // CloseShared returns an ssh command that closes the shared connection to a
@@ -337,7 +337,7 @@ func (r Resolver) CloseShared(hostID int64, user, target string) (*exec.Cmd, err
 		return nil, err
 	}
 	args := []string{"-o", "ControlPath=" + filepath.Join(r.ControlDir, "cm-%C"), "-O", "exit"}
-	return r.command(ssh, append(args, r.args(h, true)...)...), nil
+	return r.command(ssh, append(args, Args(h)...)...), nil
 }
 
 // Endpoint is where ssh would connect for a saved host.
@@ -359,7 +359,7 @@ func (r Resolver) Endpoint(ctx context.Context, id int64) (Endpoint, error) {
 	if err != nil {
 		return Endpoint{}, err
 	}
-	out, err := exec.CommandContext(ctx, ssh, append([]string{"-G"}, r.args(h, true)...)...).Output()
+	out, err := exec.CommandContext(ctx, ssh, append([]string{"-G"}, Args(h)...)...).Output()
 	if err != nil {
 		return Endpoint{}, fmt.Errorf("ssh -G: %w", err)
 	}
@@ -404,11 +404,11 @@ func (r Resolver) session(h hosts.Host) (*exec.Cmd, error) {
 		command = r.RemoteCommand(h)
 	}
 	if command == "" {
-		return r.command(ssh, append(args, r.args(h, false)...)...), nil
+		return r.command(ssh, append(args, Args(h)...)...), nil
 	}
 	// A remote command gets no terminal unless asked for. It goes after the
 	// destination as one argument; the server's shell runs it.
-	args = append(append(args, "-t"), r.args(h, false)...)
+	args = append(append(args, "-t"), Args(h)...)
 	return r.command(ssh, append(args, command)...), nil
 }
 
@@ -417,7 +417,7 @@ func (r Resolver) remote(h hosts.Host) (Remote, error) {
 	if err != nil {
 		return Remote{}, err
 	}
-	args := append(batchOptions(r.ControlDir), r.args(h, true)...)
+	args := append(batchOptions(r.ControlDir), Args(h)...)
 	return Remote{ssh: ssh, args: args, env: r.env(ssh, args)}, nil
 }
 

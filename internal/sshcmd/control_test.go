@@ -116,10 +116,6 @@ func TestCloseShared(t *testing.T) {
 	h, _ := store.Save(hosts.Host{Name: "web", Hostname: "web.internal", User: "deploy", Port: 22, ProxyJump: "bastion"})
 	r := Resolver{Store: store, ControlDir: "/run/user/1000/tuxshell"}
 	stop := []string{fake, "-o", "ControlPath=/run/user/1000/tuxshell/cm-%C", "-O", "exit"}
-	jump, ok := r.proxyCommand("bastion", true)
-	if !ok {
-		t.Fatal("no ProxyCommand for bastion")
-	}
 
 	// The same host arguments as the session, so ssh finds the same socket.
 	cases := []struct {
@@ -127,8 +123,8 @@ func TestCloseShared(t *testing.T) {
 		user, target string
 		want         []string
 	}{
-		{h.ID, "", "", []string{"-o", "ProxyCommand=" + jump, "-p", "22", "-l", "deploy", "--", "web.internal"}},
-		{h.ID, "admin", "", []string{"-o", "ProxyCommand=" + jump, "-p", "22", "-l", "admin", "--", "web.internal"}},
+		{h.ID, "", "", []string{"-p", "22", "-l", "deploy", "-J", "bastion", "--", "web.internal"}},
+		{h.ID, "admin", "", []string{"-p", "22", "-l", "admin", "-J", "bastion", "--", "web.internal"}},
 		{0, "", "root@db.internal:2222", []string{"-p", "2222", "-l", "root", "--", "db.internal"}},
 	}
 	for _, c := range cases {
