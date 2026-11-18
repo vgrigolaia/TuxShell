@@ -94,6 +94,9 @@ type Terminal struct {
 	Profile
 	CopyOnSelect    bool `json:"copyOnSelect"`
 	RightClickPaste bool `json:"rightClickPaste"`
+	// ConfirmPaste asks before pasting text with line breaks, which a shell
+	// without bracketed paste would run line by line.
+	ConfirmPaste bool `json:"confirmPaste"`
 	// CtrlWheelZoom zooms terminal text with Ctrl+mouse wheel.
 	CtrlWheelZoom bool `json:"ctrlWheelZoom"`
 	// ConfirmClose asks before closing tabs or the window with live sessions.
@@ -228,6 +231,7 @@ func Defaults() Settings {
 			CopyOnSelect:  true,
 			CloseOnExit:   true,
 			CtrlWheelZoom: true,
+			ConfirmPaste:  true,
 		},
 		Profiles:             []NamedProfile{},
 		GroupOrder:           []string{},

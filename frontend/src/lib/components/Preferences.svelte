@@ -652,6 +652,10 @@
             <span>Right-click pastes<span class={hint}>Like PuTTY and MobaXterm. Shift+right-click still opens the menu.</span></span>
           </label>
           <label class={check}>
+            <input type="checkbox" class="mt-0.5 accent-accent" checked={g.confirmPaste} onchange={(e) => prefs.update({ confirmPaste: e.currentTarget.checked })} />
+            <span>Ask before pasting several lines<span class={hint}>Shows the text first, so a paste can’t run commands you didn’t mean to.</span></span>
+          </label>
+          <label class={check}>
             <input type="checkbox" class="mt-0.5 accent-accent" checked={g.ctrlWheelZoom} onchange={(e) => prefs.update({ ctrlWheelZoom: e.currentTarget.checked })} />
             <span>{keys('Ctrl+mouse wheel')} zooms text</span>
           </label>

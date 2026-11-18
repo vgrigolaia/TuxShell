@@ -447,6 +447,12 @@ export interface Terminal {
     "rightClickPaste": boolean;
 
     /**
+     * ConfirmPaste asks before pasting text with line breaks, which a shell
+     * without bracketed paste would run line by line.
+     */
+    "confirmPaste": boolean;
+
+    /**
      * CtrlWheelZoom zooms terminal text with Ctrl+mouse wheel.
      */
     "ctrlWheelZoom": boolean;

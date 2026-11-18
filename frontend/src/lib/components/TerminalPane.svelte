@@ -120,8 +120,34 @@
 
   /** Pastes text into the session (used by clipboard history). */
   export function paste(text: string) {
-    if (asking || exited !== null || readOnly) return
+    pasteText(text)
+    term?.focus()
+  }
+
+  // Text with line breaks runs line by line in a shell without bracketed
+  // paste, so every paste route asks first (Preferences → General can turn it off).
+  let pasteAsk = $state<{ text: string; lines: number; preview: string } | null>(null)
+  let pasteDontAsk = $state(false)
+  const lineBreak = /\r\n|\r|\n/
+
+  function pasteText(text: string) {
+    if (!text || asking || exited !== null || readOnly) return
+    if (prefs.value.terminal.confirmPaste && lineBreak.test(text)) {
+      const lines = text.replace(/(\r\n|\r|\n)$/, '').split(lineBreak)
+      pasteAsk = { text, lines: lines.length, preview: lines.slice(0, 4).join('\n') }
+      pasteDontAsk = false
+      return
+    }
     term?.paste(text)
+  }
+
+  function answerPaste(ok: boolean) {
+    const ask = pasteAsk
+    pasteAsk = null
+    if (ok && ask && !asking && exited === null && !readOnly) {
+      if (pasteDontAsk) prefs.update({ confirmPaste: false })
+      term?.paste(ask.text)
+    }
     term?.focus()
   }
 
@@ -308,6 +334,16 @@
         prefs.zoomBy(wheel < 0 ? 1 : -1)
         wheel = 0
       }
+      // Pastes the browser delivers itself (middle-click on Linux, the Edit
+      // menu on macOS) reach xterm's textarea; catch them first so they ask too.
+      const onPaste = (e: ClipboardEvent) => {
+        const text = e.clipboardData?.getData('text/plain') ?? ''
+        if (!prefs.value.terminal.confirmPaste || !lineBreak.test(text)) return
+        e.preventDefault()
+        e.stopPropagation()
+        pasteText(text)
+      }
+      host.addEventListener('paste', onPaste, { capture: true })
       host.addEventListener('mouseup', onMouseUp)
       host.addEventListener('contextmenu', onContextMenu)
       // Capture, so xterm doesn't scroll the buffer as well.
@@ -319,6 +355,7 @@
         cwdReport.dispose()
         ring.dispose()
         clearTimeout(bellTimer)
+        host.removeEventListener('paste', onPaste, { capture: true })
         host.removeEventListener('mouseup', onMouseUp)
         host.removeEventListener('contextmenu', onContextMenu)
         host.removeEventListener('wheel', onWheel, { capture: true })
@@ -476,7 +513,7 @@
 
   function pasteClipboard() {
     if (asking || exited !== null || readOnly) return
-    void Clipboard.Text().then((text) => text && term?.paste(text))
+    void Clipboard.Text().then((text) => pasteText(text))
   }
 
   function menuItems(): MenuItem[] {
@@ -675,6 +712,38 @@
         term?.focus()
       }}
     />
+  {/if}
+  {#if pasteAsk}
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+    <div
+      role="alertdialog"
+      aria-modal="false"
+      aria-labelledby="paste-ask-title"
+      tabindex="-1"
+      class="absolute bottom-3 left-1/2 z-20 flex w-[min(30rem,calc(100%-2rem))] -translate-x-1/2 flex-col gap-2.5 rounded-xl border border-line bg-raised p-3.5 text-xs shadow-2xl"
+      onkeydown={(e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          e.stopPropagation()
+          answerPaste(false)
+        }
+      }}
+    >
+      <p id="paste-ask-title" class="text-[13px] font-medium text-fg">
+        Paste {pasteAsk.lines} {pasteAsk.lines === 1 ? 'line' : 'lines'}{hostName ? ` into ${hostName}` : ''}?
+      </p>
+      <p class="text-muted">The text has line breaks; some shells run each line as soon as it arrives.</p>
+      <pre class="max-h-24 overflow-hidden rounded-lg border border-line bg-field px-2.5 py-2 font-mono text-[11.5px] whitespace-pre-wrap text-text">{pasteAsk.preview}{pasteAsk.lines > 4 ? `\n… ${pasteAsk.lines - 4} more` : ''}</pre>
+      <div class="flex items-center gap-2">
+        <label class="mr-auto flex items-center gap-1.5 text-muted">
+          <input type="checkbox" class="accent-accent" bind:checked={pasteDontAsk} />
+          Don’t ask again
+        </label>
+        <button class="rounded-md px-2.5 py-1 text-text hover:bg-fg/10" onclick={() => answerPaste(false)}>Cancel</button>
+        <!-- svelte-ignore a11y_autofocus -->
+        <button class="rounded-md bg-accent px-2.5 py-1 font-medium text-on-accent hover:bg-accent/90" autofocus onclick={() => answerPaste(true)}>Paste</button>
+      </div>
+    </div>
   {/if}
   {#if passwordRequest}
     {#key passwordRequest.requestId}<PasswordPrompt request={passwordRequest} />{/key}
