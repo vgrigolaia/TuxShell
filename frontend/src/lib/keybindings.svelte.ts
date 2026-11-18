@@ -318,6 +318,10 @@ export function checkCombo(combo: string): { warning?: string } {
       return {
         warning: `${shown} alone stops that key from typing in the terminal. ${safer} is safer.`,
       }
+    if (key.length === 1 || ['Space', 'Enter', 'Backspace'].includes(key))
+      return {
+        warning: `You press ${shown} while typing: Shift is often still down after a capital letter or a symbol like | or &. It will fire in the middle of commands, and the terminal won't get it any more. ${safer} is much safer.`,
+      }
     return {
       warning: `${shown} is easy to press while typing (Shift held for capitals); the terminal won't get it any more. ${safer} is safer.`,
     }
