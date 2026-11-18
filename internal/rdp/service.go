@@ -292,8 +292,10 @@ func (s *Service) Connect(ctx context.Context, hostID int64, opts ConnectOptions
 	s.sessions[r.info.ID] = r
 	s.mu.Unlock()
 	s.changed()
+	// Copied before watch starts, which changes r.info under s.mu.
+	info := r.info
 	go s.watch(r, out)
-	return r.info, nil
+	return info, nil
 }
 
 // watch keeps FreeRDP's last log lines and reports the end.
