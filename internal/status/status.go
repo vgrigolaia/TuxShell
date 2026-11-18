@@ -28,6 +28,15 @@ const SlowMS = 80
 // Interval between rounds while checks are on.
 const Interval = 60 * time.Second
 
+// A host that missed downAfter rounds in a row is pinged only every
+// recheckEvery rounds (5 minutes), until it answers again or a full round runs
+// (Refresh: hosts edited, checks turned on). Unreachable hosts, such as ones
+// that need a VPN, otherwise cost a ping that waits for its timeout every minute.
+const (
+	downAfter    = 2
+	recheckEvery = 5
+)
+
 // Result is one host's status.
 type Result struct {
 	HostID int64 `json:"hostId"`
@@ -54,12 +63,15 @@ type Service struct {
 	mu      sync.Mutex
 	results map[int64]Result
 	kick    chan struct{}
+	// downs counts each host's missed rounds in a row; rounds counts rounds.
+	downs  map[int64]int
+	rounds int
 }
 
 // NewService checks hosts from list while enabled() is true and reports
 // each round through emit; drafts (may be nil) backs Test.
 func NewService(list Lister, drafts Drafts, enabled func() bool, emit func([]Result)) *Service {
-	return &Service{hosts: list, drafts: drafts, emit: emit, enabled: enabled, ping: systemPing, results: map[int64]Result{}, kick: make(chan struct{}, 1)}
+	return &Service{hosts: list, drafts: drafts, emit: emit, enabled: enabled, ping: systemPing, results: map[int64]Result{}, downs: map[int64]int{}, kick: make(chan struct{}, 1)}
 }
 
 // ServiceStartup starts background checks; Wails cancels ctx at shutdown.
@@ -72,15 +84,18 @@ func (s *Service) ServiceStartup(ctx context.Context, _ application.ServiceOptio
 func (s *Service) run(ctx context.Context) {
 	t := time.NewTicker(Interval)
 	defer t.Stop()
+	full := true
 	for {
 		if s.enabled() {
-			s.round(ctx)
+			s.round(ctx, full)
 		}
 		select {
 		case <-ctx.Done():
 			return
 		case <-t.C:
+			full = false
 		case <-s.kick:
+			full = true
 		}
 	}
 }
@@ -104,12 +119,22 @@ func (s *Service) Results() []Result {
 	return out
 }
 
-// round pings all hosts, at most 8 at a time.
-func (s *Service) round(ctx context.Context) {
+// round pings the hosts, at most 8 at a time. A full round pings every host;
+// otherwise hosts down for a while keep their last result between rechecks.
+func (s *Service) round(ctx context.Context, full bool) {
 	list, err := s.hosts.List()
 	if err != nil {
 		return
 	}
+	s.mu.Lock()
+	s.rounds++
+	recheck := full || s.rounds%recheckEvery == 0
+	prev := s.results
+	downs := make(map[int64]int, len(s.downs))
+	for id, n := range s.downs {
+		downs[id] = n
+	}
+	s.mu.Unlock()
 	var (
 		wg  sync.WaitGroup
 		mu  sync.Mutex
@@ -130,6 +155,12 @@ func (s *Service) round(ctx context.Context) {
 			mu.Unlock()
 			continue
 		}
+		if old, ok := prev[h.ID]; ok && !recheck && old.State == "down" && downs[h.ID] >= downAfter {
+			mu.Lock()
+			out = append(out, old)
+			mu.Unlock()
+			continue
+		}
 		wg.Add(1)
 		sem <- struct{}{}
 		go func(r Result, target string) {
@@ -146,6 +177,11 @@ func (s *Service) round(ctx context.Context) {
 			}
 			mu.Lock()
 			out = append(out, r)
+			if r.State == "down" {
+				downs[r.HostID]++
+			} else {
+				delete(downs, r.HostID)
+			}
 			mu.Unlock()
 		}(r, target)
 	}
@@ -155,8 +191,12 @@ func (s *Service) round(ctx context.Context) {
 	}
 	s.mu.Lock()
 	s.results = make(map[int64]Result, len(out))
+	s.downs = make(map[int64]int, len(downs))
 	for _, r := range out {
 		s.results[r.HostID] = r
+		if n := downs[r.HostID]; n > 0 {
+			s.downs[r.HostID] = n
+		}
 	}
 	s.mu.Unlock()
 	s.emit(out)

@@ -40,7 +40,7 @@ func TestRoundStates(t *testing.T) {
 		}
 		return 0, false
 	}
-	s.round(context.Background())
+	s.round(context.Background(), true)
 
 	sort.Slice(got, func(i, j int) bool { return got[i].HostID < got[j].HostID })
 	want := []string{"up", "slow", "down", "skipped", "skipped"}
@@ -89,5 +89,40 @@ func TestExplain(t *testing.T) {
 		if got := explain(in, nil); !strings.Contains(got, want) {
 			t.Errorf("explain(%q) = %q, want it to mention %q", in, got, want)
 		}
+	}
+}
+
+func TestRoundBacksOffDownHosts(t *testing.T) {
+	list := fakeList{{ID: 1, Hostname: "up.example"}, {ID: 2, Hostname: "gone.example"}}
+	s := NewService(list, nil, func() bool { return true }, func([]Result) {})
+	var mu sync.Mutex
+	count := map[string]int{}
+	s.ping = func(_ context.Context, h string) (float64, bool) {
+		mu.Lock()
+		count[h]++
+		mu.Unlock()
+		return 1, h == "up.example"
+	}
+	// Rounds 1–4 (round 1 full); gone.example is down from round 1, so it's
+	// pinged in rounds 1 and 2, then left alone until the 5th round.
+	s.round(context.Background(), true)
+	for range 3 {
+		s.round(context.Background(), false)
+	}
+	if count["up.example"] != 4 || count["gone.example"] != 2 {
+		t.Fatalf("after 4 rounds pings = %v, want up 4, gone 2", count)
+	}
+	for _, r := range s.Results() {
+		if r.HostID == 2 && r.State != "down" {
+			t.Errorf("skipped host lost its result: %+v", r)
+		}
+	}
+	s.round(context.Background(), false) // 5th: recheck
+	if count["gone.example"] != 3 {
+		t.Fatalf("5th round didn't recheck: %v", count)
+	}
+	s.round(context.Background(), true) // Refresh: full
+	if count["gone.example"] != 4 {
+		t.Fatalf("full round didn't ping a down host: %v", count)
 	}
 }
