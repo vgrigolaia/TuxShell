@@ -76,13 +76,18 @@ class Perf {
     return () => clearInterval(tick)
   }
 
-  /** Polls the echo time of session id ("" for none); returns the stop function. */
-  watch(id: string) {
+  /** Polls the echo time of session id ("" for none): every 2 s while the
+   * status bar shows timings, else every 5 s (enough for the slow-connection
+   * warning), and not while the window is hidden. Returns the stop function. */
+  watch(id: string, detailed: boolean) {
     this.echo = null
     if (!id) return () => {}
-    const poll = () => void Terminals.Echo(id).then((e) => (this.echo = e?.samples ? e : null), () => (this.echo = null))
+    const poll = () => {
+      if (document.visibilityState === 'hidden') return
+      void Terminals.Echo(id).then((e) => (this.echo = e?.samples ? e : null), () => (this.echo = null))
+    }
     poll()
-    const timer = setInterval(poll, 2000)
+    const timer = setInterval(poll, detailed ? 2000 : 5000)
     return () => clearInterval(timer)
   }
 

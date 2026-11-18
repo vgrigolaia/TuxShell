@@ -460,7 +460,7 @@
 
   // The status bar shows how fast the active terminal answers.
   const watched = $derived(!home && active && !active.exited ? active.session : '')
-  $effect(() => perf.watch(watched))
+  $effect(() => perf.watch(watched, prefs.value.statusTimings || prefsOpen))
 
   // Forget refs of closed panes.
   $effect(() => {
