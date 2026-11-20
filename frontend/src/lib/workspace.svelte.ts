@@ -55,6 +55,8 @@ class Workspace {
   tabs = $state<Tab[]>([])
   /** The shown tab, or HOME. */
   activeKey = $state(HOME)
+  /** A split divider is being dragged: terminals redraw as it moves but tell the server their size once, at the end. */
+  resizing = $state(false)
 
   private nextPane = 1
   private nextTab = 1

@@ -107,6 +107,7 @@
   function onDividerDown(e: PointerEvent, d: Divider) {
     const el = e.currentTarget as HTMLElement
     el.setPointerCapture(e.pointerId)
+    workspace.resizing = true
     const move = (ev: PointerEvent) => {
       const r = area.getBoundingClientRect()
       setSize(d, d.axis === 'x' ? (ev.clientX - r.left) / r.width : (ev.clientY - r.top) / r.height)
@@ -114,9 +115,12 @@
     const up = () => {
       el.removeEventListener('pointermove', move)
       el.removeEventListener('pointerup', up)
+      el.removeEventListener('pointercancel', up)
+      workspace.resizing = false
     }
     el.addEventListener('pointermove', move)
     el.addEventListener('pointerup', up)
+    el.addEventListener('pointercancel', up)
   }
 
   // Arrow keys nudge a focused divider by 5%.
