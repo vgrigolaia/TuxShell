@@ -5,6 +5,11 @@ All notable changes to TuxShell are listed here. Versions follow
 
 ## [Unreleased]
 
+### Fixed
+
+- Dragging a divider or resizing the window no longer leaves cut-off copies of a long prompt in the
+  terminal: the server hears one size when the drag ends, instead of one for every pause.
+
 ## [1.7.0] - 2026-11-20
 
 ### Added
