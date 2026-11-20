@@ -18,12 +18,14 @@ export type ActionId =
   | 'splitDown'
   | 'splitRight'
   | 'splitOther'
+  | 'splitOtherDown'
   | 'newTab'
   | 'nextTab'
   | 'prevTab'
   | 'duplicateTab'
   | 'reconnect'
   | 'closeTab'
+  | 'renameTab'
   | 'maximize'
   | 'scrollbar'
   | 'rename'
@@ -73,12 +75,14 @@ export const ACTIONS: Action[] = [
   { id: 'nextTab', group: 'Tabs', label: 'Next tab', combo: mod('Ctrl+PageDown') },
   { id: 'prevTab', group: 'Tabs', label: 'Previous tab', combo: mod('Ctrl+PageUp') },
   { id: 'newTab', group: 'Tabs', label: 'Open the same connection in a new tab', combo: mod('Ctrl+Shift+T') },
-  { id: 'duplicateTab', group: 'Tabs', label: 'Duplicate tab', combo: '' },
-  { id: 'reconnect', group: 'Tabs', label: 'Reconnect the tab', combo: '' },
+  { id: 'duplicateTab', group: 'Tabs', label: 'Duplicate tab', combo: mod('Ctrl+Shift+D') },
+  { id: 'reconnect', group: 'Tabs', label: 'Reconnect the tab', combo: mod('Ctrl+Shift+F5') },
   { id: 'closeTab', group: 'Tabs', label: 'Close tab', combo: '' },
+  { id: 'renameTab', group: 'Tabs', label: 'Rename tab', combo: mod('Ctrl+Shift+F2') },
   { id: 'splitRight', group: 'Panes', label: 'Split right (same connection)', combo: mod('Ctrl+Shift+R') },
   { id: 'splitDown', group: 'Panes', label: 'Split down (same connection)', combo: mod('Ctrl+Shift+O') },
-  { id: 'splitOther', group: 'Panes', label: 'Split with another host…', combo: '' },
+  { id: 'splitOther', group: 'Panes', label: 'Split right with another host…', combo: mod('Ctrl+Shift+N') },
+  { id: 'splitOtherDown', group: 'Panes', label: 'Split down with another host…', combo: mod('Ctrl+Shift+M') },
   { id: 'maximize', group: 'Panes', label: 'Maximize pane / restore split', combo: mod('Ctrl+Shift+X') },
   { id: 'scrollbar', group: 'Panes', label: 'Show or hide the scrollbar', combo: mod('Ctrl+Shift+S') },
   { id: 'rename', group: 'Panes', label: 'Set pane title', combo: mod('Ctrl+Alt+W') },

@@ -584,7 +584,8 @@
         { label: 'Split down', icon: 'splitDown', shortcut: keybindings.combo('splitDown'), run: () => sp('column') },
       )
     }
-    if (a.splitOther) items.push({ label: 'Split with another host…', icon: 'server', shortcut: keybindings.combo('splitOther'), run: a.splitOther })
+    if (a.splitOther) items.push({ label: 'Split right with another host…', icon: 'server', shortcut: keybindings.combo('splitOther'), run: a.splitOther })
+    if (a.splitOtherDown) items.push({ label: 'Split down with another host…', icon: 'server', shortcut: keybindings.combo('splitOtherDown'), run: a.splitOtherDown })
     items.push(
       { label: 'Open in new tab', icon: 'tab', shortcut: keybindings.combo('newTab'), run: a.newTab },
       { label: 'Close', icon: 'x', shortcut: keybindings.combo('closePane'), separator: true, run: a.close },

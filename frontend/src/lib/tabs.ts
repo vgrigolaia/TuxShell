@@ -11,6 +11,7 @@ export interface PaneActions {
   /** Splits with the same connection; missing when the tab is full. */
   split?: (orientation: 'row' | 'column' | 'auto') => void
   splitOther?: () => void
+  splitOtherDown?: () => void
   newTab: () => void
   rename: () => void
   close: () => void

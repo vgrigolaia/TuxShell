@@ -147,6 +147,12 @@
             workspace.focusPane(paneId)
             if (t) openQuick({ key: t.key, orientation: 'row' })
           },
+      splitOtherDown: full
+        ? undefined
+        : () => {
+            workspace.focusPane(paneId)
+            if (t) openQuick({ key: t.key, orientation: 'column' })
+          },
       newTab: () => newTabSame(paneId),
       rename: () => (renaming = { paneId, title: workspace.pane(paneId)?.title ?? '' }),
       close: () => closer.closePane(paneId),
@@ -234,12 +240,14 @@
     splitDown: () => active && splitSame(active.id, 'column'),
     splitRight: () => active && splitSame(active.id, 'row'),
     splitOther: () => active && paneActions(active.id).splitOther?.(),
+    splitOtherDown: () => active && paneActions(active.id).splitOtherDown?.(),
     newTab: () => active && newTabSame(active.id),
     nextTab: () => cycleTab(1),
     prevTab: () => cycleTab(-1),
     duplicateTab: () => !home && workspace.activeTab && tabActions.duplicate(workspace.activeTab.key),
     reconnect: () => !home && workspace.activeTab && tabActions.reconnect(workspace.activeTab.key),
     closeTab: () => !home && workspace.activeTab && tabActions.close(workspace.activeTab.key),
+    renameTab: () => !home && workspace.activeTab && tabActions.rename(workspace.activeTab.key),
     maximize: () => active && workspace.toggleMaximized(active.id),
     scrollbar: () => active && workspace.updatePane(active.id, { showScrollbar: !active.showScrollbar }),
     rename: () => active && (renaming = { paneId: active.id, title: active.title }),
@@ -341,7 +349,7 @@
     const groups = new Set(hosts.map((h) => h.group))
     if (groups.size === 1 && first.group) workspace.renameTab(key, first.group)
     for (const h of rest) workspace.splitTab(key, { kind: 'host', hostId: h.id, askUser: !h.user }, h.name, 'row')
-    // Three or four tiles go in a grid: one wide on top over two, or 2×2.
+    // Three or more tiles go in a grid: one wide on top over two, 2×2, or two rows.
     const tab = workspace.tabs.find((t) => t.key === key)
     if (tab && hosts.length > 2) workspace.setLayout(key, fromOrientation(tab.paneIds, 'grid'))
   }
