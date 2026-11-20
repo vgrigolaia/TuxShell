@@ -56,7 +56,11 @@
   function broadcastInput(paneId: number, data: string): boolean {
     const targets = workspace.broadcastTargets(paneId)
     if (!targets || isTerminalReport(data)) return false
-    for (const id of targets) if (!workspace.pane(id)?.exited) refs[id]?.send(data)
+    // Read-only panes stay untouched, broadcast included.
+    for (const id of targets) {
+      const p = workspace.pane(id)
+      if (p && !p.exited && !p.readOnly) refs[id]?.send(data)
+    }
     return true
   }
 
@@ -160,8 +164,19 @@
                 {at.broadcasting ? 'receiving' : 'excluded'}
               </button>
             {/if}
+            {#if pane.readOnly && pane.source.kind !== 'rdp'}
+              <!-- Shown while on, so a locked pane is never mistaken for a frozen one. -->
+              <button class="{tileBtn} text-warning hover:text-warning" aria-pressed="true" aria-label="Allow typing in {pane.title}" title="Read only: typing is ignored. Click to allow typing" onclick={() => workspace.updatePane(pane.id, { readOnly: false })}>
+                <Icon name="lock" size={13} />
+              </button>
+            {/if}
             <!-- Tile actions show on hover/focus to keep headers calm, as in the design. -->
             <span class="hidden items-center gap-0.5 group-focus-within/tile:flex group-hover/tile:flex">
+              {#if !pane.readOnly && pane.source.kind !== 'rdp'}
+                <button class={tileBtn} aria-pressed="false" aria-label="Make {pane.title} read only" title="Read only: ignore typing in this pane" onclick={() => workspace.updatePane(pane.id, { readOnly: true })}>
+                  <Icon name="lock" size={13} />
+                </button>
+              {/if}
               {#if at.tab.paneIds.length < MAX_PANES}
                 <button class={tileBtn} aria-label="Split {pane.title} right" title={keybindings.title('Split right', 'splitRight')} onclick={() => actions(pane.id).split?.('row')}>
                   <Icon name="splitRight" size={13} />
