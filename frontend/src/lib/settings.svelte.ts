@@ -86,6 +86,7 @@ const defaults = (): Settings => ({
     closeOnExit: true,
     copyOnSelect: true,
     rightClickPaste: false,
+    confirmPaste: true,
     ctrlWheelZoom: true,
     shell: '',
   },

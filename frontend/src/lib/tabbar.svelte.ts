@@ -1,7 +1,7 @@
 import { SvelteSet } from 'svelte/reactivity'
 import type { MenuItem } from './components/ContextMenu.svelte'
 import type { TabInfo } from './tabs'
-import { MAX_PANES, type Orientation } from './layout'
+import { MAX_PANES, type Dir, type Orientation } from './layout'
 import { keybindings } from './keybindings.svelte'
 
 /** What the tab views (title bar strip, left panel list, icon rail) can do; App implements it. */
@@ -10,9 +10,11 @@ export interface TabActions {
   close: (key: number) => void
   closeMany: (keys: number[]) => void
   merge: (keys: number[], orientation: Orientation) => void
-  split: (key: number, orientation: Orientation) => void
+  split: (key: number, orientation: Dir) => void
   unsplit: (key: number) => void
   rename: (key: number) => void
+  /** Opens the saved host's form (the tab's first pane). */
+  editHost: (hostId: number) => void
   /** Opens a copy of the tab next to it (new connections to the same hosts). */
   duplicate: (key: number) => void
   /** Ends the tab's sessions and connects them again. */
@@ -65,22 +67,25 @@ export function tabMenu(tabs: TabInfo[], key: number, a: TabActions): MenuItem[]
     const total = tabs.filter((t) => picked.has(t.key)).reduce((n, t) => n + t.panes, 0)
     if (total <= MAX_PANES) {
       items.push({ label: `Split selected side by side (${sel.length})`, run: () => (a.merge(sel, 'row'), picked.clear()) })
-      if (total < 4) items.push({ label: `Split selected stacked (${sel.length})`, run: () => (a.merge(sel, 'column'), picked.clear()) })
+      if (total <= MAX_PANES) items.push({ label: `Split selected stacked (${sel.length})`, run: () => (a.merge(sel, 'column'), picked.clear()) })
     }
     items.push({ label: `Save selected as layout… (${sel.length})`, run: () => (a.saveLayout(tabs.filter((t) => picked.has(t.key)).map((t) => t.key)), picked.clear()) })
     items.push({ label: `Close selected (${sel.length})`, run: () => (a.closeMany(sel), picked.clear()) })
   }
   if (tab.panes < MAX_PANES) {
     items.push({ label: 'Split right…', shortcut: keybindings.combo('splitOther'), run: () => a.split(key, 'row') })
-    items.push({ label: 'Split down…', run: () => a.split(key, 'column') })
+    items.push({ label: 'Split down…', shortcut: keybindings.combo('splitOtherDown'), run: () => a.split(key, 'column') })
   }
   if (tab.panes > 1) items.push({ label: 'Unsplit into tabs', run: () => a.unsplit(key) })
   items.push({ label: 'Duplicate tab', shortcut: keybindings.combo('duplicateTab'), separator: true, run: () => a.duplicate(key) })
   if (tab.kind !== 'rdp') items.push({ label: tab.panes > 1 ? 'Reconnect all panes' : 'Reconnect', shortcut: keybindings.combo('reconnect'), run: () => a.reconnect(key) })
-  items.push({ label: 'Rename tab…', run: () => a.rename(key) })
+  const hostId = tab.hostId
+  if (hostId) items.push({ label: 'Edit host…', run: () => a.editHost(hostId) })
+  items.push({ label: 'Rename tab…', shortcut: keybindings.combo('renameTab'), run: () => a.rename(key) })
   items.push({ label: 'Save tab as layout…', run: () => a.saveLayout([key]) })
   if (tabs.length > 1) items.push({ label: `Save all ${tabs.length} tabs as layout…`, run: () => a.saveLayout(tabs.map((t) => t.key)) })
-  items.push({ label: 'Close', shortcut: keybindings.combo('closeTab'), run: () => a.close(key) })
+  // A one-pane tab also closes with the close-pane keys.
+  items.push({ label: 'Close', shortcut: keybindings.combo('closeTab') || (tab.panes === 1 ? keybindings.combo('closePane') : ''), run: () => a.close(key) })
   if (others.length) items.push({ label: 'Close others', run: () => a.closeMany(others) })
   if (after.length) items.push({ label: 'Close tabs after this one', run: () => a.closeMany(after) })
   items.push({ label: `Close all (${tabs.length})`, run: () => a.closeMany(tabs.map((t) => t.key)), danger: true })

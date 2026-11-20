@@ -32,7 +32,7 @@
   import { emptyHost, errorMessage, hostStore, type Host } from './lib/hosts.svelte'
   import { HOME, workspace, type Pane } from './lib/workspace.svelte'
   import Launchpad from './lib/components/Launchpad.svelte'
-  import { MAX_PANES, type Orientation } from './lib/layout'
+  import { MAX_PANES, fromOrientation, type Dir } from './lib/layout'
   import { layouts } from './lib/layouts.svelte'
   import { notices } from './lib/notices.svelte'
   import Notices from './lib/components/Notices.svelte'
@@ -49,7 +49,7 @@
   }
   let quickOpen = $state(false)
   // When set, the next connection from quick connect splits this tab instead of opening a new one.
-  let splitInto = $state<{ key: number; orientation: Orientation } | null>(null)
+  let splitInto = $state<{ key: number; orientation: Dir } | null>(null)
   let deleting = $state<Host | null>(null)
   let prefsOpen = $state(false)
   // Clock for "Connected 12m" in the status bar.
@@ -113,7 +113,7 @@
 
   // Splits a pane's tab with the same connection (no new login thanks to
   // shared ssh connections). "auto" splits along the pane's longer side.
-  function splitSame(paneId: number, orientation: Orientation | 'auto') {
+  function splitSame(paneId: number, orientation: Dir | 'auto') {
     const t = workspace.tabOf(paneId)
     const p = workspace.pane(paneId)
     const source = workspace.sameSource(paneId)
@@ -146,6 +146,12 @@
         : () => {
             workspace.focusPane(paneId)
             if (t) openQuick({ key: t.key, orientation: 'row' })
+          },
+      splitOtherDown: full
+        ? undefined
+        : () => {
+            workspace.focusPane(paneId)
+            if (t) openQuick({ key: t.key, orientation: 'column' })
           },
       newTab: () => newTabSame(paneId),
       rename: () => (renaming = { paneId, title: workspace.pane(paneId)?.title ?? '' }),
@@ -197,6 +203,10 @@
       const t = workspace.tabs.find((x) => x.key === key)
       if (t) renamingTab = { key, name: workspace.tabTitle(t) }
     },
+    editHost: (hostId) => {
+      const host = hostStore.get(hostId)
+      if (host) panel = { kind: 'host', host }
+    },
     duplicate: (key) => layouts.duplicate(key),
     reconnect: (key) => workspace.tabs.find((t) => t.key === key)?.paneIds.forEach((id) => panes[id]?.restart()),
     move: (key, index) => workspace.moveTab(key, index),
@@ -230,12 +240,14 @@
     splitDown: () => active && splitSame(active.id, 'column'),
     splitRight: () => active && splitSame(active.id, 'row'),
     splitOther: () => active && paneActions(active.id).splitOther?.(),
+    splitOtherDown: () => active && paneActions(active.id).splitOtherDown?.(),
     newTab: () => active && newTabSame(active.id),
     nextTab: () => cycleTab(1),
     prevTab: () => cycleTab(-1),
     duplicateTab: () => !home && workspace.activeTab && tabActions.duplicate(workspace.activeTab.key),
     reconnect: () => !home && workspace.activeTab && tabActions.reconnect(workspace.activeTab.key),
     closeTab: () => !home && workspace.activeTab && tabActions.close(workspace.activeTab.key),
+    renameTab: () => !home && workspace.activeTab && tabActions.rename(workspace.activeTab.key),
     maximize: () => active && workspace.toggleMaximized(active.id),
     scrollbar: () => active && workspace.updatePane(active.id, { showScrollbar: !active.showScrollbar }),
     rename: () => active && (renaming = { paneId: active.id, title: active.title }),
@@ -299,7 +311,7 @@
     }
   })
 
-  function openQuick(split: { key: number; orientation: Orientation } | null) {
+  function openQuick(split: { key: number; orientation: Dir } | null) {
     splitInto = split
     quickOpen = true
   }
@@ -336,8 +348,10 @@
     // Hosts from one group make a tab named after it, e.g. "PostgreSQL · prod".
     const groups = new Set(hosts.map((h) => h.group))
     if (groups.size === 1 && first.group) workspace.renameTab(key, first.group)
-    // Three or four tiles go in a grid: one wide on top over two, or 2×2.
-    for (const h of rest) workspace.splitTab(key, { kind: 'host', hostId: h.id, askUser: !h.user }, h.name, hosts.length > 2 ? 'grid' : 'row')
+    for (const h of rest) workspace.splitTab(key, { kind: 'host', hostId: h.id, askUser: !h.user }, h.name, 'row')
+    // Three or more tiles go in a grid: one wide on top over two, 2×2, or two rows.
+    const tab = workspace.tabs.find((t) => t.key === key)
+    if (tab && hosts.length > 2) workspace.setLayout(key, fromOrientation(tab.paneIds, 'grid'))
   }
 
   // The last tab shown, so leaving Home goes back to it.
@@ -456,7 +470,7 @@
 
   // The status bar shows how fast the active terminal answers.
   const watched = $derived(!home && active && !active.exited ? active.session : '')
-  $effect(() => perf.watch(watched))
+  $effect(() => perf.watch(watched, prefs.value.statusTimings || prefsOpen))
 
   // Forget refs of closed panes.
   $effect(() => {

@@ -1,6 +1,7 @@
 package sshcmd
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -162,6 +163,47 @@ func TestHostCommandAs(t *testing.T) {
 	}
 }
 
+// A jump hop naming a saved host becomes that host's address (with its user,
+// port and own jump hosts); other hops stay as typed.
+func TestHostCommandResolvesSavedJump(t *testing.T) {
+	bin := t.TempDir()
+	fake := filepath.Join(bin, "ssh")
+	if err := os.WriteFile(fake, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin)
+
+	store, err := hosts.Open(filepath.Join(t.TempDir(), "hosts.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	save := func(h hosts.Host) hosts.Host {
+		t.Helper()
+		s, err := store.Save(h)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	save(hosts.Host{Name: "edge", Hostname: "198.51.100.1", User: "ops"})
+	save(hosts.Host{Name: "fj-jh", Alias: "fj-jh", Hostname: "203.0.113.7", User: "jump.user", Port: 2222, ProxyJump: "edge"})
+	db := save(hosts.Host{Name: "pg01", Hostname: "172.16.0.5", User: "ansible", ProxyJump: "FJ-JH,bastion.example"})
+
+	cmd, err := Resolver{Store: store}.HostCommand(db.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{fake, "-p", "22", "-l", "ansible", "-J", "ops@198.51.100.1,jump.user@203.0.113.7:2222,bastion.example", "--", "172.16.0.5"}
+	if !slices.Equal(cmd.Args, want) {
+		t.Fatalf("args = %q, want %q", cmd.Args, want)
+	}
+	// Only the command changes; the host keeps the names the user typed.
+	if got, _ := store.Get(db.ID); got.ProxyJump != "FJ-JH,bastion.example" {
+		t.Fatalf("stored jump = %q", got.ProxyJump)
+	}
+}
+
 func TestJumpTunnelCommand(t *testing.T) {
 	bin := t.TempDir()
 	fake := filepath.Join(bin, "ssh")
@@ -224,5 +266,50 @@ func TestParseEndpoint(t *testing.T) {
 	}
 	if e := parseEndpoint("hostname db\nport 22\nproxycommand nc -X 5 %h %p\n"); !e.Proxied {
 		t.Fatalf("proxy command: %+v", e)
+	}
+}
+
+// The host editor's Test button sends unsaved values; their jump hop resolves too.
+func TestDraftRemoteResolvesSavedJump(t *testing.T) {
+	bin := t.TempDir()
+	if err := os.WriteFile(filepath.Join(bin, "ssh"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin)
+
+	store, err := hosts.Open(filepath.Join(t.TempDir(), "hosts.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	if _, err := store.Save(hosts.Host{Name: "fj-jh", Hostname: "203.0.113.7", User: "jump.user"}); err != nil {
+		t.Fatal(err)
+	}
+
+	r, err := Resolver{Store: store, ControlDir: t.TempDir()}.DraftRemote(hosts.Host{Name: "draft", Hostname: "172.16.0.5", ProxyJump: "fj-jh"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	args := r.Command(context.Background(), "true").Args
+	if i := slices.Index(args, "-J"); i < 0 || args[i+1] != "jump.user@203.0.113.7" {
+		t.Fatalf("args = %q, want -J jump.user@203.0.113.7", args)
+	}
+}
+
+func TestKeyName(t *testing.T) {
+	home, _ := os.UserHomeDir()
+	cases := map[string]string{
+		"hostname 10.0.0.5\nport 22\nuserknownhostsfile ~/.ssh/known_hosts ~/.ssh/known_hosts2\n": "10.0.0.5",
+		"hostname 10.0.0.5\nport 2222\n":                  "[10.0.0.5]:2222",
+		"hostname 10.0.0.5\nport 22\nhostkeyalias pg01\n": "pg01",
+	}
+	for out, want := range cases {
+		name, files := keyName(out)
+		if name != want {
+			t.Errorf("keyName(%q) = %q, want %q", out, name, want)
+		}
+		if strings.Contains(out, "known_hosts2") && (len(files) != 2 || files[0] != filepath.Join(home, ".ssh/known_hosts")) {
+			t.Errorf("files = %q", files)
+		}
 	}
 }

@@ -100,10 +100,24 @@ func (s *Service) Check(ctx context.Context, current string) (Result, error) {
 	}, nil
 }
 
-// parse reads "1.2.3" or "v1.2.3" into its three numbers.
-func parse(v string) ([3]int, bool) {
-	var out [3]int
-	parts := strings.Split(strings.TrimPrefix(strings.TrimSpace(v), "v"), ".")
+// version is a release number; pre marks a test build ("1.6.1-beta.1"),
+// which comes before the release with the same number.
+type version struct {
+	n   [3]int
+	pre bool
+}
+
+// parse reads "1.2.3", "v1.2.3" or "1.2.3-beta.1".
+func parse(v string) (version, bool) {
+	var out version
+	v = strings.TrimPrefix(strings.TrimSpace(v), "v")
+	if base, suffix, ok := strings.Cut(v, "-"); ok {
+		if suffix == "" {
+			return out, false
+		}
+		v, out.pre = base, true
+	}
+	parts := strings.Split(v, ".")
 	if len(parts) != 3 {
 		return out, false
 	}
@@ -112,16 +126,16 @@ func parse(v string) ([3]int, bool) {
 		if err != nil || n < 0 {
 			return out, false
 		}
-		out[i] = n
+		out.n[i] = n
 	}
 	return out, true
 }
 
-func newer(a, b [3]int) bool {
-	for i := range a {
-		if a[i] != b[i] {
-			return a[i] > b[i]
+func newer(a, b version) bool {
+	for i := range a.n {
+		if a.n[i] != b.n[i] {
+			return a.n[i] > b.n[i]
 		}
 	}
-	return false
+	return b.pre && !a.pre
 }

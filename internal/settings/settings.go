@@ -94,6 +94,9 @@ type Terminal struct {
 	Profile
 	CopyOnSelect    bool `json:"copyOnSelect"`
 	RightClickPaste bool `json:"rightClickPaste"`
+	// ConfirmPaste asks before pasting text with line breaks, which a shell
+	// without bracketed paste would run line by line.
+	ConfirmPaste bool `json:"confirmPaste"`
 	// CtrlWheelZoom zooms terminal text with Ctrl+mouse wheel.
 	CtrlWheelZoom bool `json:"ctrlWheelZoom"`
 	// ConfirmClose asks before closing tabs or the window with live sessions.
@@ -228,6 +231,7 @@ func Defaults() Settings {
 			CopyOnSelect:  true,
 			CloseOnExit:   true,
 			CtrlWheelZoom: true,
+			ConfirmPaste:  true,
 		},
 		Profiles:             []NamedProfile{},
 		GroupOrder:           []string{},
@@ -457,7 +461,7 @@ const MaxKeybindings = 100
 var (
 	actionIDRe = regexp.MustCompile(`^[a-z][A-Za-z0-9]{0,39}$`)
 	// A combo is its modifiers in this order, then one key: "Ctrl+Shift+L".
-	comboRe = regexp.MustCompile(`^(Ctrl\+)?(Alt\+)?(Cmd\+)?(Shift\+)?([A-Z0-9]|F[1-9]|F1[0-9]|F2[0-4]|Up|Down|Left|Right|Insert|Delete|Home|End|PageUp|PageDown|Tab|Enter|Space|Backspace|[,./;'\[\]\\\x60=-])$`)
+	comboRe = regexp.MustCompile(`^(Ctrl\+)?(Alt\+)?(Cmd\+)?(Shift\+)?([A-Z0-9]|F[1-9]|F1[0-9]|F2[0-4]|Up|Down|Left|Right|Insert|Delete|Home|End|PageUp|PageDown|Tab|Enter|Space|Backspace|Esc|[,./;'\[\]\\\x60=-])$`)
 )
 
 // cleanKeybindings drops entries with a malformed action or combo, so those

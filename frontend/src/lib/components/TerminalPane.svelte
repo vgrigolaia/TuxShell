@@ -12,6 +12,7 @@
   import { claim, release } from '../terminal-events'
   import { isTerminalReport } from '../broadcast'
   import * as Terminals from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/terminal/service'
+  import * as HostKeys from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/hostkeys/service'
   import type { PaneActions, Source } from '../tabs'
   import { errorMessage, hostStore } from '../hosts.svelte'
   import LoginPrompt from './LoginPrompt.svelte'
@@ -85,6 +86,10 @@
   let recording = $state('')
   let recordError = $state('')
   let menu = $state<{ x: number; y: number } | null>(null)
+  // ssh refused the server because its key changed since it was saved.
+  let hostKey = $state<{ host: string; fingerprint: string } | null>(null)
+  let hostKeyBusy = $state(false)
+  let hostKeyError = $state('')
 
   function launch(cols: number, rows: number): Promise<string> {
     switch (source.kind) {
@@ -120,8 +125,34 @@
 
   /** Pastes text into the session (used by clipboard history). */
   export function paste(text: string) {
-    if (asking || exited !== null || readOnly) return
+    pasteText(text)
+    term?.focus()
+  }
+
+  // Text with line breaks runs line by line in a shell without bracketed
+  // paste, so every paste route asks first (Preferences → General can turn it off).
+  let pasteAsk = $state<{ text: string; lines: number; preview: string } | null>(null)
+  let pasteDontAsk = $state(false)
+  const lineBreak = /\r\n|\r|\n/
+
+  function pasteText(text: string) {
+    if (!text || asking || exited !== null || readOnly) return
+    if (prefs.value.terminal.confirmPaste && lineBreak.test(text)) {
+      const lines = text.replace(/(\r\n|\r|\n)$/, '').split(lineBreak)
+      pasteAsk = { text, lines: lines.length, preview: lines.slice(0, 4).join('\n') }
+      pasteDontAsk = false
+      return
+    }
     term?.paste(text)
+  }
+
+  function answerPaste(ok: boolean) {
+    const ask = pasteAsk
+    pasteAsk = null
+    if (ok && ask && !asking && exited === null && !readOnly) {
+      if (pasteDontAsk) prefs.update({ confirmPaste: false })
+      term?.paste(ask.text)
+    }
     term?.focus()
   }
 
@@ -308,6 +339,16 @@
         prefs.zoomBy(wheel < 0 ? 1 : -1)
         wheel = 0
       }
+      // Pastes the browser delivers itself (middle-click on Linux, the Edit
+      // menu on macOS) reach xterm's textarea; catch them first so they ask too.
+      const onPaste = (e: ClipboardEvent) => {
+        const text = e.clipboardData?.getData('text/plain') ?? ''
+        if (!prefs.value.terminal.confirmPaste || !lineBreak.test(text)) return
+        e.preventDefault()
+        e.stopPropagation()
+        pasteText(text)
+      }
+      host.addEventListener('paste', onPaste, { capture: true })
       host.addEventListener('mouseup', onMouseUp)
       host.addEventListener('contextmenu', onContextMenu)
       // Capture, so xterm doesn't scroll the buffer as well.
@@ -319,6 +360,7 @@
         cwdReport.dispose()
         ring.dispose()
         clearTimeout(bellTimer)
+        host.removeEventListener('paste', onPaste, { capture: true })
         host.removeEventListener('mouseup', onMouseUp)
         host.removeEventListener('contextmenu', onContextMenu)
         host.removeEventListener('wheel', onWheel, { capture: true })
@@ -391,8 +433,32 @@
       return false
     }
 
+    // ssh's own warning, printed before any login, so no server can fake it
+    // into a session that worked (that one wouldn't end with 255 right here).
+    function changedHostKey(): { host: string; fingerprint: string } | null {
+      const buf = term?.buffer.active
+      if (!buf || source.kind === 'shell') return null
+      const end = buf.baseY + buf.cursorY
+      let changed = false
+      let host = ''
+      let fingerprint = ''
+      for (let y = Math.max(0, end - 30); y <= end; y++) {
+        const line = buf.getLine(y)?.translateToString(true) ?? ''
+        if (line.includes('REMOTE HOST IDENTIFICATION HAS CHANGED')) {
+          changed = true
+          host = ''
+          fingerprint = ''
+        }
+        fingerprint = /^(SHA256:[A-Za-z0-9+/=]+)\.?$/.exec(line.trim())?.[1] ?? fingerprint
+        host = /^Host key for (\S+) has changed/.exec(line.trim())?.[1] ?? host
+      }
+      return changed && host ? { host, fingerprint } : null
+    }
+
     const connect = async () => {
       if (!term) return
+      hostKey = null
+      hostKeyError = ''
       if (exited !== null) term.write('\r\n\x1b[90m── reconnecting ──\x1b[0m\r\n')
       exited = null
       failed = null
@@ -448,7 +514,10 @@
           exited = code
           onExit?.(code)
           // Wait for xterm to parse the last output, which serverGone() reads.
-          term?.write('', () => endedByUser(code) && onEnded?.())
+          term?.write('', () => {
+            hostKey = code === 255 ? changedHostKey() : null
+            if (endedByUser(code)) onEnded?.()
+          })
         },
       })
       if (focused) term.focus()
@@ -466,6 +535,20 @@
     }
   })
 
+  async function forgetHostKey() {
+    if (!hostKey || hostKeyBusy) return
+    hostKeyBusy = true
+    hostKeyError = ''
+    try {
+      await HostKeys.Forget(source.kind === 'host' ? source.hostId : 0, source.kind === 'target' ? source.target : '', hostKey.host)
+      reconnect()
+    } catch (e) {
+      hostKeyError = errorMessage(e)
+    } finally {
+      hostKeyBusy = false
+    }
+  }
+
   function copySelection() {
     const text = term?.getSelection()
     if (text) {
@@ -476,7 +559,7 @@
 
   function pasteClipboard() {
     if (asking || exited !== null || readOnly) return
-    void Clipboard.Text().then((text) => text && term?.paste(text))
+    void Clipboard.Text().then((text) => pasteText(text))
   }
 
   function menuItems(): MenuItem[] {
@@ -501,7 +584,8 @@
         { label: 'Split down', icon: 'splitDown', shortcut: keybindings.combo('splitDown'), run: () => sp('column') },
       )
     }
-    if (a.splitOther) items.push({ label: 'Split with another host…', icon: 'server', shortcut: keybindings.combo('splitOther'), run: a.splitOther })
+    if (a.splitOther) items.push({ label: 'Split right with another host…', icon: 'server', shortcut: keybindings.combo('splitOther'), run: a.splitOther })
+    if (a.splitOtherDown) items.push({ label: 'Split down with another host…', icon: 'server', shortcut: keybindings.combo('splitOtherDown'), run: a.splitOtherDown })
     items.push(
       { label: 'Open in new tab', icon: 'tab', shortcut: keybindings.combo('newTab'), run: a.newTab },
       { label: 'Close', icon: 'x', shortcut: keybindings.combo('closePane'), separator: true, run: a.close },
@@ -676,6 +760,38 @@
       }}
     />
   {/if}
+  {#if pasteAsk}
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+    <div
+      role="alertdialog"
+      aria-modal="false"
+      aria-labelledby="paste-ask-title"
+      tabindex="-1"
+      class="absolute bottom-3 left-1/2 z-20 flex w-[min(30rem,calc(100%-2rem))] -translate-x-1/2 flex-col gap-2.5 rounded-xl border border-line bg-raised p-3.5 text-xs shadow-2xl"
+      onkeydown={(e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          e.stopPropagation()
+          answerPaste(false)
+        }
+      }}
+    >
+      <p id="paste-ask-title" class="text-[13px] font-medium text-fg">
+        Paste {pasteAsk.lines} {pasteAsk.lines === 1 ? 'line' : 'lines'}{hostName ? ` into ${hostName}` : ''}?
+      </p>
+      <p class="text-muted">The text has line breaks; some shells run each line as soon as it arrives.</p>
+      <pre class="max-h-24 overflow-hidden rounded-lg border border-line bg-field px-2.5 py-2 font-mono text-[11.5px] whitespace-pre-wrap text-text">{pasteAsk.preview}{pasteAsk.lines > 4 ? `\n… ${pasteAsk.lines - 4} more` : ''}</pre>
+      <div class="flex items-center gap-2">
+        <label class="mr-auto flex items-center gap-1.5 text-muted">
+          <input type="checkbox" class="accent-accent" bind:checked={pasteDontAsk} />
+          Don’t ask again
+        </label>
+        <button class="rounded-md px-2.5 py-1 text-text hover:bg-fg/10" onclick={() => answerPaste(false)}>Cancel</button>
+        <!-- svelte-ignore a11y_autofocus -->
+        <button class="rounded-md bg-accent px-2.5 py-1 font-medium text-on-accent hover:bg-accent/90" autofocus onclick={() => answerPaste(true)}>Paste</button>
+      </div>
+    </div>
+  {/if}
   {#if passwordRequest}
     {#key passwordRequest.requestId}<PasswordPrompt request={passwordRequest} />{/key}
   {:else if asking && source.kind === 'host'}
@@ -686,6 +802,27 @@
       error={loginError}
       onSubmit={(user, save) => submitLogin(user, save)}
     />
+  {:else if exited !== null && hostKey}
+    <div
+      role="alert"
+      class="absolute right-4 bottom-3 z-10 flex w-[min(34rem,calc(100%-2rem))] flex-col gap-2 rounded-xl border border-warning/50 bg-raised p-3.5 text-xs shadow-2xl"
+    >
+      <p class="text-[13px] font-semibold text-warning">The server's key changed</p>
+      <p class="text-text">
+        <span class="font-mono">{hostKey.host}</span> sent a different key than the one saved in your known_hosts, so ssh refused to connect.
+        That's expected if the server was reinstalled or its keys were replaced. If you don't know why it changed, ask its admin first:
+        someone could be in the middle of the connection.
+      </p>
+      {#if hostKey.fingerprint}<p class="text-muted">New key: <span class="font-mono break-all text-text">{hostKey.fingerprint}</span></p>{/if}
+      {#if hostKeyError}<p class="text-warning">{hostKeyError}</p>{/if}
+      <div class="flex justify-end gap-2">
+        <button class="rounded-md px-2.5 py-1 text-text hover:bg-fg/10" onclick={() => reconnect()}>Reconnect</button>
+        <button class="rounded-md bg-accent px-2.5 py-1 font-medium text-on-accent hover:bg-accent/90 disabled:opacity-60" disabled={hostKeyBusy} onclick={forgetHostKey}>
+          Remove old key and reconnect
+        </button>
+      </div>
+      <p class="text-[11px] text-subtle">ssh then shows the new key in the terminal and asks you to accept it.</p>
+    </div>
   {:else if exited !== null}
     <div
       role="status"

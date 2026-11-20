@@ -3,6 +3,8 @@
 # release/* branches build it too, so a release's .dmg is checked before its tag.
 # On a v* tag the .dmg is also added to that tag's GitHub Release (a draft is
 # created when there is none yet; the Linux packages and notes are added by hand).
+# A v1.2.3-beta.N tag makes a draft pre-release (a test build; the update check
+# and the package repository skip it).
 # Run it by hand with a tag (Actions → macOS → Run workflow) to build the
 # chosen branch and add its .dmg to that tag's release.
 name: macOS
@@ -171,14 +173,17 @@ jobs:
         run: |
           ls -l dmg
           # The tag must be a release tag and match the app version inside the .dmg name.
-          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || [ ! -f "dmg/TuxShell-${TAG#v}-universal.dmg" ]; then
+          # A test build's tag ends in -beta.N and becomes a pre-release.
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$ ]] || [ ! -f "dmg/TuxShell-${TAG#v}-universal.dmg" ]; then
             echo "::error title=release::$TAG doesn't match the built .dmg ($(ls dmg | head -1))"
             exit 1
           fi
           # Listed, not "gh release view": that misses drafts and a rerun would make a second one.
           found=$(gh release list --limit 100 --json tagName --jq ".[] | select(.tagName == \"$TAG\") | .tagName")
           if [ -z "$found" ]; then
-            gh release create "$TAG" --draft --verify-tag --title "TuxShell ${TAG#v}" \
+            pre=()
+            [[ "$TAG" == *-* ]] && pre=(--prerelease)
+            gh release create "$TAG" --draft "${pre[@]}" --verify-tag --title "TuxShell ${TAG#v}" \
               --notes "Release notes and the Linux packages are added before publishing."
           fi
           gh release upload "$TAG" dmg/TuxShell-*-universal.dmg dmg/TuxShell-*-universal.dmg.sha256 --clobber

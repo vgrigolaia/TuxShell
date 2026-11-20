@@ -33,6 +33,18 @@ export interface Layout {
 }
 
 /**
+ * LayoutNode is a pane (Pane: its index in Panes) or a split of A and B,
+ * side by side (Dir "row") or stacked ("column"), A taking Ratio of the space.
+ */
+export interface LayoutNode {
+    "pane"?: number | null;
+    "dir"?: string;
+    "ratio"?: number;
+    "a"?: LayoutNode | null;
+    "b"?: LayoutNode | null;
+}
+
+/**
  * LayoutPane says what a pane runs. Hosts are opened by id, so a renamed host
  * still opens; commands are built in Go from these values as always.
  */
@@ -79,6 +91,12 @@ export interface LayoutTab {
      */
     "sizes": number[] | null;
     "panes": LayoutPane[] | null;
+
+    /**
+     * Tree is how the panes are split (since 1.6.1); Orientation and Sizes
+     * are only read when it's missing, for layouts saved by older versions.
+     */
+    "tree"?: LayoutNode | null;
 }
 
 /**
@@ -445,6 +463,12 @@ export interface Terminal {
     "record": boolean;
     "copyOnSelect": boolean;
     "rightClickPaste": boolean;
+
+    /**
+     * ConfirmPaste asks before pasting text with line breaks, which a shell
+     * without bracketed paste would run line by line.
+     */
+    "confirmPaste": boolean;
 
     /**
      * CtrlWheelZoom zooms terminal text with Ctrl+mouse wheel.

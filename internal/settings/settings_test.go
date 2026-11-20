@@ -167,6 +167,9 @@ func TestKeybindingsCleaned(t *testing.T) {
 		"rename":      "Alt+F2",
 		"backslash":   `Ctrl+Alt+\`,
 		"broadcast":   "", // turned off
+		"lone":        "Space",
+		"interrupt":   "Ctrl+C",
+		"escape":      "Shift+Esc",
 		"split":       "Shift+Ctrl+A",
 		"bad id":      "Ctrl+K",
 		"Upper":       "Ctrl+K",
@@ -183,6 +186,9 @@ func TestKeybindingsCleaned(t *testing.T) {
 		"rename":      "Alt+F2",
 		"backslash":   `Ctrl+Alt+\`,
 		"broadcast":   "",
+		"lone":        "Space",
+		"interrupt":   "Ctrl+C",
+		"escape":      "Shift+Esc",
 	}
 	if !reflect.DeepEqual(s.Keybindings, want) {
 		t.Fatalf("keybindings = %q", s.Keybindings)

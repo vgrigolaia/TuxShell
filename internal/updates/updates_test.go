@@ -29,6 +29,9 @@ func TestCheck(t *testing.T) {
 		{"1.9.9", true},
 		{"1.10.0", false},
 		{"2.0.0", false},
+		{"1.10.0-beta.1", true}, // the release a test build led to
+		{"1.10.1-beta.1", false},
+		{"1.9.9-beta.2", true},
 	} {
 		got, err := s.Check(context.Background(), tc.current)
 		if err != nil {
@@ -64,7 +67,7 @@ func TestCheckUnavailable(t *testing.T) {
 }
 
 func TestParse(t *testing.T) {
-	for v, ok := range map[string]bool{"1.2.3": true, "v1.2.3": true, "1.2": false, "1.2.x": false, "-1.0.0": false, "": false} {
+	for v, ok := range map[string]bool{"1.2.3": true, "v1.2.3": true, "1.2": false, "1.2.x": false, "-1.0.0": false, "": false, "1.2.3-beta.1": true, "1.2.3-": false} {
 		if _, got := parse(v); got != ok {
 			t.Errorf("parse(%q) ok = %v, want %v", v, got, ok)
 		}

@@ -134,6 +134,8 @@ func (s *Service) Edit(ctx context.Context, loc Location, file string) (Edit, er
 		loc:  loc, local: local, dir: dir, orig: st, seen: info.ModTime(), stop: make(chan struct{}),
 	}
 	e.edits[sess.ID] = sess
+	// Copied before watch starts, which changes sess.Edit under e.mu.
+	edit := sess.Edit
 	e.mu.Unlock()
 	go e.watch(sess)
 
@@ -141,7 +143,7 @@ func (s *Service) Edit(ctx context.Context, loc Location, file string) (Edit, er
 		e.close(sess.ID)
 		return Edit{}, err
 	}
-	return sess.Edit, nil
+	return edit, nil
 }
 
 // watch reports each save of the local copy once.

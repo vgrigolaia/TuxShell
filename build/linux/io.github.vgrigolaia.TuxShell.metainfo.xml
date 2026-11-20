@@ -92,6 +92,11 @@
   </branding>
 
   <releases>
+    <release version="1.7.0" date="2026-11-20">
+      <description>
+        <p>Split any pane right or down, up to eight per tab, resize every divider on its own and drag a pane by its header to swap places. Lock a pane read only from its header. When a server's key changes, the tab explains it and offers to remove the old key before reconnecting. Pasting several lines asks first. The jump host field lists your saved hosts with search, edit a host from its tab's menu, menus show each action's keys, and any key combination can be a shortcut.</p>
+      </description>
+    </release>
     <release version="1.6.0" date="2026-11-12">
       <description>
         <p>Star host groups to see them first, with a Favourites view on Home. New shortcuts for splitting right and switching tabs, shown in the menus. Closing a host's last tab closes its connection, the Files panel stays with its host, and a click copies a clip from the clipboard history. Faster with the clipboard panel open, and the status bar now only warns about slow connections.</p>

@@ -7,6 +7,7 @@
   import HostBadge from './HostBadge.svelte'
   import { OSES } from '../os'
   import Icon from './Icon.svelte'
+  import JumpHostPicker from './JumpHostPicker.svelte'
   import * as Login from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/login/service'
   import * as OnePassword from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/onepassword/service'
   import * as KeePassXC from '../../../bindings/github.com/vgrigolaia/tuxshell/internal/keepassxc/service'
@@ -73,8 +74,28 @@
   let formEl: HTMLFormElement
 
   const isNew = $derived(draft.id === 0)
-  // Unique: a duplicated host keeps its original's alias, and a repeated key breaks the {#each}.
-  const jumpCandidates = $derived([...new Set(hostStore.list.filter((h) => h.id !== draft.id && h.protocol !== 'rdp').map((h) => h.alias || h.hostname))])
+  // Saved SSH hosts that can be a jump host, by name (names are unique; Go turns
+  // a hop that names a saved host into its address at connect time).
+  const jumpHosts = $derived(
+    hostStore.list
+      .filter((h) => h.id !== draft.id && h.protocol !== 'rdp')
+      .map((h) => ({ name: h.name, address: h.hostname || h.alias }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+  )
+  // The dropdown's value: '' (none), a saved host's name, or OTHER_JUMP for a typed
+  // address, ssh_config alias or several hops.
+  const OTHER_JUMP = '\u0000other'
+  function jumpChoice(value: string): string {
+    const v = value.trim()
+    if (!v) return ''
+    return hostStore.list.find((h) => h.id !== draft.id && h.protocol !== 'rdp' && h.name.toLowerCase() === v.toLowerCase())?.name ?? OTHER_JUMP
+  }
+  // svelte-ignore state_referenced_locally
+  let jumpPick = $state(jumpChoice(host.proxyJump ?? ''))
+  function pickJump(value: string) {
+    jumpPick = value
+    if (value !== OTHER_JUMP) draft.proxyJump = value
+  }
 
   // New hosts start typing in Name; picking an existing host shouldn't steal focus.
   onMount(() => {
@@ -503,13 +524,19 @@
         {/if}
         <div class="col-span-3">
           <label class={label} for="host-proxyJump">{isRDP ? 'SSH jump host' : 'Jump host'} {#if isRDP}<span class="font-normal text-subtle">(optional)</span>{/if}</label>
-          <input id="host-proxyJump" class={input} bind:value={draft.proxyJump} list="host-jumps" placeholder="bastion-01"
-            aria-invalid={!!fieldError('proxyJump')} aria-describedby="host-proxyJump-error" autocomplete="off" spellcheck="false" />
-          <datalist id="host-jumps">
-            {#each jumpCandidates as j (j)}<option value={j}></option>{/each}
-          </datalist>
+          <JumpHostPicker id="host-proxyJump" value={jumpPick} other={OTHER_JUMP} hosts={jumpHosts} onpick={pickJump}
+            invalid={!!fieldError('proxyJump') && jumpPick !== OTHER_JUMP} describedby="host-proxyJump-hint host-proxyJump-error" />
+          {#if jumpPick === OTHER_JUMP}
+            <input id="host-proxyJump-other" class="{input} mt-2 font-mono text-xs" bind:value={draft.proxyJump} placeholder="user@host:port"
+              aria-label="Jump host address" aria-invalid={!!fieldError('proxyJump')} aria-describedby="host-proxyJump-error"
+              autocomplete="off" spellcheck="false" />
+          {/if}
           {@render field('proxyJump')}
-          {#if isRDP}<span class="mt-1 block text-[11.5px] text-subtle">Reach the desktop through an SSH tunnel (the jump host needs a key or the agent).</span>{/if}
+          <span id="host-proxyJump-hint" class="mt-1 block text-[11.5px] text-subtle">
+            {#if isRDP}Reach the desktop through an SSH tunnel (the jump host needs a key or the agent).
+            {:else if jumpPick === OTHER_JUMP}An address or ~/.ssh/config name; separate several hops with commas.
+            {:else}Connect through this host first. Any saved SSH host can be a jump host.{/if}
+          </span>
         </div>
         <div class="col-span-3">
           <label class={label} for="host-group">Group</label>

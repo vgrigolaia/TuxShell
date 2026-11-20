@@ -9,6 +9,7 @@ export {
 export type {
     History,
     Layout,
+    LayoutNode,
     LayoutPane,
     LayoutTab,
     Loaded,
