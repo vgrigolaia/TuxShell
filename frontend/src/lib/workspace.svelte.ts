@@ -29,7 +29,7 @@ export interface Pane {
   session: string
 }
 
-/** A workspace tab showing 1–4 panes. */
+/** A workspace tab showing 1–MAX_PANES panes. */
 export interface Tab {
   key: number
   /** The panes in reading order; always leaves(tree). */

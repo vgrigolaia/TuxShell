@@ -51,11 +51,11 @@ type LayoutPane struct {
 }
 
 // Limits for layouts, so a hand-edited file stays small. A tab holds at most
-// 4 panes, as in the app.
+// 8 panes, as in the app.
 const (
 	MaxLayouts       = 50
 	MaxLayoutTabs    = 30
-	maxLayoutPanes   = 4
+	maxLayoutPanes   = 8
 	maxLayoutTextLen = 200
 )
 

@@ -34,9 +34,9 @@ func TestCleanLayouts(t *testing.T) {
 		t.Fatalf("cleanLayouts =\n%+v\nwant\n%+v", got, want)
 	}
 
-	// A tab keeps at most 4 panes, and a long name is dropped.
-	many := Layout{Name: "Many", Tabs: []LayoutTab{{Panes: []LayoutPane{host, host, host, host, host}}}}
-	if got := cleanLayouts([]Layout{many}); len(got[0].Tabs[0].Panes) != 4 {
+	// A tab keeps at most 8 panes, and a long name is dropped.
+	many := Layout{Name: "Many", Tabs: []LayoutTab{{Panes: []LayoutPane{host, host, host, host, host, host, host, host, host}}}}
+	if got := cleanLayouts([]Layout{many}); len(got[0].Tabs[0].Panes) != 8 {
 		t.Fatalf("panes = %d", len(got[0].Tabs[0].Panes))
 	}
 	if got := cleanLayouts([]Layout{{Name: strings.Repeat("n", 201), Tabs: many.Tabs}}); len(got) != 0 {

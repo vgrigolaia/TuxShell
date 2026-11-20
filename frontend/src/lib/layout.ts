@@ -19,8 +19,8 @@ export interface Rect {
   height: number
 }
 
-/** Most panes one tab can hold. */
-export const MAX_PANES = 4
+/** Most panes one tab can hold (WebKit keeps about 12 GPU terminals, see perf.MAX_GPU). */
+export const MAX_PANES = 8
 /** Smallest share either side of a split can be resized to. */
 export const MIN_SHARE = 0.1
 
@@ -79,6 +79,11 @@ export function fromOrientation(ids: number[], orientation: Orientation, sizes: 
       a: { dir: 'row', ratio: c, a: { pane: ids[0] }, b: { pane: ids[1] } },
       b: { dir: 'row', ratio: c, a: { pane: ids[2] }, b: { pane: ids[3] } },
     }
+  // More than four in a grid: two rows, the top one taking the extra pane.
+  if (orientation === 'grid' && ids.length > 4) {
+    const top = Math.ceil(ids.length / 2)
+    return { dir: 'column', ratio: 0.5, a: chain(ids.slice(0, top), 'row'), b: chain(ids.slice(top), 'row') }
+  }
   const dir: Dir = orientation === 'column' ? 'column' : 'row'
   if (sizes.length !== ids.length) return chain(ids, dir)
   // Keep the saved shares: each split's ratio is its first pane's share of what's left.
