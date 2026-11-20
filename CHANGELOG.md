@@ -5,11 +5,6 @@ All notable changes to TuxShell are listed here. Versions follow
 
 ## [Unreleased]
 
-### Fixed
-
-- Dragging a divider or resizing the window no longer leaves cut-off copies of a long prompt in the
-  terminal: the server hears one size when the drag ends, instead of one for every pause.
-
 ## [1.7.0] - 2026-11-20
 
 ### Added
@@ -42,6 +37,8 @@ All notable changes to TuxShell are listed here. Versions follow
 - A jump host that names a saved host now connects through that host's address, user and port
   (before, ssh got only the name and failed with "Could not resolve hostname"). This covers
   terminals, the file browser, tunnels and Test in the host editor.
+- Dragging a divider or resizing the window no longer leaves cut-off copies of a long prompt in the
+  terminal: the server hears one size when the drag ends, instead of one for every pause.
 
 ## [1.6.0] - 2026-11-12
 
