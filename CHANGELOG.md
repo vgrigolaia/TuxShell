@@ -5,6 +5,8 @@ All notable changes to TuxShell are listed here. Versions follow
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-11-20
+
 ### Added
 
 - *Edit host…* in a tab's right-click menu, for tabs opened from a saved host.
@@ -474,6 +476,7 @@ First release.
 - Dark and light themes, or follow the system.
 - Packages for Fedora/RHEL (.rpm), Debian/Ubuntu (.deb) and an AppImage.
 
+[1.7.0]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.7.0
 [1.6.0]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.6.0
 [1.5.5]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.5.5
 [1.5.4]: https://github.com/vgrigolaia/tuxshell/releases/tag/v1.5.4
