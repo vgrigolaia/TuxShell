@@ -1,4 +1,4 @@
-import { MAX_PANES, defaultSizes, neighbour, rects, type Direction, type Orientation } from './layout'
+import { MAX_PANES, fromOrientation, leaves, neighbour, paneRects, removePane, single, splitPane, swapPanes, type Dir, type Direction, type Node, type Orientation } from './layout'
 import type { Source } from './tabs'
 import { paneProfile } from './profiles.svelte'
 
@@ -32,9 +32,10 @@ export interface Pane {
 /** A workspace tab showing 1–4 panes. */
 export interface Tab {
   key: number
+  /** The panes in reading order; always leaves(tree). */
   paneIds: number[]
-  orientation: Orientation
-  sizes: number[]
+  /** How the panes are split (see layout.ts). */
+  tree: Node
   activePane: number
   /** Keystrokes typed in an included pane go to every included pane. */
   broadcast: boolean
@@ -87,8 +88,7 @@ class Workspace {
     return {
       key: this.nextTab++,
       paneIds,
-      orientation,
-      sizes: defaultSizes(paneIds.length, orientation),
+      tree: fromOrientation(paneIds, orientation),
       activePane: paneIds[0],
       broadcast: false,
       excluded: [],
@@ -106,14 +106,22 @@ class Workspace {
     this.activeKey = tab.key
   }
 
-  /** Adds a new pane to a tab, splitting it. Returns false when the tab is full. */
-  splitTab(key: number, source: Source, title: string, orientation: Orientation): boolean {
+  /** Sets a tab's split and the pane order that follows from it. */
+  private setTree(tab: Tab, tree: Node) {
+    tab.tree = tree
+    tab.paneIds = leaves(tree)
+  }
+
+  /**
+   * Adds a new pane to a tab by splitting its focused pane: 'row' puts the new
+   * one to the right, 'column' below. Returns false when the tab is full.
+   */
+  splitTab(key: number, source: Source, title: string, dir: Dir): boolean {
     const tab = this.tabs.find((t) => t.key === key)
     if (!tab || tab.paneIds.length >= MAX_PANES) return false
     const pane = this.makePane(source, title)
-    if (tab.paneIds.length === 1) tab.orientation = orientation
-    tab.paneIds.push(pane.id)
-    tab.sizes = defaultSizes(tab.paneIds.length, tab.orientation)
+    const target = tab.paneIds.includes(tab.activePane) ? tab.activePane : tab.paneIds[tab.paneIds.length - 1]
+    this.setTree(tab, splitPane(tab.tree, target, pane.id, dir))
     tab.activePane = pane.id
     tab.maximized = null
     // A pane added mid-broadcast starts excluded, so it never gets keystrokes by surprise.
@@ -128,9 +136,7 @@ class Workspace {
     const ids = chosen.flatMap((t) => t.paneIds)
     if (chosen.length < 2 || ids.length > MAX_PANES) return false
     const [target, ...rest] = chosen
-    target.paneIds = ids
-    target.orientation = orientation
-    target.sizes = defaultSizes(ids.length, orientation)
+    this.setTree(target, fromOrientation(ids, orientation))
     target.broadcast = false
     target.excluded = []
     target.maximized = null
@@ -154,8 +160,7 @@ class Workspace {
     const tab = this.tabs.find((t) => t.key === key)
     if (!tab || tab.paneIds.length === 1) return
     const [first, ...rest] = tab.paneIds
-    tab.paneIds = [first]
-    tab.sizes = defaultSizes(1)
+    this.setTree(tab, single(first))
     tab.activePane = first
     tab.broadcast = false
     tab.excluded = []
@@ -173,8 +178,7 @@ class Workspace {
 
   private removeFromTab(tab: Tab, paneId: number) {
     const i = tab.paneIds.indexOf(paneId)
-    tab.paneIds.splice(i, 1)
-    tab.sizes = defaultSizes(tab.paneIds.length, tab.orientation)
+    this.setTree(tab, removePane(tab.tree, paneId) ?? single(paneId))
     tab.excluded = tab.excluded.filter((id) => id !== paneId)
     // Broadcasting to a single pane is just typing.
     if (tab.paneIds.length < 2) tab.broadcast = false
@@ -218,9 +222,23 @@ class Workspace {
   moveFocus(dir: Direction) {
     const tab = this.activeTab
     if (!tab || tab.paneIds.length < 2) return
-    const all = rects(tab.paneIds.length, tab.orientation, tab.sizes)
+    const r = paneRects(tab.tree)
+    const all = tab.paneIds.map((id) => r.get(id)!)
     const next = neighbour(all, tab.paneIds.indexOf(tab.activePane), dir)
     if (next >= 0) tab.activePane = tab.paneIds[next]
+  }
+
+  /** Puts two panes of the same tab in each other's place. */
+  swapPanes(x: number, y: number) {
+    const tab = this.tabOf(x)
+    if (!tab || x === y || !tab.paneIds.includes(y)) return
+    this.setTree(tab, swapPanes(tab.tree, x, y))
+  }
+
+  /** Sets a tab's split as a whole (dragged dividers, saved layouts). */
+  setLayout(key: number, tree: Node) {
+    const tab = this.tabs.find((t) => t.key === key)
+    if (tab && leaves(tree).sort().join() === [...tab.paneIds].sort().join()) this.setTree(tab, tree)
   }
 
   /** Turns broadcast on (all panes included) or off for a split tab. */

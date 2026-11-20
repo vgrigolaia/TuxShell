@@ -21,6 +21,19 @@ type LayoutTab struct {
 	// they don't fit the panes.
 	Sizes []float64    `json:"sizes"`
 	Panes []LayoutPane `json:"panes"`
+	// Tree is how the panes are split (since 1.6.1); Orientation and Sizes
+	// are only read when it's missing, for layouts saved by older versions.
+	Tree *LayoutNode `json:"tree,omitempty"`
+}
+
+// LayoutNode is a pane (Pane: its index in Panes) or a split of A and B,
+// side by side (Dir "row") or stacked ("column"), A taking Ratio of the space.
+type LayoutNode struct {
+	Pane  *int        `json:"pane,omitempty"`
+	Dir   string      `json:"dir,omitempty"`
+	Ratio float64     `json:"ratio,omitempty"`
+	A     *LayoutNode `json:"a,omitempty"`
+	B     *LayoutNode `json:"b,omitempty"`
 }
 
 // LayoutPane says what a pane runs. Hosts are opened by id, so a renamed host
@@ -99,6 +112,10 @@ func cleanTab(t LayoutTab) (LayoutTab, bool) {
 	if len(panes) == 0 {
 		return t, false
 	}
+	// A dropped pane shifts the indexes the tree uses, so it goes too.
+	if t.Tree != nil && (len(panes) != len(t.Panes) || !okTree(t.Tree, len(panes))) {
+		t.Tree = nil
+	}
 	t.Panes = panes
 	sizes := []float64{}
 	for _, s := range t.Sizes {
@@ -113,6 +130,28 @@ func cleanTab(t LayoutTab) (LayoutTab, bool) {
 		t.Sizes = []float64{}
 	}
 	return t, true
+}
+
+// okTree says whether n splits exactly panes 0..n-1, each once.
+func okTree(n *LayoutNode, panes int) bool {
+	seen := map[int]bool{}
+	var walk func(n *LayoutNode, depth int) bool
+	walk = func(n *LayoutNode, depth int) bool {
+		switch {
+		case n == nil || depth > maxLayoutPanes:
+			return false
+		case n.Pane != nil:
+			ok := *n.Pane >= 0 && *n.Pane < panes && !seen[*n.Pane] && n.A == nil && n.B == nil
+			seen[*n.Pane] = true
+			return ok
+		case n.Dir != "row" && n.Dir != "column":
+			return false
+		case n.Ratio <= 0 || n.Ratio >= 1:
+			return false
+		}
+		return walk(n.A, depth+1) && walk(n.B, depth+1)
+	}
+	return walk(n, 0) && len(seen) == panes
 }
 
 // okPane keeps the values ssh will see plain; they're validated again (like

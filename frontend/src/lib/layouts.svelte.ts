@@ -1,6 +1,6 @@
 import type { Layout, LayoutPane, LayoutTab } from '../../bindings/github.com/vgrigolaia/tuxshell/internal/settings/models'
 import { hostStore } from './hosts.svelte'
-import { defaultSizes, type Orientation } from './layout'
+import { checkTree, fromOrientation, mapPanes, type Node, type Orientation } from './layout'
 import { notices } from './notices.svelte'
 import { prefs } from './settings.svelte'
 import type { Source } from './tabs'
@@ -44,15 +44,18 @@ class Layouts {
   snapshot(keys: number[]): LayoutTab[] {
     return workspace.tabs
       .filter((t) => keys.includes(t.key))
-      .map((t) => ({
-        name: t.name,
-        orientation: t.orientation,
-        sizes: [...t.sizes],
-        panes: t.paneIds.flatMap((id) => {
-          const p = workspace.pane(id)
-          return p ? [paneOf(p)] : []
-        }),
-      }))
+      .map((t) => {
+        const ids = t.paneIds.filter((id) => workspace.pane(id))
+        return {
+          name: t.name,
+          // Older TuxShell versions read these two; the tree is the real split.
+          orientation: 'row',
+          sizes: [],
+          // Panes are stored by their index in panes.
+          tree: mapPanes(t.tree, (id) => ids.indexOf(id)) as LayoutTab['tree'],
+          panes: ids.map((id) => paneOf(workspace.pane(id)!)),
+        }
+      })
   }
 
   /** Saves tabs under name; a layout with that name (any case) is replaced in place. */
@@ -114,14 +117,19 @@ class Layouts {
       workspace.openTab(head.source, head.title)
       const key = workspace.activeKey
       first ??= key
-      for (const p of rest) workspace.splitTab(key, p.source, p.title, t.orientation as Orientation)
+      for (const p of rest) workspace.splitTab(key, p.source, p.title, 'row')
       const tab = workspace.tabs.find((x) => x.key === key)
       if (!tab) continue
-      // The saved split, when nothing was left out and it fits the panes.
-      const sizes = t.sizes ?? []
-      if (panes.length === stored.length && sizes.length === defaultSizes(tab.paneIds.length, tab.orientation).length) tab.sizes = [...sizes]
+      const ids = [...tab.paneIds]
+      // The saved split when nothing was left out: the tree, or an older layout's orientation and shares.
+      let tree: Node | null = null
+      if (panes.length === stored.length) {
+        const saved = t.tree ? checkTree(t.tree, ids.map((_, i) => i)) : null
+        tree = saved ? mapPanes(saved, (i) => ids[i]) : fromOrientation(ids, (t.orientation || 'row') as Orientation, t.sizes ?? [])
+      }
+      if (tree) workspace.setLayout(key, tree)
       if (t.name) workspace.renameTab(key, t.name)
-      panes.forEach((p, i) => p.custom && workspace.renamePane(tab.paneIds[i], p.custom))
+      panes.forEach((p, i) => p.custom && workspace.renamePane(ids[i], p.custom))
     }
     if (first !== null) workspace.activeKey = first
     return skipped

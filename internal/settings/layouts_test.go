@@ -43,3 +43,34 @@ func TestCleanLayouts(t *testing.T) {
 		t.Fatalf("long name kept: %+v", got)
 	}
 }
+
+func TestCleanLayoutTree(t *testing.T) {
+	idx := func(i int) *int { return &i }
+	pane := func(i int) *LayoutNode { return &LayoutNode{Pane: idx(i)} }
+	shell := LayoutPane{Kind: "shell"}
+	good := &LayoutNode{Dir: "row", Ratio: 0.6, A: pane(0), B: &LayoutNode{Dir: "column", Ratio: 0.3, A: pane(1), B: pane(2)}}
+	cases := []struct {
+		name  string
+		tree  *LayoutNode
+		panes []LayoutPane
+		keep  bool
+	}{
+		{"valid", good, []LayoutPane{shell, shell, shell}, true},
+		{"too few panes", good, []LayoutPane{shell, shell}, false},
+		{"repeated pane", &LayoutNode{Dir: "row", Ratio: 0.5, A: pane(0), B: pane(0)}, []LayoutPane{shell, shell}, false},
+		{"bad dir", &LayoutNode{Dir: "diagonal", Ratio: 0.5, A: pane(0), B: pane(1)}, []LayoutPane{shell, shell}, false},
+		{"bad ratio", &LayoutNode{Dir: "row", Ratio: 1.5, A: pane(0), B: pane(1)}, []LayoutPane{shell, shell}, false},
+		{"index out of range", &LayoutNode{Dir: "row", Ratio: 0.5, A: pane(0), B: pane(7)}, []LayoutPane{shell, shell}, false},
+		// A dropped pane shifts indexes, so the tree can't be trusted any more.
+		{"dropped pane", good, []LayoutPane{shell, {Kind: "host"}, shell, shell}, false},
+	}
+	for _, c := range cases {
+		out := cleanLayouts([]Layout{{Name: "x", Tabs: []LayoutTab{{Tree: c.tree, Panes: c.panes}}}})
+		if len(out) != 1 {
+			t.Fatalf("%s: layout dropped", c.name)
+		}
+		if got := out[0].Tabs[0].Tree != nil; got != c.keep {
+			t.Errorf("%s: tree kept = %v, want %v", c.name, got, c.keep)
+		}
+	}
+}

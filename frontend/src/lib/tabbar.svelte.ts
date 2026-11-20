@@ -1,7 +1,7 @@
 import { SvelteSet } from 'svelte/reactivity'
 import type { MenuItem } from './components/ContextMenu.svelte'
 import type { TabInfo } from './tabs'
-import { MAX_PANES, type Orientation } from './layout'
+import { MAX_PANES, type Dir, type Orientation } from './layout'
 import { keybindings } from './keybindings.svelte'
 
 /** What the tab views (title bar strip, left panel list, icon rail) can do; App implements it. */
@@ -10,7 +10,7 @@ export interface TabActions {
   close: (key: number) => void
   closeMany: (keys: number[]) => void
   merge: (keys: number[], orientation: Orientation) => void
-  split: (key: number, orientation: Orientation) => void
+  split: (key: number, orientation: Dir) => void
   unsplit: (key: number) => void
   rename: (key: number) => void
   /** Opens the saved host's form (the tab's first pane). */

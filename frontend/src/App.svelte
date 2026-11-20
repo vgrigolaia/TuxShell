@@ -32,7 +32,7 @@
   import { emptyHost, errorMessage, hostStore, type Host } from './lib/hosts.svelte'
   import { HOME, workspace, type Pane } from './lib/workspace.svelte'
   import Launchpad from './lib/components/Launchpad.svelte'
-  import { MAX_PANES, type Orientation } from './lib/layout'
+  import { MAX_PANES, fromOrientation, type Dir } from './lib/layout'
   import { layouts } from './lib/layouts.svelte'
   import { notices } from './lib/notices.svelte'
   import Notices from './lib/components/Notices.svelte'
@@ -49,7 +49,7 @@
   }
   let quickOpen = $state(false)
   // When set, the next connection from quick connect splits this tab instead of opening a new one.
-  let splitInto = $state<{ key: number; orientation: Orientation } | null>(null)
+  let splitInto = $state<{ key: number; orientation: Dir } | null>(null)
   let deleting = $state<Host | null>(null)
   let prefsOpen = $state(false)
   // Clock for "Connected 12m" in the status bar.
@@ -113,7 +113,7 @@
 
   // Splits a pane's tab with the same connection (no new login thanks to
   // shared ssh connections). "auto" splits along the pane's longer side.
-  function splitSame(paneId: number, orientation: Orientation | 'auto') {
+  function splitSame(paneId: number, orientation: Dir | 'auto') {
     const t = workspace.tabOf(paneId)
     const p = workspace.pane(paneId)
     const source = workspace.sameSource(paneId)
@@ -303,7 +303,7 @@
     }
   })
 
-  function openQuick(split: { key: number; orientation: Orientation } | null) {
+  function openQuick(split: { key: number; orientation: Dir } | null) {
     splitInto = split
     quickOpen = true
   }
@@ -340,8 +340,10 @@
     // Hosts from one group make a tab named after it, e.g. "PostgreSQL · prod".
     const groups = new Set(hosts.map((h) => h.group))
     if (groups.size === 1 && first.group) workspace.renameTab(key, first.group)
+    for (const h of rest) workspace.splitTab(key, { kind: 'host', hostId: h.id, askUser: !h.user }, h.name, 'row')
     // Three or four tiles go in a grid: one wide on top over two, or 2×2.
-    for (const h of rest) workspace.splitTab(key, { kind: 'host', hostId: h.id, askUser: !h.user }, h.name, hosts.length > 2 ? 'grid' : 'row')
+    const tab = workspace.tabs.find((t) => t.key === key)
+    if (tab && hosts.length > 2) workspace.setLayout(key, fromOrientation(tab.paneIds, 'grid'))
   }
 
   // The last tab shown, so leaving Home goes back to it.

@@ -3,7 +3,7 @@
   import RdpPane from './RdpPane.svelte'
   import Icon from './Icon.svelte'
   import { workspace, type Pane } from '../workspace.svelte'
-  import { MAX_PANES, dividers, drag, rects, type Divider } from '../layout'
+  import { MAX_PANES, dividers, drag, paneRects, type Divider } from '../layout'
   import { hostStore } from '../hosts.svelte'
   import type { PaneActions } from '../tabs'
   import { isTerminalReport } from '../broadcast'
@@ -37,12 +37,11 @@
   function placement(pane: Pane) {
     const tab = workspace.tabOf(pane.id)
     if (!tab) return null
-    const i = tab.paneIds.indexOf(pane.id)
     // A maximized pane fills the tab; the others stay mounted but hidden.
     const max = tab.maximized
     return {
       tab,
-      rect: max === pane.id ? { left: 0, top: 0, width: 100, height: 100 } : rects(tab.paneIds.length, tab.orientation, tab.sizes)[i],
+      rect: max === pane.id ? { left: 0, top: 0, width: 100, height: 100 } : (paneRects(tab.tree).get(pane.id) ?? { left: 0, top: 0, width: 100, height: 100 }),
       visible: tab.key === workspace.activeKey && (max === null || max === pane.id),
       maximized: max === pane.id,
       split: tab.paneIds.length > 1,
@@ -64,13 +63,45 @@
     return true
   }
 
-  const activeDividers = $derived(
-    workspace.activeTab && workspace.activeTab.maximized === null ? dividers(workspace.activeTab.paneIds.length, workspace.activeTab.orientation, workspace.activeTab.sizes) : [],
-  )
+  const activeDividers = $derived(workspace.activeTab && workspace.activeTab.maximized === null ? dividers(workspace.activeTab.tree) : [])
 
   function setSize(d: Divider, pos: number) {
     const tab = workspace.activeTab
-    if (tab) tab.sizes = drag(tab.paneIds.length, tab.sizes, d, pos, tab.orientation)
+    if (tab) workspace.setLayout(tab.key, drag(tab.tree, d, pos))
+  }
+
+  // Dragging a pane by its header onto another pane of the tab swaps them.
+  let dragging = $state<number | null>(null)
+  let dropOn = $state<number | null>(null)
+
+  function onHeaderDown(e: PointerEvent, paneId: number) {
+    const tab = workspace.tabOf(paneId)
+    // Buttons in the header keep their clicks; a single pane has nothing to swap with.
+    if (e.button !== 0 || !tab || tab.paneIds.length < 2 || tab.maximized !== null || (e.target as HTMLElement).closest('button')) return
+    const x0 = e.clientX
+    const y0 = e.clientY
+    const target = (ev: PointerEvent) => {
+      const el = document.elementFromPoint(ev.clientX, ev.clientY)?.closest<HTMLElement>('[data-pane-id]')
+      const id = el ? Number(el.dataset.paneId) : NaN
+      return tab.paneIds.includes(id) && id !== paneId ? id : null
+    }
+    const move = (ev: PointerEvent) => {
+      if (dragging === null && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 6) return
+      dragging = paneId
+      dropOn = target(ev)
+    }
+    const up = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      if (dragging !== null) {
+        const to = target(ev)
+        if (to !== null) workspace.swapPanes(paneId, to)
+      }
+      dragging = null
+      dropOn = null
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
   }
 
   function onDividerDown(e: PointerEvent, d: Divider) {
@@ -127,11 +158,13 @@
             ? 'tile-focused border-accent'
             : at.broadcasting
               ? 'border-accent-line'
-              : 'border-line'} {at.excluded ? 'opacity-70' : ''}"
+              : 'border-line'} {at.excluded || dragging === pane.id ? 'opacity-70' : ''} {dropOn === pane.id ? 'ring-2 ring-accent' : ''}"
         >
           <!-- A profile's header colour tints the header and marks its left edge. -->
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
           <header
-            class="flex min-h-9 shrink-0 flex-wrap items-center gap-2 border-b border-line px-3 py-1.5 text-xs"
+            onpointerdown={(e) => onHeaderDown(e, pane.id)}
+            class="flex min-h-9 shrink-0 flex-wrap items-center gap-2 border-b border-line px-3 py-1.5 text-xs {at.split && !at.maximized ? 'cursor-grab' : ''} {dragging === pane.id ? 'cursor-grabbing' : ''}"
             style:background={profile.headerColor ? `color-mix(in srgb, ${profile.headerColor} 18%, transparent)` : undefined}
             style:box-shadow={profile.headerColor ? `inset 3px 0 0 ${profile.headerColor}` : undefined}
           >
@@ -266,7 +299,7 @@
     {/if}
   {/each}
 
-  {#each activeDividers as d (d.axis + d.index)}
+  {#each activeDividers as d (d.path)}
     <!-- A focusable separator with a value is an interactive widget in ARIA
          (window splitter pattern); Svelte's checker treats every separator as static. -->
     <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
@@ -275,12 +308,14 @@
       tabindex="0"
       aria-orientation={d.axis === 'x' ? 'vertical' : 'horizontal'}
       aria-label="Resize panes"
-      aria-valuenow={Math.round(d.at)}
+      aria-valuenow={Math.round(((d.at - d.start) / d.size) * 100)}
       aria-valuemin={0}
       aria-valuemax={100}
-      class="group absolute z-20 {d.axis === 'x' ? 'top-0 bottom-0 w-2 -translate-x-1/2 cursor-col-resize' : 'right-0 left-0 h-2 -translate-y-1/2 cursor-row-resize'}"
-      style:left={d.axis === 'x' ? `${d.at}%` : undefined}
-      style:top={d.axis === 'y' ? `${d.at}%` : d.from ? `${d.from}%` : undefined}
+      class="group absolute z-20 {d.axis === 'x' ? 'w-2 -translate-x-1/2 cursor-col-resize' : 'h-2 -translate-y-1/2 cursor-row-resize'}"
+      style:left="{d.axis === 'x' ? d.at : d.from}%"
+      style:top="{d.axis === 'y' ? d.at : d.from}%"
+      style:width={d.axis === 'y' ? `${d.length}%` : undefined}
+      style:height={d.axis === 'x' ? `${d.length}%` : undefined}
       onpointerdown={(e) => onDividerDown(e, d)}
       onkeydown={(e) => onDividerKey(e, d)}
     >
