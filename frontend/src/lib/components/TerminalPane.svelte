@@ -25,6 +25,7 @@
   import { profileTheme } from '../schemes'
   import { beep, paneProfile } from '../profiles.svelte'
   import { perf } from '../perf.svelte'
+  import { workspace } from '../workspace.svelte'
 
   interface Props {
     source: Source
@@ -122,6 +123,11 @@
     if (!asking) restartSession()
   }
   let restartSession: () => void = () => {}
+  // Sends the size held back while a divider was dragged.
+  let flushSize: () => void = () => {}
+  $effect(() => {
+    if (!workspace.resizing) flushSize()
+  })
 
   /** Pastes text into the session (used by clipboard history). */
   export function paste(text: string) {
@@ -284,10 +290,21 @@
         sendToSession(data)
       }
       const input = term.onData((data) => typed(data))
+      // Every size the server hears about makes the shell redraw its prompt, and a
+      // long prompt that wraps leaves a cut-off copy each time. While a divider is
+      // dragged only the last size is sent, when the drag ends.
+      let pendingSize: { cols: number; rows: number } | null = null
       const resize = term.onResize(({ cols, rows }) => {
         onSize?.(cols, rows)
+        if (workspace.resizing) return void (pendingSize = { cols, rows })
+        pendingSize = null
         if (sessionId) void Terminals.Resize(sessionId, cols, rows)
       })
+      flushSize = () => {
+        const size = pendingSize
+        pendingSize = null
+        if (size && sessionId) void Terminals.Resize(sessionId, size.cols, size.rows)
+      }
       // The prompt's folder, for the file panel's "follow terminal". A shell
       // that sends OSC 7 is trusted over titles, which programs also set.
       let osc7 = false
@@ -372,7 +389,8 @@
       const observer = new ResizeObserver(() => {
         clearTimeout(settle)
         // Hidden tabs have zero size; fitting them would shrink the PTY to 1x1.
-        settle = setTimeout(() => host.offsetWidth > 0 && fit?.fit(), 50)
+        // A window being resized sends many sizes; wait until it stops.
+        settle = setTimeout(() => host.offsetWidth > 0 && fit?.fit(), workspace.resizing ? 30 : 150)
       })
       observer.observe(host)
       cleanups.push(() => {
