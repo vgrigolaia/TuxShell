@@ -5,6 +5,37 @@ All notable changes to TuxShell are listed here. Versions follow
 
 ## [Unreleased]
 
+### Added
+
+- *Edit host…* in a tab's right-click menu, for tabs opened from a saved host.
+- Any key or combination can be a shortcut, including ⌘Space on macOS. Keys the terminal or the
+  system needs only show a warning first.
+- The host editor's Jump host field lists your saved SSH hosts. Type part of a name or address
+  to find one, or choose *Other* to type an address.
+- Pasting text with line breaks into a terminal asks first and shows the text (Preferences →
+  General → *Ask before pasting several lines*).
+- Split any pane right or down: a third pane goes exactly where you ask. Every divider resizes on its
+  own, and dragging a pane by its header onto another one swaps them. Saved layouts keep the new
+  splits; older layouts open as before.
+- When a server's key has changed, the tab explains it and offers *Remove old key and reconnect*;
+  ssh then shows the new key and asks you to accept it.
+- A lock button in the pane header makes a pane read only (typing, pasting and multi-exec are ignored).
+- Up to eight panes per tab (was four).
+- Right-click menus show each action's keys. New default keys: Duplicate tab Ctrl+Shift+D, Reconnect
+  Ctrl+Shift+F5, Rename tab Ctrl+Shift+F2, Split right / down with another host Ctrl+Shift+N / Ctrl+Shift+M
+  (⌘ on macOS). All can be changed in Preferences → Shortcuts.
+
+### Changed
+
+- Hosts that stay unreachable are pinged every 5 minutes instead of every minute.
+- A clearer warning when a shortcut is Shift plus a key you type with (Shift+Space, Shift+letter).
+
+### Fixed
+
+- A jump host that names a saved host now connects through that host's address, user and port
+  (before, ssh got only the name and failed with "Could not resolve hostname"). This covers
+  terminals, the file browser, tunnels and Test in the host editor.
+
 ## [1.6.0] - 2026-11-12
 
 ### Added

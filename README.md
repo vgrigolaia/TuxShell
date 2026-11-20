@@ -14,7 +14,7 @@ Website: [tuxshell.io](https://tuxshell.io)
 ## Screenshots
 
 ![Split view with the open tabs and hosts in the left panel](docs/screenshots/split-view.png)
-*Split view: open tabs and hosts in the left panel, up to four panes per tab.*
+*Split view: open tabs and hosts in the left panel, up to eight panes per tab.*
 
 ![Home with your hosts, grouped and with live status](docs/screenshots/home.png)
 *Home: your hosts by group, with status, search and quick connect.*
@@ -35,7 +35,8 @@ Website: [tuxshell.io](https://tuxshell.io)
 
 - **Home**: a start page with your hosts, snippets and tunnels. Double-click Hosts to
   open the host list next to your sessions.
-- **Hosts**: saved hosts with groups, tags, jump hosts (ProxyJump) and identity files.
+- **Hosts**: saved hosts with groups, tags, jump hosts (ProxyJump, see
+  [Jump hosts](#jump-hosts)) and identity files.
   Filter, bulk select and delete. Optional operating system per host, shown with its logo
   (Ubuntu, Debian, RHEL, AlmaLinux, Rocky, Fedora, Proxmox and more). The host editor's
   Detect button fills it in when you click it: with a session open to the host it reads
@@ -51,8 +52,10 @@ Website: [tuxshell.io](https://tuxshell.io)
   you press Enter.
 - **Tunnels**: local port forwards and SOCKS proxies through a saved host, listening on
   127.0.0.1 only. Password-only hosts can share an open terminal's connection.
-- **Tabs and split view**: up to four panes per tab. Merge tabs into a split, move a pane
-  out to its own tab, maximize a pane, drag dividers to resize. Open tabs are listed in the
+- **Tabs and split view**: up to eight panes per tab. Split any pane right or down, drag each
+  divider on its own, and drag a pane by its header onto another to swap them. Merge tabs into
+  a split, move a pane out to its own tab, maximize a pane, or lock one read only from its
+  header. Right-click menus show each action's keys. Open tabs are listed in the
   left panel above your hosts (or shrink to a strip of icons when it's hidden); drag to
   reorder them. Prefer the classic strip? Preferences → General → Open tabs. Right-click a
   tab to duplicate, reconnect or rename it, or to edit its saved host while it's open.
@@ -107,7 +110,9 @@ Website: [tuxshell.io](https://tuxshell.io)
   (as you left it, maximized or full screen) and always on top (X11 and macOS). Saved to
   `~/.config/tuxshell/settings.json` (on macOS in `~/Library/Application Support/TuxShell/`).
 - **Terminal menu** (right-click): copy, paste, set title, split, open in new tab, read
-  only, scrollbar, zoom. Ctrl+mouse wheel zooms text.
+  only, scrollbar, zoom, each with its keys. Ctrl+mouse wheel zooms text. Pasting text with
+  line breaks shows it first and asks (Preferences → General → *Ask before pasting several
+  lines*), so a paste can't run commands you didn't mean to.
 - **Dark and light themes**, or follow the system.
 - **About and updates** (Preferences → About): the version and project links. Check for
   updates on request and at startup (on by default; turn it off in Preferences → About). TuxShell only
@@ -209,6 +214,20 @@ macOS support is new, so please [report](https://github.com/vgrigolaia/TuxShell/
 that doesn't work. Test builds (versions like `1.6.1-beta.1`) appear on the releases page as
 pre-releases, with only the `.dmg`; the update check never offers them.
 
+## Jump hosts
+
+To reach a server through another one (a bastion), open the server in the host editor and pick
+the **Jump host**: click the field and type part of a saved host's name or address to find it.
+Any saved SSH host can be a jump host. TuxShell uses that host's address, user and port, plus
+its own jump host if it has one. **Test** checks the login through the jump host before you save.
+
+Choose **Other** to type an address or a `~/.ssh/config` name instead (`user@host:port`;
+separate several hops with commas). Jump hosts configured in `~/.ssh/config` keep working too.
+
+The jump host signs in with your keys or SSH agent (for example the 1Password agent); its
+saved key file and password aren't used for the hop, and a password it asks for is typed in the
+terminal.
+
 ## Where your data lives
 
 | What | Where |
@@ -240,6 +259,12 @@ TuxShell can log you in three ways (Preferences → Security):
   host, tick *Remember* at a password prompt, or import a file that contains it. Passwords are
   stored encrypted in your system keyring (GNOME Keyring or KWallet on Linux, the Keychain on
   macOS) and unlocked when you log in. Anyone using your logged-in session can use them.
+
+If a server's key changes (after a reinstall, or because someone is in the middle of the
+connection), ssh refuses to connect. The tab then explains what happened, shows the new key's
+fingerprint and offers *Remove old key and reconnect*. That removes only this host's (or its jump
+host's) old entry from your `known_hosts`, and ssh then shows the new key in the terminal and asks
+you to accept it. If you don't know why the key changed, ask the server's admin first.
 
 When ssh asks for a password, TuxShell answers through ssh's own `SSH_ASKPASS` mechanism over a
 private socket, so the password never appears in ssh's command line, its environment or the
