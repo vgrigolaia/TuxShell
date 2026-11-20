@@ -19,6 +19,7 @@ import (
 	"github.com/vgrigolaia/tuxshell/internal/cliphist"
 	"github.com/vgrigolaia/tuxshell/internal/files"
 	"github.com/vgrigolaia/tuxshell/internal/hostio"
+	"github.com/vgrigolaia/tuxshell/internal/hostkeys"
 	"github.com/vgrigolaia/tuxshell/internal/hosts"
 	"github.com/vgrigolaia/tuxshell/internal/keepassxc"
 	"github.com/vgrigolaia/tuxshell/internal/login"
@@ -263,6 +264,7 @@ func main() {
 			application.NewService(logins.Service()),
 			application.NewService(hosts.NewService(store)),
 			application.NewService(osdetect.NewService(resolver)),
+			application.NewService(hostkeys.NewService(resolver)),
 			application.NewService(sshconfig.NewService(store, sshConfigPath)),
 			application.NewService(hostFiles),
 			application.NewService(clips),

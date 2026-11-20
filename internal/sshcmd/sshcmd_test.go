@@ -295,3 +295,21 @@ func TestDraftRemoteResolvesSavedJump(t *testing.T) {
 		t.Fatalf("args = %q, want -J jump.user@203.0.113.7", args)
 	}
 }
+
+func TestKeyName(t *testing.T) {
+	home, _ := os.UserHomeDir()
+	cases := map[string]string{
+		"hostname 10.0.0.5\nport 22\nuserknownhostsfile ~/.ssh/known_hosts ~/.ssh/known_hosts2\n": "10.0.0.5",
+		"hostname 10.0.0.5\nport 2222\n":                  "[10.0.0.5]:2222",
+		"hostname 10.0.0.5\nport 22\nhostkeyalias pg01\n": "pg01",
+	}
+	for out, want := range cases {
+		name, files := keyName(out)
+		if name != want {
+			t.Errorf("keyName(%q) = %q, want %q", out, name, want)
+		}
+		if strings.Contains(out, "known_hosts2") && (len(files) != 2 || files[0] != filepath.Join(home, ".ssh/known_hosts")) {
+			t.Errorf("files = %q", files)
+		}
+	}
+}
